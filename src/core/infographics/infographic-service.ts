@@ -1,6 +1,12 @@
 import "server-only";
 import { getLLMProvider, getInfographicImageProvider, getImageProvider } from "@/core/ai/providers";
-import type { ImageProvider } from "@/core/ai/providers/types";
+import type {
+  ImageJobHandle,
+  ImageJobStatus,
+  I2IRequest,
+  T2IRequest,
+} from "@/core/ai/providers/types";
+import { ProviderError } from "@/lib/errors";
 import { uid } from "@/lib/utils";
 import type {
   InfographicInput,
@@ -334,7 +340,7 @@ function canBakeText(providerId: string): boolean {
   return providerId === "fal-gpt-image" || providerId === "openai";
 }
 
-export async function generateInfographicBase(args: {
+export type InfographicBaseArgs = {
   brief: InfographicBrief;
   /** the user's product photo */
   productImage?: string;
@@ -342,10 +348,23 @@ export async function generateInfographicBase(args: {
   styleReferenceImage?: string;
   productName?: string;
   aspectRatio?: "3:4" | "4:5";
-}): Promise<{ baseImageUrl: string; textBaked: boolean }> {
+};
+
+type BuiltRequest =
+  | { kind: "i2i"; req: I2IRequest }
+  | { kind: "t2i"; req: T2IRequest };
+
+/**
+ * Build the SINGLE image request for the base — identical whatever provider or
+ * transport (sync/async) runs it, so the prompt/branch logic lives in one place.
+ *
+ * When `bake` is true the model renders the Russian text itself (gpt-image), so
+ * the typography is part of the image. When false it produces a clean, text-free
+ * base and the canvas overlay adds the text (Flux path).
+ */
+function buildBaseRequest(args: InfographicBaseArgs, bake: boolean): BuiltRequest {
   const aspectRatio = args.aspectRatio ?? "3:4";
   const product = args.productName?.trim() || "the user's product";
-
   const bakedPrompt = () =>
     buildBakedCardPrompt({
       productName: product,
@@ -356,18 +375,16 @@ export async function generateInfographicBase(args: {
       hasProductImage: !!args.productImage || !!args.styleReferenceImage,
     });
 
-  // When `bake` is true the model renders the Russian text itself (gpt-image),
-  // so the typography is part of the image. When false it produces a clean,
-  // text-free base and the canvas overlay adds the text (Flux path).
-  const run = async (image: ImageProvider, bake: boolean): Promise<string> => {
-    // Custom style reference + product photo: give the model BOTH images — the
-    // product MUST come from the user's photo, the reference supplies STYLE only
-    // (gpt-image-2 takes multiple images; single-image models use just the product).
-    if (args.styleReferenceImage && args.productImage) {
-      const twoImageNote = bake
-        ? ` Two images are provided. The FIRST image is the user's product — keep THAT exact product (same garment, colors, materials, person/identity). The SECOND image is a STYLE REFERENCE ONLY: copy its composition, layout rhythm, palette, typography and decorative language, but DO NOT reuse its product, its model, its photo or its text.`
-        : ` The product is the FIRST image — keep it unchanged. Use the SECOND image only as a STYLE reference (palette, composition, rhythm); do not copy its product or text. Remove any text/logo, leave empty space for a future text overlay.`;
-      const res = await image.imageToImage({
+  // Custom style reference + product photo: give the model BOTH images — the
+  // product MUST come from the user's photo, the reference supplies STYLE only
+  // (gpt-image-2 takes multiple images; single-image models use just the product).
+  if (args.styleReferenceImage && args.productImage) {
+    const twoImageNote = bake
+      ? ` Two images are provided. The FIRST image is the user's product — keep THAT exact product (same garment, colors, materials, person/identity). The SECOND image is a STYLE REFERENCE ONLY: copy its composition, layout rhythm, palette, typography and decorative language, but DO NOT reuse its product, its model, its photo or its text.`
+      : ` The product is the FIRST image — keep it unchanged. Use the SECOND image only as a STYLE reference (palette, composition, rhythm); do not copy its product or text. Remove any text/logo, leave empty space for a future text overlay.`;
+    return {
+      kind: "i2i",
+      req: {
         prompt: (bake ? bakedPrompt() : args.brief.imagePrompt) + twoImageNote,
         negativePrompt: bake ? undefined : args.brief.negativePrompt,
         referenceImageDataUrl: args.productImage,
@@ -375,72 +392,170 @@ export async function generateInfographicBase(args: {
         strength: 0.5,
         aspectRatio,
         count: 1,
-      });
-      return res.images[0].url;
-    }
+      },
+    };
+  }
 
-    // Style reference but NO product photo: restyle the reference itself.
-    if (args.styleReferenceImage) {
-      const styleNote =
-        ` The provided image is a STYLE REFERENCE: reproduce its visual style — layout rhythm,` +
-        ` palette, background, lighting and composition — but the product MUST be ${product}, not` +
-        ` the reference's. Replace the reference product with ${product}.`;
-      const prompt = bake
-        ? bakedPrompt() + styleNote
-        : `${args.brief.imagePrompt}${styleNote} Remove any text, captions or logo from the reference. Clean base only, leave empty space for a future text overlay.`;
-      const res = await image.imageToImage({
+  // Style reference but NO product photo: restyle the reference itself.
+  if (args.styleReferenceImage) {
+    const styleNote =
+      ` The provided image is a STYLE REFERENCE: reproduce its visual style — layout rhythm,` +
+      ` palette, background, lighting and composition — but the product MUST be ${product}, not` +
+      ` the reference's. Replace the reference product with ${product}.`;
+    const prompt = bake
+      ? bakedPrompt() + styleNote
+      : `${args.brief.imagePrompt}${styleNote} Remove any text, captions or logo from the reference. Clean base only, leave empty space for a future text overlay.`;
+    return {
+      kind: "i2i",
+      req: {
         prompt,
         negativePrompt: bake ? undefined : args.brief.negativePrompt,
         referenceImageDataUrl: args.styleReferenceImage,
         strength: 0.72,
         aspectRatio,
         count: 1,
-      });
-      return res.images[0].url;
-    }
+      },
+    };
+  }
 
-    if (args.productImage) {
-      const res = await image.imageToImage({
+  if (args.productImage) {
+    return {
+      kind: "i2i",
+      req: {
         prompt: bake ? bakedPrompt() : args.brief.imagePrompt,
         negativePrompt: bake ? undefined : args.brief.negativePrompt,
         referenceImageDataUrl: args.productImage,
         strength: 0.5,
         aspectRatio,
         count: 1,
-      });
-      return res.images[0].url;
-    }
+      },
+    };
+  }
 
-    const res = await image.textToImage({
+  return {
+    kind: "t2i",
+    req: {
       prompt: bake ? bakedPrompt() : args.brief.imagePrompt,
       negativePrompt: bake ? undefined : args.brief.negativePrompt,
       aspectRatio,
       count: 1,
-    });
-    return res.images[0].url;
+    },
   };
+}
 
-  // The infographic provider (e.g. gpt-image) can hard-fail on some photos —
-  // most notably OpenAI's content moderation rejecting fashion/skin shots. When
-  // it differs from the default image provider, fall back to it (Flux) so the
-  // user always gets a base instead of a dead end. The fallback can't render
-  // Cyrillic, so it produces a clean base and the canvas overlay takes over.
+/** Run a built request synchronously against a provider and return the image URL. */
+async function execSync(
+  image: { imageToImage: (r: I2IRequest) => Promise<{ images: { url: string }[] }>; textToImage: (r: T2IRequest) => Promise<{ images: { url: string }[] }> },
+  built: BuiltRequest,
+): Promise<string> {
+  const res = built.kind === "i2i" ? await image.imageToImage(built.req) : await image.textToImage(built.req);
+  return res.images[0].url;
+}
+
+/**
+ * The infographic provider (e.g. gpt-image) can hard-fail on some photos — most
+ * notably OpenAI's content moderation rejecting fashion/skin shots. Fall back to
+ * the default image provider (Flux) so the user always gets a base instead of a
+ * dead end. Flux can't render Cyrillic, so it produces a clean base and the
+ * canvas overlay takes over. Flux is fast, so this stays synchronous.
+ */
+async function fallbackBase(
+  args: InfographicBaseArgs,
+  err: unknown,
+  primaryId: string,
+): Promise<{ baseImageUrl: string; textBaked: boolean }> {
+  const fallback = getImageProvider();
+  if (fallback.id === primaryId) throw err;
+  // eslint-disable-next-line no-console
+  console.warn(
+    `[infographic] base provider "${primaryId}" failed (${
+      err instanceof Error ? err.message : String(err)
+    }); falling back to "${fallback.id}".`,
+  );
+  const fallbackBakes = canBakeText(fallback.id);
+  const baseImageUrl = await execSync(fallback, buildBaseRequest(args, fallbackBakes));
+  return { baseImageUrl, textBaked: fallbackBakes };
+}
+
+/**
+ * Submit the base generation. For queue-backed providers (gpt-image) this returns
+ * a job handle almost immediately so the client can poll — no long-held request.
+ * Fast providers (mock, Flux) run inline and return the result directly. Any
+ * submit-time failure falls back to Flux synchronously.
+ */
+export async function submitInfographicBase(
+  args: InfographicBaseArgs,
+): Promise<
+  | { kind: "done"; baseImageUrl: string; textBaked: boolean }
+  | { kind: "job"; job: ImageJobHandle; textBaked: boolean }
+> {
   const primary = getInfographicImageProvider();
   const primaryBakes = canBakeText(primary.id);
   try {
-    const baseImageUrl = await run(primary, primaryBakes);
-    return { baseImageUrl, textBaked: primaryBakes };
+    const built = buildBaseRequest(args, primaryBakes);
+    if (primary.supportsAsync && primary.submitImageToImage && primary.submitTextToImage) {
+      const job =
+        built.kind === "i2i"
+          ? await primary.submitImageToImage(built.req)
+          : await primary.submitTextToImage(built.req);
+      return { kind: "job", job, textBaked: primaryBakes };
+    }
+    const baseImageUrl = await execSync(primary, built);
+    return { kind: "done", baseImageUrl, textBaked: primaryBakes };
   } catch (err) {
-    const fallback = getImageProvider();
-    if (fallback.id === primary.id) throw err;
-    // eslint-disable-next-line no-console
-    console.warn(
-      `[infographic] base provider "${primary.id}" failed (${
-        err instanceof Error ? err.message : String(err)
-      }); falling back to "${fallback.id}".`,
+    const fb = await fallbackBase(args, err, primary.id);
+    return { kind: "done", ...fb };
+  }
+}
+
+/** Poll a previously submitted base job (one short HTTP round-trip). */
+export async function pollInfographicJob(job: ImageJobHandle): Promise<ImageJobStatus> {
+  const primary = getInfographicImageProvider();
+  if (!primary.pollJob) {
+    throw new ProviderError(
+      "Асинхронная генерация недоступна для текущего провайдера.",
+      "provider has no pollJob",
     );
-    const fallbackBakes = canBakeText(fallback.id);
-    const baseImageUrl = await run(fallback, fallbackBakes);
-    return { baseImageUrl, textBaked: fallbackBakes };
+  }
+  return primary.pollJob(job);
+}
+
+/**
+ * Forced fallback: the async gpt-image job failed on the client (e.g. moderation),
+ * so render a clean base with Flux synchronously. Same branch logic, same overlay.
+ */
+export async function generateInfographicFallback(
+  args: InfographicBaseArgs,
+): Promise<{ baseImageUrl: string; textBaked: boolean }> {
+  const primary = getInfographicImageProvider();
+  return fallbackBase(
+    args,
+    new ProviderError("Основной генератор недоступен.", "forced fallback after job failure"),
+    primary.id,
+  );
+}
+
+/**
+ * Synchronous base generation (submit + poll to completion in-process). Kept for
+ * completeness / non-async callers; the interactive flow uses submit + client
+ * polling instead so it survives short serverless timeouts.
+ */
+export async function generateInfographicBase(
+  args: InfographicBaseArgs,
+): Promise<{ baseImageUrl: string; textBaked: boolean }> {
+  const submitted = await submitInfographicBase(args);
+  if (submitted.kind === "done") {
+    return { baseImageUrl: submitted.baseImageUrl, textBaked: submitted.textBaked };
+  }
+  const deadline = Date.now() + 240_000;
+  for (;;) {
+    await new Promise((r) => setTimeout(r, 2500));
+    const st = await pollInfographicJob(submitted.job);
+    if (st.status === "completed" && st.images?.length) {
+      return { baseImageUrl: st.images[0].url, textBaked: submitted.textBaked };
+    }
+    if (st.status === "failed" || Date.now() > deadline) {
+      return generateInfographicFallback(args);
+    }
   }
 }

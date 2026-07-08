@@ -137,4 +137,18 @@ export const infographicGenerateSchema = z.object({
   styleReferenceImage: z.string().optional(),
   productName: z.string().max(200).optional(),
   aspectRatio: z.enum(["3:4", "4:5"]).optional(),
+  /** skip the async gpt-image job and render a clean Flux base synchronously —
+   *  the client sets this after a queued job fails (e.g. content moderation). */
+  forceFallback: z.boolean().optional(),
+});
+
+/** Handle to an in-flight fal queue job, echoed back to /generate/status. */
+export const imageJobHandleSchema = z.object({
+  provider: z.string(),
+  statusUrl: z.string().url(),
+  responseUrl: z.string().url(),
+});
+
+export const infographicStatusSchema = z.object({
+  job: imageJobHandleSchema,
 });
