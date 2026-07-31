@@ -72,7 +72,7 @@ function GeneratorInner() {
   };
 
   return (
-    <div className="mx-auto grid max-w-6xl gap-5 lg:grid-cols-[1fr_1fr]">
+    <div className="mx-auto grid max-w-6xl gap-5 pb-20 md:pb-0 lg:grid-cols-[1fr_1fr]">
       {/* BLOCK 1 — Product data */}
       <Card>
         <CardHeader className="pb-3">
@@ -313,6 +313,19 @@ function GeneratorInner() {
             )}
           </CardContent>
         </Card>
+      </div>
+
+      {/* Mobile: the generate CTA is always in reach at the bottom of the screen */}
+      <div className="fixed inset-x-0 bottom-0 z-30 border-t bg-background/90 p-3 backdrop-blur-xl md:hidden">
+        <Button
+          onClick={() => generate()}
+          disabled={busy || !s.userPrompt.trim()}
+          variant="gradient"
+          className="w-full"
+        >
+          {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />}
+          Сгенерировать карточку
+        </Button>
       </div>
     </div>
   );
