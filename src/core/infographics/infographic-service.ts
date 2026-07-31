@@ -17,6 +17,7 @@ import type {
 } from "./types";
 import { LAYOUT_BY_TYPE, resolveStyle } from "./layout-presets";
 import { buildBakedCardPrompt } from "./infographic-prompt-builder";
+import { STYLE_REF_IMAGES } from "./style-ref-images";
 import { assembleBrief, buildInfographicBriefFallback, type BriefCopy } from "./brief-builder";
 import { DEFAULT_STYLE_PROFILE } from "./style-library";
 import { layoutPlanSchema } from "./schemas";
@@ -367,6 +368,15 @@ type BuiltRequest =
 function buildBaseRequest(args: InfographicBaseArgs, bake: boolean): BuiltRequest {
   const aspectRatio = args.aspectRatio ?? "3:4";
   const product = args.productName?.trim() || "the user's product";
+  // Library styles come with a real exemplar card baked at build time — passing
+  // it as the style image transfers the look far stronger than palette words.
+  // A user-uploaded reference always wins over the library exemplar.
+  const styleReferenceImage =
+    args.styleReferenceImage ??
+    (args.brief.styleProfile?.source === "library"
+      ? STYLE_REF_IMAGES[args.brief.styleProfile.id]
+      : undefined);
+  args = { ...args, styleReferenceImage };
   const bakedPrompt = () =>
     buildBakedCardPrompt({
       productName: product,
