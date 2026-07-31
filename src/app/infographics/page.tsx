@@ -130,6 +130,23 @@ export default function InfographicsPage() {
     setBrief(assembleBrief(buildInput(), edit, styleProfile ?? undefined, brief?.layoutPlan));
   };
 
+  // Changing the type / visual style / reference must actually reach the image
+  // prompt — reassemble the existing brief with the current selections (keeps
+  // the user's edited text and the per-photo layout plan).
+  React.useEffect(() => {
+    setBrief((prev) =>
+      prev
+        ? assembleBrief(
+            buildInput(),
+            { headline: prev.headline, subheadline: prev.subheadline, blocks: prev.blocks },
+            styleProfile ?? undefined,
+            prev.layoutPlan,
+          )
+        : prev,
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [type, style, styleProfile]);
+
   const handleGenerate = async () => {
     if (!brief || generatingRef.current) return;
     generatingRef.current = true;
@@ -273,7 +290,11 @@ export default function InfographicsPage() {
               </div>
               <div className="space-y-1.5">
                 <Label className="text-xs">Визуальный стиль</Label>
-                <Select value={style} onValueChange={(v) => setStyle(v as InfographicStyle)}>
+                <Select
+                  value={style}
+                  onValueChange={(v) => setStyle(v as InfographicStyle)}
+                  disabled={!!styleProfile}
+                >
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
@@ -285,6 +306,12 @@ export default function InfographicsPage() {
                     ))}
                   </SelectContent>
                 </Select>
+                {styleProfile && (
+                  <p className="text-[11px] leading-4 text-muted-foreground">
+                    Стиль задаёт референс «{styleProfile.name}» — снимите его выбор ниже, чтобы
+                    выбрать вручную.
+                  </p>
+                )}
               </div>
             </div>
 

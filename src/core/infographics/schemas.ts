@@ -126,6 +126,9 @@ export const infographicBriefSchema = z.object({
   negativePrompt: z.string(),
   overlayPlan: overlayPlanSchema,
   layoutPlan: layoutPlanSchema.optional(),
+  // without this the reference/library style silently never reached generation:
+  // zod strips unknown keys, so the baked prompt saw styleProfile=undefined
+  styleProfile: styleProfileSchema.optional(),
   warnings: z.array(z.string()).default([]),
 });
 

@@ -15,7 +15,7 @@ import type {
   InfographicBlock,
   StyleProfile,
 } from "./types";
-import { LAYOUT_BY_TYPE } from "./layout-presets";
+import { LAYOUT_BY_TYPE, resolveStyle } from "./layout-presets";
 import { buildBakedCardPrompt } from "./infographic-prompt-builder";
 import { assembleBrief, buildInfographicBriefFallback, type BriefCopy } from "./brief-builder";
 import { DEFAULT_STYLE_PROFILE } from "./style-library";
@@ -371,7 +371,11 @@ function buildBaseRequest(args: InfographicBaseArgs, bake: boolean): BuiltReques
       headline: args.brief.headline,
       subheadline: args.brief.subheadline,
       benefits: args.brief.blocks.map((b) => b.title).filter(Boolean),
+      type: args.brief.type,
+      // brief.style is stored resolved; resolveStyle guards a stray "auto"
+      style: resolveStyle(args.brief.style),
       styleProfile: args.brief.styleProfile,
+      layoutPlan: args.brief.layoutPlan,
       hasProductImage: !!args.productImage || !!args.styleReferenceImage,
     });
 

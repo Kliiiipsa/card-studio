@@ -60,8 +60,10 @@ export function InfographicReferencePicker({
               <button
                 key={item.id}
                 type="button"
+                // clicking the active card deselects it — the manual "Визуальный
+                // стиль" select takes over
                 onClick={() => {
-                  onChange(getLibraryStyle(item.id));
+                  onChange(active ? null : getLibraryStyle(item.id));
                   onReferenceImageChange?.(null);
                 }}
                 className={cn(
