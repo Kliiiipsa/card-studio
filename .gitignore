@@ -4,6 +4,7 @@ out
 build
 .env
 .env.local
+.data
 .DS_Store
 *.tsbuildinfo
 next-env.d.ts

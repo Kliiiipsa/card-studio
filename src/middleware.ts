@@ -1,23 +1,41 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { GATE_COOKIE, gateToken } from "@/lib/auth";
+import { SESSION_COOKIE, verifySessionToken } from "@/core/auth/session";
 
 /**
- * Whole-site access gate. If ACCESS_PASSWORD is set, every route requires a valid
- * gate cookie; otherwise the gate is disabled (e.g. local dev without the env).
- * /login and the auth endpoints stay open so the user can sign in.
+ * Whole-site auth gate on signed session cookies (email accounts). If
+ * AUTH_SECRET is unset the gate is disabled (e.g. local dev without env).
+ * /login, /register and the auth endpoints stay open; /admin additionally
+ * requires the admin role.
  */
 export async function middleware(req: NextRequest) {
-  const password = process.env.ACCESS_PASSWORD;
-  if (!password) return NextResponse.next();
+  const secret = process.env.AUTH_SECRET;
+  if (!secret) return NextResponse.next();
 
   const { pathname } = req.nextUrl;
-  if (pathname.startsWith("/login") || pathname.startsWith("/api/auth")) {
+  if (
+    pathname.startsWith("/login") ||
+    pathname.startsWith("/register") ||
+    pathname.startsWith("/api/auth")
+  ) {
     return NextResponse.next();
   }
 
-  const cookie = req.cookies.get(GATE_COOKIE)?.value;
-  const expected = await gateToken(password);
-  if (cookie && cookie === expected) return NextResponse.next();
+  const token = req.cookies.get(SESSION_COOKIE)?.value;
+  const session = await verifySessionToken(secret, token);
+
+  if (session) {
+    const isAdminArea = pathname.startsWith("/admin") || pathname.startsWith("/api/admin");
+    if (isAdminArea && session.role !== "admin") {
+      if (pathname.startsWith("/api")) {
+        return NextResponse.json({ error: "Только для администратора." }, { status: 403 });
+      }
+      const url = req.nextUrl.clone();
+      url.pathname = "/";
+      url.search = "";
+      return NextResponse.redirect(url);
+    }
+    return NextResponse.next();
+  }
 
   // API calls get a clean 401; page requests are redirected to the login screen
   if (pathname.startsWith("/api")) {
@@ -25,6 +43,7 @@ export async function middleware(req: NextRequest) {
   }
   const url = req.nextUrl.clone();
   url.pathname = "/login";
+  url.search = "";
   url.searchParams.set("from", pathname);
   return NextResponse.redirect(url);
 }
