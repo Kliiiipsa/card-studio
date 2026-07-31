@@ -63,6 +63,9 @@ export default function InfographicsPage() {
   // synchronous in-flight guard: `generating` state updates async, so two quick
   // clicks (or a double event) could both pass and queue duplicate gpt-image jobs
   const generatingRef = React.useRef(false);
+  // each generate click advances the seed → the next base gets a different
+  // composition variant (the pool lives in composition-variants.ts)
+  const variantSeedRef = React.useRef(0);
 
   const buildInput = (): InfographicInput => ({
     productName: product.name,
@@ -158,7 +161,9 @@ export default function InfographicsPage() {
         styleReferenceImage: styleReferenceImage ?? undefined,
         productName: product.name || undefined,
         aspectRatio: "3:4",
+        variantSeed: variantSeedRef.current,
       });
+      variantSeedRef.current += 1; // next generate → next composition
       setBaseImageUrl(r.baseImageUrl);
       setBrief(r.brief);
       setTextBaked(r.textBaked);

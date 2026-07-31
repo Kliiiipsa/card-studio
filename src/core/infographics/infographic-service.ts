@@ -348,6 +348,8 @@ export type InfographicBaseArgs = {
   styleReferenceImage?: string;
   productName?: string;
   aspectRatio?: "3:4" | "4:5";
+  /** advanced by the client on each regenerate → next composition variant */
+  variantSeed?: number;
 };
 
 type BuiltRequest =
@@ -377,6 +379,7 @@ function buildBaseRequest(args: InfographicBaseArgs, bake: boolean): BuiltReques
       styleProfile: args.brief.styleProfile,
       layoutPlan: args.brief.layoutPlan,
       hasProductImage: !!args.productImage || !!args.styleReferenceImage,
+      variantSeed: args.variantSeed,
     });
 
   // Custom style reference + product photo: give the model BOTH images — the

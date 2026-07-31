@@ -143,6 +143,8 @@ export const infographicGenerateSchema = z.object({
   /** skip the async gpt-image job and render a clean Flux base synchronously —
    *  the client sets this after a queued job fails (e.g. content moderation). */
   forceFallback: z.boolean().optional(),
+  /** advanced by the client on each regenerate → next composition variant */
+  variantSeed: z.number().int().min(0).max(1000).optional(),
 });
 
 /** Handle to an in-flight fal queue job, echoed back to /generate/status. */

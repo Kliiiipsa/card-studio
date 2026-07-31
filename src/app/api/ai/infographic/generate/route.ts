@@ -27,6 +27,7 @@ export async function POST(req: Request) {
       styleReferenceImage: body.styleReferenceImage,
       productName: body.productName,
       aspectRatio: body.aspectRatio,
+      variantSeed: body.variantSeed,
     };
 
     // Client asks for the Flux fallback after a queued gpt-image job failed.

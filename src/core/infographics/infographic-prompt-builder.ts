@@ -1,6 +1,7 @@
 import type { InfographicInput, InfographicStyle, InfographicType, StyleProfile } from "./types";
 import { STYLE_PRESETS, LAYOUT_BY_TYPE, resolveStyle } from "./layout-presets";
 import { placementOf, type LayoutPlan, type NormBox } from "./layout-plan";
+import { hashSeed, pickCompositionVariant, type ProductSide } from "./composition-variants";
 
 /** Describe the planned product side + clean text zones, in plain words for Flux. */
 function describeZones(plan: LayoutPlan): string {
@@ -153,7 +154,7 @@ function describeBakedStyle(
       `Lighting: ${sp.lighting}`,
       `Accent color: ${sp.palette[0]}`,
       restyleScene
-        ? "Restyle the scene to match this style: replace the photo's original background and lighting; keep only the product/person unchanged."
+        ? "Rebuild the background and lighting to match this style, but keep the scene photographic and dimensional — subtle depth, soft shadows, believable environment, never a flat empty backdrop. Keep the product/person unchanged."
         : "",
     ]
       .filter(Boolean)
@@ -179,33 +180,38 @@ function describeBakedStyle(
     .join(". ");
 }
 
-/** Union of boxes → where the caption group should live. */
-function unionBox(boxes: NormBox[]): NormBox | null {
-  if (!boxes.length) return null;
-  const x1 = Math.min(...boxes.map((b) => b.x));
-  const y1 = Math.min(...boxes.map((b) => b.y));
-  const x2 = Math.max(...boxes.map((b) => b.x + b.w));
-  const y2 = Math.max(...boxes.map((b) => b.y + b.h));
-  return { x: x1, y: y1, w: x2 - x1, h: y2 - y1 };
+/** Which side of the frame the product occupies, from the vision plan. */
+function productSideOf(plan: LayoutPlan | undefined): ProductSide {
+  if (!plan) return "center";
+  const place = placementOf(plan.product);
+  if (place.includes("left")) return "left";
+  if (place.includes("right")) return "right";
+  return "center";
 }
 
 /**
- * Turn the per-photo vision plan into designer language for gpt-image, so the
- * composition adapts to each photo instead of repeating one static template.
+ * Composition = a named archetype from the variant pool (deterministic per
+ * product, advanced by the regenerate seed) + the photo-specific product
+ * placement from the vision plan. This is what keeps different products —
+ * and successive regenerations — from repeating one static template.
  */
-function describeBakedComposition(plan: LayoutPlan | undefined, type: InfographicType): string {
-  if (!plan) return `Composition: ${LAYOUT_BY_TYPE[type].compositionHint}.`;
-  const parts = [
-    `the product occupies the ${placementOf(plan.product)} of the frame`,
-    `place the headline at the ${plan.headline.side}, ${plan.headline.align}-aligned`,
-  ];
-  const captionsZone = unionBox(plan.benefits.map((b) => b.box));
-  if (captionsZone) {
-    parts.push(
-      `arrange the caption group in the ${placementOf(captionsZone)} area, clear of the product`,
-    );
-  }
-  return `Composition, adapted to THIS photo — ${parts.join("; ")}.`;
+function describeBakedComposition(args: {
+  plan: LayoutPlan | undefined;
+  type: InfographicType;
+  benefitCount: number;
+  productName: string;
+  variantSeed: number;
+}): string {
+  const side = productSideOf(args.plan);
+  const variant = pickCompositionVariant({
+    seed: hashSeed(args.productName) + args.variantSeed,
+    type: args.type,
+    productSide: side,
+  });
+  const photoHint = args.plan
+    ? ` In the source photo the product sits at the ${placementOf(args.plan.product)} — place text in the free space around it.`
+    : "";
+  return `Composition: ${variant.describe(Math.max(args.benefitCount, 1))}${photoHint}`;
 }
 
 /**
@@ -224,6 +230,8 @@ export function buildBakedCardPrompt(args: {
   styleProfile?: StyleProfile;
   layoutPlan?: LayoutPlan;
   hasProductImage: boolean;
+  /** advanced on each regenerate so the next base tries another composition */
+  variantSeed?: number;
 }): string {
   const { productName, headline, subheadline, benefits, type, style, styleProfile, layoutPlan } =
     args;
@@ -244,7 +252,13 @@ export function buildBakedCardPrompt(args: {
     `Card purpose: ${spec.intent}.`,
     "Portrait 3:4 composition, product as the hero with tasteful clean space for text.",
     describeBakedStyle(style, styleProfile, args.hasProductImage) + ".",
-    describeBakedComposition(layoutPlan, type),
+    describeBakedComposition({
+      plan: layoutPlan,
+      type,
+      benefitCount: benefits.length,
+      productName: product,
+      variantSeed: args.variantSeed ?? 0,
+    }),
     "Render the following RUSSIAN text directly inside the image as polished, modern marketplace typography — integrated into the layout, NOT as flat stickers, plastic pills or pasted badges:",
     `• Headline (large, bold): «${headline.trim()}»`,
     subheadline ? `• Subheadline (smaller, lighter): «${subheadline.trim()}»` : "",

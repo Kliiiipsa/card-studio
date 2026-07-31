@@ -41,6 +41,8 @@ type InfographicGenerateArgs = {
   styleReferenceImage?: string;
   productName?: string;
   aspectRatio?: "3:4" | "4:5";
+  /** advanced on each regenerate → next composition variant */
+  variantSeed?: number;
 };
 
 /** /generate returns either a finished base (fast providers) or a job to poll. */
