@@ -28,17 +28,47 @@ export const cardIdeaSchema = z.object({
   keyPoints: z.array(z.string()).default([]),
 });
 
+export const analysisProblemSchema = z.object({
+  issue: z.string(),
+  severity: z.enum(["high", "medium", "low"]).default("medium"),
+  fix: z.string().default(""),
+});
+
+export const textRewriteSchema = z.object({
+  /** the exact text currently on the card; "" when the element is missing */
+  current: z.string().default(""),
+  better: z.string(),
+});
+
 export const analysisReportSchema = z.object({
+  /** grounding: what the model actually sees — all advice must follow from it */
+  observed: z
+    .object({
+      product: z.string().default(""),
+      existingText: z.array(z.string()).default([]),
+      composition: z.string().default(""),
+    })
+    .default({ product: "", existingText: [], composition: "" }),
   diagnosis: z.string(),
   mainProblem: z.string(),
-  blockersToPurchase: z.array(z.string()).default([]),
   whatWorks: z.array(z.string()).default([]),
-  fixFirst: z.array(z.string()).default([]),
-  newCardIdeas: z.array(cardIdeaSchema).default([]),
-  textTips: z.array(z.string()).default([]),
+  /** prioritized, deduplicated problems, each with a concrete fix */
+  problems: z.array(analysisProblemSchema).default([]),
+  /** ready-to-use copy */
+  headlineIdeas: z.array(z.string()).default([]),
+  benefitTexts: z.array(z.string()).default([]),
+  textRewrites: z.array(textRewriteSchema).default([]),
   visualTips: z.array(z.string()).default([]),
+  /** readability at WB search-grid thumbnail size (~200px) */
+  thumbnailTest: z
+    .object({ readable: z.boolean().default(false), verdict: z.string().default("") })
+    .default({ readable: false, verdict: "" }),
+  /** claims risky for WB moderation (medical promises, unprovable "best" etc.) */
+  riskFlags: z.array(z.string()).default([]),
+  newCardIdeas: z.array(cardIdeaSchema).default([]),
   scores: cardScoreSchema,
-  improvementPlan: z.array(z.string()).default([]),
+  /** one short sentence per score axis explaining the number */
+  scoreReasons: z.record(z.string()).default({}),
 });
 
 export const structuredPromptSchema = z.object({
@@ -75,6 +105,8 @@ export const looseProductSchema = z
 export const analyzeRequestSchema = z.object({
   imageDataUrl: z.string().min(1),
   product: looseProductSchema.optional(),
+  /** what worries the seller (low CTR, no conversions…) — focuses the analysis */
+  concern: z.string().max(300).optional(),
 });
 
 export const ideasRequestSchema = z.object({

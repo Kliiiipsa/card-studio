@@ -38,6 +38,7 @@ import {
 } from "@/core/infographics/types";
 import { assembleBrief } from "@/core/infographics/brief-builder";
 import { DEFAULT_STYLE_PROFILE } from "@/core/infographics/style-library";
+import { INFOGRAPHICS_PREFILL_KEY } from "@/components/ai/analysis-report";
 
 export default function InfographicsPage() {
   const [product, setProduct] = React.useState<ProductInfo>({ ...EMPTY_PRODUCT });
@@ -132,6 +133,26 @@ export default function InfographicsPage() {
   const handleBriefEdit = (edit: BriefEdit) => {
     setBrief(assembleBrief(buildInput(), edit, styleProfile ?? undefined, brief?.layoutPlan));
   };
+
+  // Prefill from the analysis section ("Собрать инфографику" on a card idea):
+  // product name, benefits and the suggested headline arrive via sessionStorage.
+  React.useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem(INFOGRAPHICS_PREFILL_KEY);
+      if (!raw) return;
+      sessionStorage.removeItem(INFOGRAPHICS_PREFILL_KEY);
+      const p = JSON.parse(raw) as { name?: string; headline?: string; benefits?: string[] };
+      setProduct((s) => ({
+        ...s,
+        name: p.name || s.name,
+        benefits: p.benefits?.length ? p.benefits : s.benefits,
+      }));
+      if (p.headline) setUserNote(`Заголовок карточки: «${p.headline}»`);
+      toast.success("Идея из анализа подставлена — нажмите «Собрать инфографику»");
+    } catch {
+      // malformed prefill is not worth breaking the page for
+    }
+  }, []);
 
   // Changing the type / visual style / reference must actually reach the image
   // prompt — reassemble the existing brief with the current selections (keeps

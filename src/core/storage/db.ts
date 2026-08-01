@@ -32,3 +32,8 @@ export const templatesTable = (() => {
   ensure();
   return localforage.createInstance({ name: "wb-card-studio", storeName: "templates" });
 })();
+
+export const analysisTable = (() => {
+  ensure();
+  return localforage.createInstance({ name: "wb-card-studio", storeName: "analysis" });
+})();

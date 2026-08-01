@@ -125,8 +125,8 @@ async function generateInfographic(
 }
 
 export const api = {
-  analyze: (imageDataUrl: string, product?: Partial<ProductInfo>) =>
-    post<AnalysisReport>("/api/ai/analyze", { imageDataUrl, product }),
+  analyze: (imageDataUrl: string, product?: Partial<ProductInfo>, concern?: string) =>
+    post<AnalysisReport>("/api/ai/analyze", { imageDataUrl, product, concern }),
 
   ideas: (product: ProductInfo) => post<{ ideas: CardIdea[] }>("/api/ai/ideas", { product }),
 

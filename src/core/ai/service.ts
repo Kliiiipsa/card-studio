@@ -41,6 +41,7 @@ import { STYLE_MAP } from "@/core/domain/styles";
 export async function analyzeProductCard(
   imageDataUrl: string,
   product?: Partial<ProductInfo>,
+  concern?: string,
 ): Promise<AnalysisReport> {
   const llm = getLLMProvider();
   const image = await ensureDataUrl(imageDataUrl);
@@ -53,7 +54,7 @@ export async function analyzeProductCard(
       { role: "system", content: SYSTEM_ANALYST },
       {
         role: "user",
-        content: analysisUserPrompt(product),
+        content: analysisUserPrompt(product, concern),
         imageDataUrl: image,
       },
     ],
@@ -293,18 +294,24 @@ function productBlock(p?: Partial<ProductInfo>): string {
     .join("\n");
 }
 
-function analysisUserPrompt(p?: Partial<ProductInfo>): string {
+function analysisUserPrompt(p?: Partial<ProductInfo>, concern?: string): string {
   return `Проанализируй карточку товара с изображения. Данные о товаре:
 ${productBlock(p)}
-
+${concern ? `\nЧто беспокоит продавца: ${concern}. Сфокусируй анализ и приоритеты на этом.\n` : ""}
 Верни JSON со строго такими полями:
-diagnosis (короткий диагноз), mainProblem (главная проблема), blockersToPurchase (что мешает покупке, массив),
-whatWorks (что хорошо, массив), fixFirst (что исправить в первую очередь, массив),
+observed ({product — какой товар видишь, existingText[] — ВСЕ надписи с карточки дословно (пустой массив, если текста нет), composition — композиция в одном предложении}),
+diagnosis (короткий диагноз), mainProblem (главная проблема одним предложением),
+whatWorks (что уже хорошо, массив),
+problems (массив {issue, severity: "high"|"medium"|"low", fix — конкретное исправление}, отсортируй по важности, каждая проблема ровно один раз),
+headlineIdeas (3 готовых заголовка до 6 слов каждый),
+benefitTexts (3–4 готовых текста для плашек преимуществ, 1–3 слова каждый),
+textRewrites (массив {current — существующая надпись дословно или "" если её нет, better — готовая замена}),
+visualTips (рекомендации по визуалу, массив),
+thumbnailTest ({readable: true/false, verdict — читаемость карточки в миниатюре ~200px одним предложением}),
+riskFlags (рискованные для модерации WB формулировки с карточки; пустой массив, если чисто),
 newCardIdeas (массив объектов {cardType, title, angle, headline, keyPoints[]}),
-textTips (рекомендации по текстам, массив), visualTips (рекомендации по визуалу, массив),
-scores ({cover, infographics, text, composition, trust, sellingPower, total} 0-100),
-improvementPlan (план улучшений, массив).
-Давай конкретику с примерами заголовков и зон размещения.`;
+scores ({cover, infographics, text, composition, trust, sellingPower, total} 0-100 по рубрике),
+scoreReasons ({cover, infographics, text, composition, trust, sellingPower} — по одному короткому предложению-обоснованию).`;
 }
 
 function ideasUserPrompt(p: Partial<ProductInfo>): string {

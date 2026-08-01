@@ -22,7 +22,14 @@ function barColor(v: number) {
   return "bg-destructive";
 }
 
-export function ScoreCard({ score }: { score: CardScore }) {
+export function ScoreCard({
+  score,
+  reasons,
+}: {
+  score: CardScore;
+  /** optional one-line justification per axis (from the analysis report) */
+  reasons?: Record<string, string>;
+}) {
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-4 rounded-xl border bg-gradient-to-br from-primary/5 to-blue-500/5 p-4">
@@ -60,6 +67,7 @@ export function ScoreCard({ score }: { score: CardScore }) {
       <div className="space-y-2.5">
         {AXES.map(({ key, label }) => {
           const v = score[key] as number;
+          const reason = reasons?.[key as string];
           return (
             <div key={key}>
               <div className="mb-1 flex items-center justify-between text-xs">
@@ -72,6 +80,9 @@ export function ScoreCard({ score }: { score: CardScore }) {
                   style={{ width: `${v}%` }}
                 />
               </div>
+              {reason && (
+                <p className="mt-0.5 text-[11px] leading-4 text-muted-foreground">{reason}</p>
+              )}
             </div>
           );
         })}
