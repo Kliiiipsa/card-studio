@@ -73,8 +73,37 @@ export interface ImageResult {
   provider: string;
 }
 
+/**
+ * Handle to an in-flight async generation (queue-backed providers only). It is
+ * returned to the client and passed back to poll, so it must contain NO secrets
+ * — the polling endpoint re-attaches the API key server-side. The fal queue URLs
+ * are safe: useless without the key.
+ */
+export interface ImageJobHandle {
+  provider: string;
+  statusUrl: string;
+  responseUrl: string;
+}
+
+export interface ImageJobStatus {
+  status: "pending" | "completed" | "failed";
+  images?: GeneratedImage[];
+  /** technical reason when status === "failed" (e.g. moderation) */
+  error?: string;
+}
+
 export interface ImageProvider {
   readonly id: string;
   textToImage(req: T2IRequest): Promise<ImageResult>;
   imageToImage(req: I2IRequest): Promise<ImageResult>;
+  /**
+   * Async queue support (optional). Providers backed by a job queue (fal) submit
+   * the job and are polled separately, so no single HTTP request stays open for
+   * the full (multi-minute) generation — required to survive short serverless
+   * function timeouts. Sync providers (mock, Flux) omit these and run inline.
+   */
+  supportsAsync?: boolean;
+  submitTextToImage?(req: T2IRequest): Promise<ImageJobHandle>;
+  submitImageToImage?(req: I2IRequest): Promise<ImageJobHandle>;
+  pollJob?(handle: ImageJobHandle): Promise<ImageJobStatus>;
 }

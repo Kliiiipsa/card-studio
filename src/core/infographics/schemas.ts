@@ -126,6 +126,9 @@ export const infographicBriefSchema = z.object({
   negativePrompt: z.string(),
   overlayPlan: overlayPlanSchema,
   layoutPlan: layoutPlanSchema.optional(),
+  // without this the reference/library style silently never reached generation:
+  // zod strips unknown keys, so the baked prompt saw styleProfile=undefined
+  styleProfile: styleProfileSchema.optional(),
   warnings: z.array(z.string()).default([]),
 });
 
@@ -137,4 +140,20 @@ export const infographicGenerateSchema = z.object({
   styleReferenceImage: z.string().optional(),
   productName: z.string().max(200).optional(),
   aspectRatio: z.enum(["3:4", "4:5"]).optional(),
+  /** skip the async gpt-image job and render a clean Flux base synchronously —
+   *  the client sets this after a queued job fails (e.g. content moderation). */
+  forceFallback: z.boolean().optional(),
+  /** advanced by the client on each regenerate → next composition variant */
+  variantSeed: z.number().int().min(0).max(1000).optional(),
+});
+
+/** Handle to an in-flight fal queue job, echoed back to /generate/status. */
+export const imageJobHandleSchema = z.object({
+  provider: z.string(),
+  statusUrl: z.string().url(),
+  responseUrl: z.string().url(),
+});
+
+export const infographicStatusSchema = z.object({
+  job: imageJobHandleSchema,
 });

@@ -1,6 +1,7 @@
-import type { InfographicInput, InfographicStyle, StyleProfile } from "./types";
+import type { InfographicInput, InfographicStyle, InfographicType, StyleProfile } from "./types";
 import { STYLE_PRESETS, LAYOUT_BY_TYPE, resolveStyle } from "./layout-presets";
 import { placementOf, type LayoutPlan, type NormBox } from "./layout-plan";
+import { hashSeed, pickCompositionVariant, type ProductSide } from "./composition-variants";
 
 /** Describe the planned product side + clean text zones, in plain words for Flux. */
 function describeZones(plan: LayoutPlan): string {
@@ -87,6 +88,132 @@ export function buildInfographicImagePrompt(
   return { imagePrompt, negativePrompt: NEGATIVE, backgroundPrompt: background };
 }
 
+/* --------------------- baked-card (gpt-image) prompt --------------------- */
+
+/** How each infographic TYPE presents its blocks inside the baked card. */
+const TYPE_BAKED_SPEC: Record<
+  InfographicType,
+  { intent: string; blocks: (n: number, list: string) => string }
+> = {
+  benefits: {
+    intent: "sell the product's key benefits at a glance",
+    blocks: (n, list) => `${n} short benefit captions, each with a small minimalist line icon: ${list}`,
+  },
+  why_buy: {
+    intent: "convince the shopper to buy — confident promo energy without clutter",
+    blocks: (n, list) =>
+      `${n} bold selling arguments with strong visual hierarchy — make the most important one noticeably larger or accent-colored: ${list}`,
+  },
+  materials: {
+    intent: "communicate material quality and composition",
+    blocks: (n, list) =>
+      `${n} material/composition callouts, each connected to the relevant part of the product with a thin elegant pointer line: ${list}. If it fits naturally, add one subtle close-up texture detail`,
+  },
+  sizes: {
+    intent: "help the buyer pick the right size quickly",
+    blocks: (n, list) =>
+      `a compact size/measurement panel: ${n} neatly aligned rows with thin dividers listing: ${list}. If natural for the product, add subtle measurement arrows along the product silhouette`,
+  },
+  comparison: {
+    intent: "show why this product wins",
+    blocks: (n, list) => `${n} short comparison points with small check icons: ${list}`,
+  },
+  package: {
+    intent: "show what's included",
+    blocks: (n, list) => `${n} included-item captions with small line icons: ${list}`,
+  },
+  trust: {
+    intent: "reassure the buyer (quality, guarantee)",
+    blocks: (n, list) => `${n} short trust badges with small line icons: ${list}`,
+  },
+};
+
+const CARD_STYLE_WORDS: Record<NonNullable<StyleProfile["cardStyle"]>, string> = {
+  "marketplace-clean": "captions sit on clean softly-rounded cards",
+  "premium-editorial": "editorial typography with thin separator lines — no heavy card shapes",
+  "integrated-soft": "captions blend softly into the scene without hard card shapes",
+};
+
+const DENSITY_WORDS: Record<StyleProfile["density"], string> = {
+  low: "very airy composition, generous negative space, few large elements",
+  medium: "balanced spacing and comfortable breathing room",
+  high: "information-rich but tidy, compact spacing",
+};
+
+/** Verbalize the chosen style for the baked prompt. */
+function describeBakedStyle(
+  style: Exclude<InfographicStyle, "auto">,
+  styleProfile: StyleProfile | undefined,
+  restyleScene: boolean,
+): string {
+  if (!styleProfile) {
+    const sp = STYLE_PRESETS[style];
+    return [
+      `Visual style: ${sp.visual}`,
+      `Background: ${sp.background}`,
+      `Lighting: ${sp.lighting}`,
+      `Accent color: ${sp.palette[0]}`,
+      restyleScene
+        ? "Rebuild the background and lighting to match this style, but keep the scene photographic and dimensional — subtle depth, soft shadows, believable environment, never a flat empty backdrop. Keep the product/person unchanged."
+        : "",
+    ]
+      .filter(Boolean)
+      .join(". ");
+  }
+  const p = styleProfile.palette;
+  return [
+    `Visual style: ${styleProfile.visualLanguage}`,
+    `Background: ${styleProfile.background}`,
+    `Lighting: ${styleProfile.lighting}`,
+    `Color palette — background ${p.background}, panels ${p.surface}, primary text ${p.textPrimary}, secondary text ${p.textSecondary}, accent ${p.accent}`,
+    CARD_STYLE_WORDS[styleProfile.cardStyle],
+    DENSITY_WORDS[styleProfile.density],
+    styleProfile.accentElements.length
+      ? `Signature details: ${styleProfile.accentElements.join(", ")}`
+      : "",
+    `Overall ${styleProfile.mode} tonality`,
+    restyleScene
+      ? "Restyle the scene to match this style: replace the photo's original background and lighting; keep only the product/person unchanged."
+      : "",
+  ]
+    .filter(Boolean)
+    .join(". ");
+}
+
+/** Which side of the frame the product occupies, from the vision plan. */
+function productSideOf(plan: LayoutPlan | undefined): ProductSide {
+  if (!plan) return "center";
+  const place = placementOf(plan.product);
+  if (place.includes("left")) return "left";
+  if (place.includes("right")) return "right";
+  return "center";
+}
+
+/**
+ * Composition = a named archetype from the variant pool (deterministic per
+ * product, advanced by the regenerate seed) + the photo-specific product
+ * placement from the vision plan. This is what keeps different products —
+ * and successive regenerations — from repeating one static template.
+ */
+function describeBakedComposition(args: {
+  plan: LayoutPlan | undefined;
+  type: InfographicType;
+  benefitCount: number;
+  productName: string;
+  variantSeed: number;
+}): string {
+  const side = productSideOf(args.plan);
+  const variant = pickCompositionVariant({
+    seed: hashSeed(args.productName) + args.variantSeed,
+    type: args.type,
+    productSide: side,
+  });
+  const photoHint = args.plan
+    ? ` In the source photo the product sits at the ${placementOf(args.plan.product)} — place text in the free space around it.`
+    : "";
+  return `Composition: ${variant.describe(Math.max(args.benefitCount, 1))}${photoHint}`;
+}
+
 /**
  * Prompt for a FINISHED card with the Russian text BAKED IN by the model
  * (gpt-image renders Cyrillic natively). Used instead of the clean-base prompt
@@ -98,19 +225,20 @@ export function buildBakedCardPrompt(args: {
   headline: string;
   subheadline?: string;
   benefits: string[];
+  type: InfographicType;
+  style: Exclude<InfographicStyle, "auto">;
   styleProfile?: StyleProfile;
+  layoutPlan?: LayoutPlan;
   hasProductImage: boolean;
+  /** advanced on each regenerate so the next base tries another composition */
+  variantSeed?: number;
 }): string {
-  const { productName, headline, subheadline, benefits, styleProfile, hasProductImage } = args;
+  const { productName, headline, subheadline, benefits, type, style, styleProfile, layoutPlan } =
+    args;
   const product = productName.trim() || "the product";
+  const spec = TYPE_BAKED_SPEC[type];
 
-  const styleBits = styleProfile
-    ? `${styleProfile.visualLanguage}; background: ${styleProfile.background}; lighting: ${styleProfile.lighting}; palette: ${Object.values(
-        styleProfile.palette,
-      ).join(", ")}`
-    : "clean premium marketplace look, tidy product-first composition";
-
-  const base = hasProductImage
+  const base = args.hasProductImage
     ? `Using the provided product photo, create a FINISHED Wildberries marketplace infographic card for ${product}. Keep the product/person photorealistic — same identity, clothing, materials, colors and proportions.`
     : `Create a FINISHED Wildberries marketplace infographic card for ${product}.`;
 
@@ -121,15 +249,22 @@ export function buildBakedCardPrompt(args: {
 
   return [
     base,
+    `Card purpose: ${spec.intent}.`,
     "Portrait 3:4 composition, product as the hero with tasteful clean space for text.",
-    `Visual style: ${styleBits}.`,
+    describeBakedStyle(style, styleProfile, args.hasProductImage) + ".",
+    describeBakedComposition({
+      plan: layoutPlan,
+      type,
+      benefitCount: benefits.length,
+      productName: product,
+      variantSeed: args.variantSeed ?? 0,
+    }),
     "Render the following RUSSIAN text directly inside the image as polished, modern marketplace typography — integrated into the layout, NOT as flat stickers, plastic pills or pasted badges:",
     `• Headline (large, bold): «${headline.trim()}»`,
     subheadline ? `• Subheadline (smaller, lighter): «${subheadline.trim()}»` : "",
-    benefitsList
-      ? `• ${benefits.length} short benefit captions, each with a small minimalist line icon: ${benefitsList}`
-      : "",
+    benefitsList ? `• ${spec.blocks(benefits.length, benefitsList)}` : "",
     "Typography rules: correct Russian spelling is MANDATORY — no gibberish, no invented or duplicated words, high legibility, elegant visual hierarchy and consistent alignment.",
+    "Use ONLY the texts provided above — do not add any other words, numbers, percentages, sizes or invented specifications (no made-up fabric composition, no fake ratings).",
     "Do not cover the face or key product details with text. No watermark, no fake brand logos, no Wildberries logo.",
     "The result must look like a high-end, cohesive marketplace card — text feels designed into the scene, not pasted on top.",
   ]

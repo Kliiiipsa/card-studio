@@ -83,17 +83,37 @@ export interface CardScore {
   comment?: string;
 }
 
+export interface AnalysisProblem {
+  issue: string;
+  severity: "high" | "medium" | "low";
+  fix: string;
+}
+
+export interface TextRewrite {
+  /** the exact text currently on the card; "" when the element is missing */
+  current: string;
+  better: string;
+}
+
 export interface AnalysisReport {
+  /** grounding: what the model actually sees on the card */
+  observed: { product: string; existingText: string[]; composition: string };
   diagnosis: string;
   mainProblem: string;
-  blockersToPurchase: string[];
   whatWorks: string[];
-  fixFirst: string[];
-  newCardIdeas: CardIdea[];
-  textTips: string[];
+  /** prioritized, deduplicated problems, each with a concrete fix */
+  problems: AnalysisProblem[];
+  /** ready-to-use copy */
+  headlineIdeas: string[];
+  benefitTexts: string[];
+  textRewrites: TextRewrite[];
   visualTips: string[];
+  thumbnailTest: { readable: boolean; verdict: string };
+  riskFlags: string[];
+  newCardIdeas: CardIdea[];
   scores: CardScore;
-  improvementPlan: string[];
+  /** one short sentence per score axis explaining the number */
+  scoreReasons: Record<string, string>;
 }
 
 export interface StructuredImagePrompt {

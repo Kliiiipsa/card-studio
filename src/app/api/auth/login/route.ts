@@ -1,25 +1,32 @@
-import { NextResponse } from "next/server";
-import { GATE_COOKIE, gateToken } from "@/lib/auth";
+import { z } from "zod";
+import { parseBody, fail } from "@/lib/api";
+import { AppError } from "@/lib/errors";
+import { checkLogin } from "@/core/auth/store";
+import { respondWithSession } from "@/core/auth/cookies";
 
 export const runtime = "nodejs";
 
-export async function POST(req: Request) {
-  const body = (await req.json().catch(() => ({}))) as { password?: string };
-  const expected = process.env.ACCESS_PASSWORD;
-  if (!expected) {
-    return NextResponse.json({ error: "Доступ не настроен." }, { status: 500 });
-  }
-  if ((body.password ?? "") !== expected) {
-    return NextResponse.json({ error: "Неверный пароль." }, { status: 401 });
-  }
+const schema = z.object({
+  email: z.string().min(3).max(120),
+  password: z.string().min(1, "Введите пароль.").max(72),
+});
 
-  const res = NextResponse.json({ ok: true });
-  res.cookies.set(GATE_COOKIE, await gateToken(expected), {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
-    path: "/",
-    maxAge: 60 * 60 * 24 * 30, // 30 days
-  });
-  return res;
+export async function POST(req: Request) {
+  try {
+    const body = await parseBody(req, schema);
+    const result = await checkLogin(body.email, body.password);
+    switch (result.status) {
+      case "ok":
+        return respondWithSession({ ok: true, role: result.user.role }, result.user);
+      case "locked":
+        throw new AppError(
+          `Слишком много неудачных попыток. Повторите через ${Math.ceil(result.retryInSec / 60)} мин.`,
+          429,
+        );
+      case "bad_credentials":
+        throw new AppError("Неверная почта или пароль.", 401);
+    }
+  } catch (err) {
+    return fail(err);
+  }
 }

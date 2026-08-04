@@ -30,7 +30,7 @@ export function ProviderBadge() {
           }`}
         />
       </span>
-      {isMock ? "Демо-режим (mock)" : "AI подключён"}
+      <span className="hidden sm:inline">{isMock ? "Демо-режим (mock)" : "AI подключён"}</span>
     </Badge>
   );
 }

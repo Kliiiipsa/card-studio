@@ -59,19 +59,24 @@ export default function LandingPage() {
   return (
     <div className="min-h-screen surface-gradient">
       {/* Nav */}
-      <header className="container flex h-16 items-center justify-between">
-        <Link href="/" className="flex items-center gap-2">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-blue-500 text-white shadow-md">
+      <header className="container flex h-16 items-center justify-between gap-2">
+        <Link href="/" className="flex min-w-0 items-center gap-2">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-blue-500 text-white shadow-md">
             <Gem className="h-5 w-5" />
           </div>
-          <span className="font-semibold">WB Card Studio</span>
+          <span className="whitespace-nowrap text-sm font-semibold sm:text-base">
+            WB Card Studio
+          </span>
         </Link>
-        <div className="flex items-center gap-3">
-          <Button asChild variant="ghost" size="sm">
+        <div className="flex shrink-0 items-center gap-1.5 sm:gap-3">
+          <Button asChild variant="ghost" size="sm" className="hidden sm:inline-flex">
             <Link href="/dashboard">Дашборд</Link>
           </Button>
           <Button asChild variant="gradient" size="sm">
-            <Link href="/generator">Создать карточку</Link>
+            <Link href="/generator">
+              <span className="sm:hidden">Создать</span>
+              <span className="hidden sm:inline">Создать карточку</span>
+            </Link>
           </Button>
         </div>
       </header>

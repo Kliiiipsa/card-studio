@@ -1,0 +1,41 @@
+/**
+ * Registration is limited to Russian mail providers — the check is by domain
+ * whitelist, then ownership is proven with an emailed code.
+ * Pure + client-safe (used by the register form for instant feedback).
+ */
+const RUSSIAN_MAIL_DOMAINS = new Set([
+  // Яндекс
+  "yandex.ru",
+  "ya.ru",
+  // VK / Mail.ru Group
+  "mail.ru",
+  "bk.ru",
+  "list.ru",
+  "inbox.ru",
+  "internet.ru",
+  "vk.com",
+  // Rambler
+  "rambler.ru",
+  "myrambler.ru",
+  "autorambler.ru",
+  "ro.ru",
+]);
+
+const EMAIL_RE = /^[a-z0-9][a-z0-9._+-]*@[a-z0-9.-]+\.[a-z]{2,}$/i;
+
+export function normalizeEmail(raw: string): string {
+  return raw.trim().toLowerCase();
+}
+
+/** Returns null when ok, otherwise a user-facing error message (Russian). */
+export function validateRussianEmail(raw: string): string | null {
+  const email = normalizeEmail(raw);
+  if (!EMAIL_RE.test(email)) return "Введите корректный адрес почты.";
+  const domain = email.slice(email.lastIndexOf("@") + 1);
+  if (!RUSSIAN_MAIL_DOMAINS.has(domain)) {
+    return "Регистрация доступна только с российской почтой: Яндекс (yandex.ru, ya.ru), Mail.ru (mail.ru, bk.ru, list.ru, inbox.ru, vk.com) или Rambler.";
+  }
+  return null;
+}
+
+export const ALLOWED_DOMAINS_HINT = "yandex.ru · ya.ru · mail.ru · bk.ru · list.ru · inbox.ru · vk.com · rambler.ru";

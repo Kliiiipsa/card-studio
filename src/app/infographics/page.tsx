@@ -38,6 +38,7 @@ import {
 } from "@/core/infographics/types";
 import { assembleBrief } from "@/core/infographics/brief-builder";
 import { DEFAULT_STYLE_PROFILE } from "@/core/infographics/style-library";
+import { INFOGRAPHICS_PREFILL_KEY } from "@/components/ai/analysis-report";
 
 export default function InfographicsPage() {
   const [product, setProduct] = React.useState<ProductInfo>({ ...EMPTY_PRODUCT });
@@ -63,6 +64,9 @@ export default function InfographicsPage() {
   // synchronous in-flight guard: `generating` state updates async, so two quick
   // clicks (or a double event) could both pass and queue duplicate gpt-image jobs
   const generatingRef = React.useRef(false);
+  // each generate click advances the seed → the next base gets a different
+  // composition variant (the pool lives in composition-variants.ts)
+  const variantSeedRef = React.useRef(0);
 
   const buildInput = (): InfographicInput => ({
     productName: product.name,
@@ -130,6 +134,43 @@ export default function InfographicsPage() {
     setBrief(assembleBrief(buildInput(), edit, styleProfile ?? undefined, brief?.layoutPlan));
   };
 
+  // Prefill from the analysis section ("Собрать инфографику" on a card idea):
+  // product name, benefits and the suggested headline arrive via sessionStorage.
+  React.useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem(INFOGRAPHICS_PREFILL_KEY);
+      if (!raw) return;
+      sessionStorage.removeItem(INFOGRAPHICS_PREFILL_KEY);
+      const p = JSON.parse(raw) as { name?: string; headline?: string; benefits?: string[] };
+      setProduct((s) => ({
+        ...s,
+        name: p.name || s.name,
+        benefits: p.benefits?.length ? p.benefits : s.benefits,
+      }));
+      if (p.headline) setUserNote(`Заголовок карточки: «${p.headline}»`);
+      toast.success("Идея из анализа подставлена — нажмите «Собрать инфографику»");
+    } catch {
+      // malformed prefill is not worth breaking the page for
+    }
+  }, []);
+
+  // Changing the type / visual style / reference must actually reach the image
+  // prompt — reassemble the existing brief with the current selections (keeps
+  // the user's edited text and the per-photo layout plan).
+  React.useEffect(() => {
+    setBrief((prev) =>
+      prev
+        ? assembleBrief(
+            buildInput(),
+            { headline: prev.headline, subheadline: prev.subheadline, blocks: prev.blocks },
+            styleProfile ?? undefined,
+            prev.layoutPlan,
+          )
+        : prev,
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [type, style, styleProfile]);
+
   const handleGenerate = async () => {
     if (!brief || generatingRef.current) return;
     generatingRef.current = true;
@@ -141,7 +182,9 @@ export default function InfographicsPage() {
         styleReferenceImage: styleReferenceImage ?? undefined,
         productName: product.name || undefined,
         aspectRatio: "3:4",
+        variantSeed: variantSeedRef.current,
       });
+      variantSeedRef.current += 1; // next generate → next composition
       setBaseImageUrl(r.baseImageUrl);
       setBrief(r.brief);
       setTextBaked(r.textBaked);
@@ -273,7 +316,11 @@ export default function InfographicsPage() {
               </div>
               <div className="space-y-1.5">
                 <Label className="text-xs">Визуальный стиль</Label>
-                <Select value={style} onValueChange={(v) => setStyle(v as InfographicStyle)}>
+                <Select
+                  value={style}
+                  onValueChange={(v) => setStyle(v as InfographicStyle)}
+                  disabled={!!styleProfile}
+                >
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
@@ -285,6 +332,12 @@ export default function InfographicsPage() {
                     ))}
                   </SelectContent>
                 </Select>
+                {styleProfile && (
+                  <p className="text-[11px] leading-4 text-muted-foreground">
+                    Стиль задаёт референс «{styleProfile.name}» — снимите его выбор ниже, чтобы
+                    выбрать вручную.
+                  </p>
+                )}
               </div>
             </div>
 
