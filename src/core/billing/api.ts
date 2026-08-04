@@ -39,7 +39,7 @@ export async function billingCtx(req: Request, action: SparkAction): Promise<Bil
   return {
     email: session.email,
     action,
-    free: session.role === "admin" || !billingEnabled(),
+    free: session.role === "admin" || !billingEnabled() || PRICES[action] === 0,
   };
 }
 

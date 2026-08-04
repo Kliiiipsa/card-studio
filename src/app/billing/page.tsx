@@ -126,16 +126,22 @@ export default function BillingPage() {
           </CardHeader>
           <CardContent>
             <div className="grid gap-1.5 text-sm sm:grid-cols-2">
-              {(Object.keys(PRICES) as (keyof typeof PRICES)[]).map((a) => (
-                <div key={a} className="flex items-center justify-between rounded-lg border px-3 py-2">
-                  <span className="text-muted-foreground">{ACTION_LABELS[a]}</span>
-                  <span className="flex items-center gap-1 font-semibold">
-                    <Zap className="h-3.5 w-3.5 text-amber-500" />
-                    {PRICES[a]}
-                  </span>
-                </div>
-              ))}
+              {(Object.keys(PRICES) as (keyof typeof PRICES)[])
+                .filter((a) => PRICES[a] > 0)
+                .map((a) => (
+                  <div key={a} className="flex items-center justify-between rounded-lg border px-3 py-2">
+                    <span className="text-muted-foreground">{ACTION_LABELS[a]}</span>
+                    <span className="flex items-center gap-1 font-semibold">
+                      <Zap className="h-3.5 w-3.5 text-amber-500" />
+                      {PRICES[a]}
+                    </span>
+                  </div>
+                ))}
             </div>
+            <p className="mt-2 text-xs text-muted-foreground">
+              Все текстовые действия — идеи, промпты, брифы, анализ фото для заполнения формы —
+              бесплатны.
+            </p>
           </CardContent>
         </Card>
 

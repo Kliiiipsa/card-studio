@@ -17,17 +17,18 @@ export type SparkAction =
   | "autofill"
   | "extract_style";
 
+/** price 0 = free (text-only Qwen actions cost us kopecks — user decision 2026-08-04) */
 export const PRICES: Record<SparkAction, number> = {
   analyze: 5,
   generate: 7,
   infographic: 10,
-  ideas: 1,
-  write_prompt: 1,
-  improve_prompt: 1,
-  build_prompt: 1,
-  brief: 1,
-  autofill: 1,
-  extract_style: 1,
+  ideas: 0,
+  write_prompt: 0,
+  improve_prompt: 0,
+  build_prompt: 0,
+  brief: 0,
+  autofill: 0,
+  extract_style: 0,
 };
 
 export const ACTION_LABELS: Record<SparkAction, string> = {

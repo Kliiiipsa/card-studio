@@ -5,6 +5,8 @@ import { useProjectStore } from "@/store/project-store";
 import { api } from "@/lib/client-api";
 import { toast } from "@/components/ui/toaster";
 import { uid } from "@/lib/utils";
+import { CARD_TYPE_MAP } from "@/core/domain/card-types";
+import { styleModeGuidance } from "@/core/prompting/prompt-intent";
 import type { Generation } from "@/core/domain/types";
 
 /**
@@ -50,11 +52,23 @@ export function useCardGeneration() {
       try {
         gen.setField("error", null);
 
-        const finalPrompt = (opts?.promptOverride ?? s.userPrompt).trim();
-        if (!finalPrompt) {
+        const basePrompt = (opts?.promptOverride ?? s.userPrompt).trim();
+        if (!basePrompt) {
           toast.error("Сначала нажмите «Написать промпт» или введите промпт вручную.");
           return;
         }
+
+        // The type/style selects must matter even when the prompt was written
+        // earlier (or by hand): their guidance is appended at generation time.
+        const cardType = CARD_TYPE_MAP[s.cardType];
+        const styleGuidance = s.styleMode !== "auto" ? styleModeGuidance(s.styleMode) : null;
+        const suffix = [
+          cardType && `Формат карточки: ${cardType.title}. Composition: ${cardType.promptHint}`,
+          styleGuidance && `Стиль: ${styleGuidance}`,
+        ]
+          .filter(Boolean)
+          .join(". ");
+        const finalPrompt = suffix ? `${basePrompt}\n\n${suffix}.` : basePrompt;
         gen.setField("finalPrompt", finalPrompt);
 
         // Russian headline kept for the text overlay (not rendered by the model)

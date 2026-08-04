@@ -129,7 +129,7 @@ export default function ProjectPage() {
               ) : (
                 <Lightbulb className="h-5 w-5" />
               )}
-              <span>Сгенерировать идеи · 1 ⚡</span>
+              <span>Сгенерировать идеи</span>
             </Button>
           </div>
 

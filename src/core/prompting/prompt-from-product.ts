@@ -1,6 +1,6 @@
 import type { LLMMessage } from "@/core/ai/providers/types";
 import type { PromptIntent } from "./prompt-intent";
-import { styleModeGuidance } from "./prompt-intent";
+import { styleModeGuidance, cardTypeGuidance } from "./prompt-intent";
 
 /** Shared rules that keep the generated prompt clean and on-brief. */
 export const PROMPT_RULES = `Правила:
@@ -18,7 +18,7 @@ function productBlock(intent: PromptIntent): string {
     intent.targetAudience && `Аудитория: ${intent.targetAudience}`,
     intent.benefits?.length && `Преимущества: ${intent.benefits.join(", ")}`,
     intent.painPoints?.length && `Боли клиента: ${intent.painPoints.join(", ")}`,
-    intent.cardType && `Тип карточки: ${intent.cardType}`,
+    intent.cardType && `Тип карточки: ${cardTypeGuidance(intent.cardType)}`,
     `Стиль: ${styleModeGuidance(intent.styleMode)}`,
     intent.userNote && `Пожелание пользователя: ${intent.userNote}`,
   ]

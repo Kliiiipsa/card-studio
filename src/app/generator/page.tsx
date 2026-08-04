@@ -210,7 +210,7 @@ function GeneratorInner() {
               ) : (
                 <Sparkles className="h-4 w-4" />
               )}
-              Написать промпт · 1 ⚡
+              Написать промпт
             </Button>
 
             <Textarea

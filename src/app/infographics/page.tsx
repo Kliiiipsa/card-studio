@@ -223,7 +223,7 @@ export default function InfographicsPage() {
               ) : (
                 <ScanLine className="h-4 w-4" />
               )}
-              Заполнить по фото · 1 ⚡
+              Заполнить по фото
             </Button>
 
             <div className="space-y-1.5">
@@ -356,7 +356,7 @@ export default function InfographicsPage() {
               ) : (
                 <Sparkles className="h-4 w-4" />
               )}
-              Собрать инфографику · 1 ⚡
+              Собрать инфографику
             </Button>
 
             {brief ? (

@@ -1,4 +1,5 @@
 import type { StyleId } from "@/core/domain/styles";
+import { CARD_TYPE_MAP } from "@/core/domain/card-types";
 
 export type GenerationMode = "text-to-image" | "image-to-image";
 export type StyleMode = "auto" | "minimal" | "premium" | "bold" | "lifestyle";
@@ -56,4 +57,11 @@ export function styleModeGuidance(mode?: StyleMode): string {
     default:
       return "стиль подбери сам под категорию товара и его аудиторию";
   }
+}
+
+/** Verbalize a card type for the LLM (Russian label + purpose) — the raw id was ignored. */
+export function cardTypeGuidance(cardTypeId?: string): string | null {
+  if (!cardTypeId) return null;
+  const t = CARD_TYPE_MAP[cardTypeId as keyof typeof CARD_TYPE_MAP];
+  return t ? `${t.title} — ${t.description}` : cardTypeId;
 }
