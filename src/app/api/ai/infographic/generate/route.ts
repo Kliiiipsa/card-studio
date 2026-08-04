@@ -1,5 +1,8 @@
 import { parseBody, ok, fail } from "@/lib/api";
 import { requireSparks, chargeSparks } from "@/core/billing/api";
+import { createJob, jobsEnabled } from "@/core/jobs/jobs";
+import { ensureWatcherBoot, watchJob } from "@/core/jobs/watcher";
+import { uid } from "@/lib/utils";
 import { infographicGenerateSchema } from "@/core/infographics/schemas";
 import {
   submitInfographicBase,
@@ -61,9 +64,31 @@ export async function POST(req: Request) {
         balance: balance ?? undefined,
       });
     }
-    // queued async job (gpt-image): client polls /generate/status with `job`
+    // Queued async job (gpt-image). When Postgres is available the job is also
+    // tracked server-side: the watcher finishes it even if the tab closes, so
+    // the client polls /api/jobs/{id}. Legacy `job` handle kept for old tabs.
+    let jobId: string | undefined;
+    if (jobsEnabled()) {
+      ensureWatcherBoot();
+      jobId = uid("job");
+      await createJob({
+        id: jobId,
+        email: bill.email,
+        kind: "infographic",
+        payload: { brief, textBaked: result.textBaked },
+        falStatusUrl: result.job.statusUrl,
+        falResponseUrl: result.job.responseUrl,
+      });
+      watchJob({
+        id: jobId,
+        email: bill.email,
+        falStatusUrl: result.job.statusUrl,
+        falResponseUrl: result.job.responseUrl,
+      });
+    }
     return ok({
       done: false,
+      jobId,
       job: result.job,
       overlayPlan: brief.overlayPlan,
       brief,

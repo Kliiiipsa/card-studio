@@ -134,6 +134,57 @@ export default function InfographicsPage() {
     setBrief(assembleBrief(buildInput(), edit, styleProfile ?? undefined, brief?.layoutPlan));
   };
 
+  // Restore the last server-tracked generation: a job started before the tab
+  // was closed keeps running on the server — on return we either re-attach to
+  // it (processing) or show its stored result (completed, image is in S3).
+  React.useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const job = await api.infographic.latestJob();
+      if (!job || cancelled) return;
+      const payload = job.payload ?? undefined;
+      if (job.status === "processing") {
+        setBrief((prev) => prev ?? payload?.brief ?? null);
+        setGenerating(true);
+        generatingRef.current = true;
+        toast.info("Ваша генерация ещё идёт — продолжаем её");
+        try {
+          const done = await api.infographic.resumeJob(job.id);
+          if (cancelled) return;
+          if (done.status === "completed" && done.resultUrl) {
+            if (payload?.brief) setBrief(payload.brief);
+            setTextBaked(payload?.textBaked ?? true);
+            setBaseImageUrl(done.resultUrl);
+            toast.success("Изображение готово");
+          } else {
+            toast.error("Прошлая генерация не удалась — попробуйте ещё раз");
+          }
+        } catch {
+          if (!cancelled) toast.error("Не удалось дождаться прошлой генерации");
+        } finally {
+          if (!cancelled) {
+            setGenerating(false);
+            generatingRef.current = false;
+          }
+        }
+      } else if (job.status === "completed" && job.resultUrl) {
+        // restore the last finished card only onto a fresh, empty page
+        setBaseImageUrl((prev) => {
+          if (prev) return prev;
+          if (payload?.brief) {
+            setBrief((b) => b ?? payload.brief);
+            setTextBaked(payload.textBaked ?? true);
+          }
+          return job.resultUrl;
+        });
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Prefill from the analysis section ("Собрать инфографику" on a card idea):
   // product name, benefits and the suggested headline arrive via sessionStorage.
   React.useEffect(() => {

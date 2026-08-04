@@ -68,11 +68,46 @@ type GenerateStart =
     }
   | {
       done: false;
+      /** server-tracked job id — survives the tab being closed */
+      jobId?: string;
       job: ImageJobHandle;
       overlayPlan: InfographicOverlayPlan;
       brief: InfographicBrief;
       textBaked: boolean;
     };
+
+/** shape of /api/jobs/{id} */
+export type TrackedJob = {
+  id: string;
+  status: "processing" | "completed" | "failed";
+  payload: { brief: InfographicBrief; textBaked: boolean } | null;
+  resultUrl: string | null;
+  error: string | null;
+  createdAt: string;
+  finishedAt: string | null;
+};
+
+/** Poll a server-tracked job until it finishes. */
+async function pollTrackedJob(jobId: string): Promise<TrackedJob> {
+  const deadline = Date.now() + 420_000;
+  let failures = 0;
+  for (;;) {
+    await delay(2500);
+    if (Date.now() > deadline) {
+      throw new Error("Генерация заняла слишком долго. Попробуйте ещё раз.");
+    }
+    try {
+      const res = await fetch(`/api/jobs/${jobId}`);
+      const data = (await res.json()) as { job?: TrackedJob; balance?: number; error?: string };
+      if (!res.ok) throw new Error(data.error ?? "Ошибка запроса");
+      failures = 0;
+      syncBalance(data);
+      if (data.job && data.job.status !== "processing") return data.job;
+    } catch (e) {
+      if (++failures >= 5) throw e;
+    }
+  }
+}
 
 type JobStatus = {
   status: "pending" | "completed" | "failed";
@@ -99,7 +134,29 @@ async function generateInfographic(
     };
   }
 
-  const { job, overlayPlan, brief, textBaked } = started;
+  const { job, jobId, overlayPlan, brief, textBaked } = started;
+
+  // Preferred path: the server tracks the job (finishes it even if the tab
+  // closes, stores the image in S3). We just watch OUR job record.
+  if (jobId) {
+    const done = await pollTrackedJob(jobId);
+    if (done.status === "completed" && done.resultUrl) {
+      return { baseImageUrl: done.resultUrl, overlayPlan, brief, textBaked };
+    }
+    // failed (e.g. moderation) → server renders a Flux base synchronously
+    const fb = await post<Extract<GenerateStart, { done: true }>>(
+      "/api/ai/infographic/generate",
+      { ...args, forceFallback: true },
+    );
+    return {
+      baseImageUrl: fb.baseImageUrl,
+      overlayPlan: fb.overlayPlan,
+      brief: fb.brief,
+      textBaked: fb.textBaked,
+    };
+  }
+
+  // Legacy path (no Postgres): poll the fal handle directly.
   const deadline = Date.now() + 300_000; // ~5 min client-side cap
   let failures = 0;
   for (;;) {
@@ -194,5 +251,14 @@ export const api = {
     brief: (input: InfographicInput, styleProfile?: StyleProfile) =>
       post<InfographicBrief>("/api/ai/infographic/brief", { ...input, styleProfile }),
     generate: (args: InfographicGenerateArgs) => generateInfographic(args),
+    /** the user's most recent server-tracked generation (for page restore) */
+    latestJob: async (): Promise<TrackedJob | null> => {
+      const res = await fetch("/api/jobs/latest?kind=infographic");
+      if (!res.ok) return null;
+      const data = (await res.json()) as { job?: TrackedJob | null };
+      return data.job ?? null;
+    },
+    /** re-attach to a job started earlier (e.g. before the tab was closed) */
+    resumeJob: (jobId: string) => pollTrackedJob(jobId),
   },
 };
