@@ -183,6 +183,20 @@ export function checkLogin(emailRaw: string, password: string): Promise<LoginRes
   });
 }
 
+export function changePassword(
+  emailRaw: string,
+  oldPassword: string,
+  newPassword: string,
+): Promise<"ok" | "bad_password"> {
+  const email = normalizeEmail(emailRaw);
+  return locked((data): "ok" | "bad_password" => {
+    const user = data.users[email];
+    if (!user?.verified || !verifyPassword(oldPassword, user.passHash)) return "bad_password";
+    user.passHash = hashPassword(newPassword);
+    return "ok";
+  });
+}
+
 export function listUsers(): Promise<UserRecord[]> {
   return locked(async (data) => {
     await ensureAdmin(data);

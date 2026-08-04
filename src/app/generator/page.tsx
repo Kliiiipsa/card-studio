@@ -210,7 +210,7 @@ function GeneratorInner() {
               ) : (
                 <Sparkles className="h-4 w-4" />
               )}
-              Написать промпт
+              Написать промпт · 1 ⚡
             </Button>
 
             <Textarea
@@ -266,7 +266,7 @@ function GeneratorInner() {
               className="w-full"
             >
               {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />}
-              Сгенерировать карточку
+              Сгенерировать карточку · 7 ⚡
             </Button>
 
             {busy ? (
@@ -324,7 +324,7 @@ function GeneratorInner() {
           className="w-full"
         >
           {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />}
-          Сгенерировать карточку
+          Сгенерировать карточку · 7 ⚡
         </Button>
       </div>
     </div>

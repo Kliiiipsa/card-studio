@@ -224,7 +224,7 @@ export default function AnalysisPage() {
                 ) : (
                   <ScanSearch className="h-4 w-4" />
                 )}
-                Проанализировать
+                Проанализировать · 5 ⚡
               </Button>
 
               {report && (
@@ -234,7 +234,7 @@ export default function AnalysisPage() {
                   ) : (
                     <Wand2 className="h-4 w-4" />
                   )}
-                  Улучшить карточку по советам ИИ
+                  Улучшить карточку по советам ИИ · 7 ⚡
                 </Button>
               )}
             </CardContent>

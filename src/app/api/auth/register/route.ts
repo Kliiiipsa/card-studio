@@ -2,8 +2,10 @@ import { z } from "zod";
 import { parseBody, ok, fail } from "@/lib/api";
 import { AppError } from "@/lib/errors";
 import { validateRussianEmail, normalizeEmail } from "@/core/auth/domains";
-import { startRegistration } from "@/core/auth/store";
+import { startRegistration, confirmRegistration } from "@/core/auth/store";
 import { isSmtpConfigured, sendVerificationEmail } from "@/core/auth/mailer";
+import { respondWithSession } from "@/core/auth/cookies";
+import { grantWelcomeBonus } from "@/core/billing/welcome";
 
 export const runtime = "nodejs";
 
@@ -34,6 +36,17 @@ export async function POST(req: Request) {
         `Код уже отправлен. Повторная отправка через ${started.retryInSec} с.`,
         429,
       );
+    }
+
+    // Open mode (temporary, until SMTP): the account is created right away,
+    // no email code — the server confirms the registration itself.
+    if (process.env.REGISTRATION_OPEN === "true") {
+      const confirmed = await confirmRegistration(email, started.code);
+      if (confirmed.status !== "ok") {
+        throw new AppError("Не удалось создать аккаунт. Попробуйте ещё раз.", 500);
+      }
+      const balance = await grantWelcomeBonus(email);
+      return respondWithSession({ registered: true, balance: balance ?? undefined }, confirmed.user);
     }
 
     if (isSmtpConfigured()) {

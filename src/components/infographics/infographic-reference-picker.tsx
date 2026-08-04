@@ -117,7 +117,7 @@ export function InfographicReferencePicker({
           ) : (
             <Wand2 className="h-4 w-4" />
           )}
-          Извлечь стиль референса
+          Извлечь стиль референса · 1 ⚡
         </Button>
         {value?.source === "reference" && (
           <p className="text-xs text-emerald-600">Стиль «{value.name}» применён.</p>

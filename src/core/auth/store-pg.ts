@@ -231,6 +231,26 @@ export async function checkLogin(emailRaw: string, password: string): Promise<Lo
   return { status: "bad_credentials" };
 }
 
+export async function changePassword(
+  emailRaw: string,
+  oldPassword: string,
+  newPassword: string,
+): Promise<"ok" | "bad_password"> {
+  await ensureSchema();
+  const email = normalizeEmail(emailRaw);
+  const { rows } = await getPool().query<UserRow>(
+    "select * from auth_users where email = $1 and verified = true",
+    [email],
+  );
+  const user = rows[0];
+  if (!user || !verifyPassword(oldPassword, user.pass_hash)) return "bad_password";
+  await getPool().query("update auth_users set pass_hash = $2 where email = $1", [
+    email,
+    hashPassword(newPassword),
+  ]);
+  return "ok";
+}
+
 export async function listUsers(): Promise<UserRecord[]> {
   await ensureSchema();
   await ensureAdmin();

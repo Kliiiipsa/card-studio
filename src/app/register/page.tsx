@@ -48,7 +48,17 @@ export default function RegisterPage() {
     if (password !== password2) return setError("Пароли не совпадают.");
     setBusy(true);
     try {
-      const data = await post("/api/auth/register", { email: email.trim(), password });
+      const data = (await post("/api/auth/register", { email: email.trim(), password })) as {
+        sent?: boolean;
+        devCode?: string;
+        registered?: boolean;
+      };
+      // open mode: the account is created immediately, no email code
+      if (data.registered) {
+        router.replace("/");
+        router.refresh();
+        return;
+      }
       setDevCode(data.devCode ?? null);
       setNotice(
         data.sent

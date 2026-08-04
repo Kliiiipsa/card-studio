@@ -3,6 +3,7 @@ import { parseBody, fail } from "@/lib/api";
 import { AppError } from "@/lib/errors";
 import { confirmRegistration } from "@/core/auth/store";
 import { respondWithSession } from "@/core/auth/cookies";
+import { grantWelcomeBonus } from "@/core/billing/welcome";
 
 export const runtime = "nodejs";
 
@@ -16,8 +17,10 @@ export async function POST(req: Request) {
     const body = await parseBody(req, schema);
     const result = await confirmRegistration(body.email, body.code);
     switch (result.status) {
-      case "ok":
-        return respondWithSession({ ok: true }, result.user);
+      case "ok": {
+        const balance = await grantWelcomeBonus(result.user.email);
+        return respondWithSession({ ok: true, balance: balance ?? undefined }, result.user);
+      }
       case "invalid":
         throw new AppError(`Неверный код. Осталось попыток: ${result.attemptsLeft}.`, 400);
       case "expired":

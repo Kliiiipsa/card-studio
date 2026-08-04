@@ -1,19 +1,13 @@
 "use client";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { LogOut, Plus } from "lucide-react";
+import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "./theme-toggle";
 import { ProviderBadge } from "./provider-badge";
 import { MobileNav } from "./mobile-nav";
+import { ProfileMenu } from "./profile-menu";
 
 export function Topbar({ title }: { title?: string }) {
-  const router = useRouter();
-  const logout = async () => {
-    await fetch("/api/auth/logout", { method: "POST" }).catch(() => undefined);
-    router.replace("/login");
-    router.refresh();
-  };
   return (
     <header className="sticky top-0 z-30 flex h-16 items-center gap-2 border-b bg-background/80 px-3 backdrop-blur-xl sm:gap-4 sm:px-6">
       <MobileNav />
@@ -27,9 +21,7 @@ export function Topbar({ title }: { title?: string }) {
             <span className="hidden sm:inline">Новая карточка</span>
           </Link>
         </Button>
-        <Button variant="ghost" size="icon" onClick={logout} title="Выйти" aria-label="Выйти">
-          <LogOut className="h-4 w-4" />
-        </Button>
+        <ProfileMenu />
       </div>
     </header>
   );

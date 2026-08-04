@@ -223,7 +223,7 @@ export default function InfographicsPage() {
               ) : (
                 <ScanLine className="h-4 w-4" />
               )}
-              Заполнить по фото
+              Заполнить по фото · 1 ⚡
             </Button>
 
             <div className="space-y-1.5">
@@ -356,7 +356,7 @@ export default function InfographicsPage() {
               ) : (
                 <Sparkles className="h-4 w-4" />
               )}
-              Собрать инфографику
+              Собрать инфографику · 1 ⚡
             </Button>
 
             {brief ? (
@@ -374,7 +374,7 @@ export default function InfographicsPage() {
                   ) : (
                     <Wand2 className="h-4 w-4" />
                   )}
-                  Сгенерировать изображение
+                  Сгенерировать изображение · 10 ⚡
                 </Button>
               </>
             ) : (

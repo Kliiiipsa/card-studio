@@ -18,6 +18,17 @@ import type {
 } from "@/core/infographics/types";
 import type { ImageJobHandle } from "@/core/ai/providers/types";
 
+/** Paid endpoints return the fresh sparks balance — mirror it into the profile store. */
+function syncBalance(data: unknown): void {
+  const balance = (data as { balance?: unknown })?.balance;
+  if (typeof balance === "number") {
+    // lazy import keeps this module tree-shakeable on the server side
+    import("@/store/profile-store").then(({ useProfileStore }) =>
+      useProfileStore.getState().setBalance(balance),
+    );
+  }
+}
+
 async function post<T>(url: string, body: unknown): Promise<T> {
   const res = await fetch(url, {
     method: "POST",
@@ -28,6 +39,7 @@ async function post<T>(url: string, body: unknown): Promise<T> {
   if (!res.ok) {
     throw new Error((data as { error?: string }).error ?? "Ошибка запроса");
   }
+  syncBalance(data);
   return data as T;
 }
 
