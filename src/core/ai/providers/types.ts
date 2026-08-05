@@ -27,6 +27,7 @@ export interface LLMRequest {
     | "build-prompt"
     | "write-prompt"
     | "score"
+    | "seo"
     | "translate";
   context?: Record<string, unknown>;
 }

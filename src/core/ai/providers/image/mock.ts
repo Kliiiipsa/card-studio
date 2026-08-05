@@ -70,7 +70,7 @@ function svgDataUrl(prompt: string, tag: string, i: number, w: number, h: number
   <rect width="${w}" height="${h}" fill="url(#glow)"/>
   <rect x="${w * 0.28}" y="${h * 0.26}" width="${w * 0.44}" height="${w * 0.44}" rx="${w * 0.06}" fill="#ffffff" fill-opacity="0.12" stroke="#ffffff" stroke-opacity="0.35" stroke-width="2"/>
   <text x="${w * 0.5}" y="${h * 0.5}" font-family="Segoe UI, Arial, sans-serif" font-size="${w * 0.05}" fill="#ffffff" fill-opacity="0.85" text-anchor="middle">PREVIEW</text>
-  <text x="${w * 0.08}" y="${h * 0.12}" font-family="Segoe UI, Arial, sans-serif" font-weight="700" font-size="${w * 0.045}" fill="#ffffff">WB Card Studio</text>
+  <text x="${w * 0.08}" y="${h * 0.12}" font-family="Segoe UI, Arial, sans-serif" font-weight="700" font-size="${w * 0.045}" fill="#ffffff">Nevario</text>
   <text x="${w * 0.08}" y="${h * 0.9}" font-family="Segoe UI, Arial, sans-serif" font-size="${w * 0.026}" fill="#ffffff" fill-opacity="0.8">${tag} mock · ${label}</text>
 </svg>`;
   const encoded = Buffer.from(svg, "utf-8").toString("base64");

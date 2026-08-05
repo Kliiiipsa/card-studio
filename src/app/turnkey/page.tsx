@@ -20,6 +20,7 @@ type Step = {
   label: string;
   status: "pending" | "processing" | "done" | "failed";
   url?: string;
+  seo?: { title: string; description: string; keywords: string[] };
 };
 
 export default function TurnkeyPage() {
@@ -109,9 +110,9 @@ export default function TurnkeyPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             <p className="text-xs text-muted-foreground">
-              Загрузите одно фото и заполните данные — студия соберёт комплект: инфографика
-              (преимущества, боль→решение, состав), размерная сетка и три фото (сбоку, сзади,
-              lifestyle). Списание — только за удавшиеся изображения, по 7 ⚡ за штуку.
+              Загрузите одно фото и заполните данные — студия соберёт комплект: SEO-тексты для
+              карточки, инфографика (преимущества, боль→решение, состав), размерная сетка и три
+              фото (сбоку, сзади, lifestyle). Списание — только за то, что удалось сгенерировать.
             </p>
             <ImageUploader
               value={image}
@@ -192,7 +193,7 @@ export default function TurnkeyPage() {
               ) : (
                 <Zap className="h-4 w-4" />
               )}
-              Собрать комплект · {PRICES.turnkey} ⚡ за 7 изображений
+              Собрать комплект · {PRICES.turnkey} ⚡ (7 изображений + SEO)
             </Button>
           </CardContent>
         </Card>
@@ -231,6 +232,73 @@ export default function TurnkeyPage() {
               )}
             </CardContent>
           </Card>
+
+          {(() => {
+            const seo = (steps ?? []).find((s) => s.key === "seo" && s.seo)?.seo;
+            if (!seo) return null;
+            const copy = (text: string, what: string) =>
+              navigator.clipboard
+                .writeText(text)
+                .then(() => toast.success(`${what} — скопировано`))
+                .catch(() => toast.error("Не удалось скопировать"));
+            return (
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm">SEO для карточки</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3 text-sm">
+                  <div>
+                    <div className="mb-1 flex items-center justify-between">
+                      <p className="text-xs font-medium text-muted-foreground">Название</p>
+                      <Button variant="ghost" size="sm" onClick={() => copy(seo.title, "Название")}>
+                        Копировать
+                      </Button>
+                    </div>
+                    <p className="rounded-lg border bg-card/60 p-2.5">{seo.title}</p>
+                  </div>
+                  <div>
+                    <div className="mb-1 flex items-center justify-between">
+                      <p className="text-xs font-medium text-muted-foreground">Описание</p>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => copy(seo.description, "Описание")}
+                      >
+                        Копировать
+                      </Button>
+                    </div>
+                    <p className="max-h-48 overflow-y-auto whitespace-pre-wrap rounded-lg border bg-card/60 p-2.5 text-xs leading-5">
+                      {seo.description}
+                    </p>
+                  </div>
+                  <div>
+                    <div className="mb-1 flex items-center justify-between">
+                      <p className="text-xs font-medium text-muted-foreground">
+                        Ключевые запросы ({seo.keywords.length})
+                      </p>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => copy(seo.keywords.join(", "), "Ключевые запросы")}
+                      >
+                        Копировать
+                      </Button>
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {seo.keywords.map((k) => (
+                        <span
+                          key={k}
+                          className="rounded-full border bg-card/60 px-2 py-0.5 text-[11px]"
+                        >
+                          {k}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })()}
 
           {doneUrls.length > 0 && (
             <Card>

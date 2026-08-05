@@ -1,11 +1,11 @@
 import { buildInfographicBrief, generateInfographicBase } from "@/core/infographics/infographic-service";
 import { getLibraryStyle } from "@/core/infographics/style-library";
 import type { InfographicInput } from "@/core/infographics/types";
-import { generateImageFromReference } from "@/core/ai/service";
+import { generateImageFromReference, generateSeoTexts, type SeoTexts } from "@/core/ai/service";
 import { persistGeneration } from "@/core/jobs/persist";
 import { updateJobPayload, completeJob, failJob } from "@/core/jobs/jobs";
 import { applyTx, billingEnabled } from "@/core/billing/billing";
-import { TURNKEY_ITEM_PRICE } from "@/core/billing/prices";
+import { TURNKEY_ITEM_PRICE, TURNKEY_SEO_PRICE } from "@/core/billing/prices";
 import { getUser } from "@/core/auth/store";
 
 /**
@@ -20,6 +20,7 @@ import { getUser } from "@/core/auth/store";
  * reference — a failed step simply isn't paid for.
  */
 export type TurnkeyStepKey =
+  | "seo"
   | "benefits"
   | "pain"
   | "materials"
@@ -33,6 +34,8 @@ export type TurnkeyStep = {
   label: string;
   status: "pending" | "processing" | "done" | "failed";
   url?: string;
+  /** filled for the "seo" step only */
+  seo?: SeoTexts;
 };
 
 export type TurnkeyInput = {
@@ -48,6 +51,7 @@ export type TurnkeyInput = {
 
 export function turnkeySteps(input: TurnkeyInput): TurnkeyStep[] {
   const steps: TurnkeyStep[] = [
+    { key: "seo", label: "SEO: название, описание, ключевые слова", status: "pending" },
     { key: "benefits", label: "Инфографика: преимущества", status: "pending" },
     { key: "pain", label: "Инфографика: боль → решение", status: "pending" },
     { key: "materials", label: "Инфографика: состав и материалы", status: "pending" },
@@ -81,6 +85,19 @@ async function run(parentId: string, email: string, input: TurnkeyInput): Promis
     step.status = "processing";
     await publish();
     try {
+      if (step.key === "seo") {
+        step.seo = await generateSeoTexts({
+          productName: input.productName,
+          category: input.category,
+          benefits: input.benefits,
+          materials: input.materials,
+        });
+        step.status = "done";
+        doneCount++;
+        await chargeItem(email, parentId, step.key, TURNKEY_SEO_PRICE);
+        await publish();
+        continue;
+      }
       const url =
         step.key === "side" || step.key === "back" || step.key === "lifestyle"
           ? await photoStep(step.key, email, input)
@@ -89,7 +106,7 @@ async function run(parentId: string, email: string, input: TurnkeyInput): Promis
       step.url = url;
       firstUrl = firstUrl ?? url;
       doneCount++;
-      await chargeItem(email, parentId, step.key);
+      await chargeItem(email, parentId, step.key, TURNKEY_ITEM_PRICE);
     } catch (e) {
       console.error(`[turnkey] step ${step.key} failed:`, e);
       step.status = "failed";
@@ -181,14 +198,19 @@ async function photoStep(
   });
 }
 
-async function chargeItem(email: string, parentId: string, key: string): Promise<void> {
+async function chargeItem(
+  email: string,
+  parentId: string,
+  key: string,
+  amount: number,
+): Promise<void> {
   if (!billingEnabled()) return;
   try {
     const user = await getUser(email);
     if (user?.role === "admin") return;
     await applyTx({
       email,
-      amount: -TURNKEY_ITEM_PRICE,
+      amount: -amount,
       type: "charge",
       action: "turnkey",
       reference: `${parentId}:${key}`,

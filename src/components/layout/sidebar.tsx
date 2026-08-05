@@ -49,7 +49,7 @@ export function Sidebar() {
           <Gem className="h-5 w-5" />
         </div>
         <div className="leading-tight">
-          <div className="text-sm font-semibold whitespace-nowrap">WB Card Studio</div>
+          <div className="text-sm font-semibold whitespace-nowrap">Nevario</div>
           <div className="text-xs text-muted-foreground">AI для карточек</div>
         </div>
       </Link>

@@ -13,7 +13,7 @@ function ensure() {
   localforage.config({
     name: "wb-card-studio",
     storeName: "wb_card_studio",
-    description: "Projects and generations for WB Card Studio",
+    description: "Projects and generations for Nevario",
   });
   configured = true;
 }

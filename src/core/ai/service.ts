@@ -421,3 +421,62 @@ function parse<T>(text: string, schema: z.ZodType<T>, label: string): T {
   }
   return result.data;
 }
+
+/* ------------------------------ SEO texts ------------------------------- */
+
+const seoTextsSchema = z.object({
+  title: z.string().min(1),
+  description: z.string().min(1),
+  keywords: z.array(z.string()).default([]),
+});
+
+export type SeoTexts = { title: string; description: string; keywords: string[] };
+
+/**
+ * SEO copy for a WB listing: title with the main keys, a natural long
+ * description and a keyword list. Never throws — falls back to a
+ * deterministic draft so a batch (turnkey) step can't die on it.
+ */
+export async function generateSeoTexts(input: {
+  productName: string;
+  category?: string;
+  benefits: string[];
+  materials?: string[];
+}): Promise<SeoTexts> {
+  const fallback: SeoTexts = {
+    title: input.productName,
+    description: [input.productName, ...input.benefits].join(". "),
+    keywords: [input.productName, input.category ?? ""].filter(Boolean),
+  };
+  try {
+    const llm = getLLMProvider();
+    const result = await llm.complete({
+      task: "seo",
+      json: true,
+      context: { input },
+      messages: [
+        {
+          role: "system",
+          content:
+            "Ты — SEO-специалист по Wildberries. Пишешь тексты, по которым карточку находят в поиске WB. Отвечай строго JSON на русском, без markdown.",
+        },
+        {
+          role: "user",
+          content: `Товар: ${input.productName}
+Категория: ${input.category ?? "не указана"}
+Преимущества: ${input.benefits.join(", ") || "не указаны"}
+Состав: ${(input.materials ?? []).join(", ") || "не указан"}
+
+Верни JSON: {
+"title": SEO-название карточки до 100 символов — главные поисковые ключи в начале, без спама и КАПСА,
+"description": продающее описание 800–1200 знаков — естественный текст с вплетёнными ключевыми запросами, абзацами, без списков и без выдуманных характеристик,
+"keywords": массив из 12–15 реальных поисковых запросов покупателей WB, от частотных к нишевым
+}`,
+        },
+      ],
+    });
+    return parse(result.text, seoTextsSchema, "SEO-тексты") as SeoTexts;
+  } catch {
+    return fallback;
+  }
+}

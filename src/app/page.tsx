@@ -90,7 +90,7 @@ export default async function LandingPage() {
             <Gem className="h-5 w-5" />
           </div>
           <span className="whitespace-nowrap text-sm font-semibold sm:text-base">
-            WB Card Studio
+            Nevario
           </span>
         </Link>
         <div className="flex shrink-0 items-center gap-1.5 sm:gap-3">
@@ -233,7 +233,7 @@ export default async function LandingPage() {
       </section>
 
       <footer className="container border-t py-8 text-center text-sm text-muted-foreground">
-        WB Card Studio · AI-студия карточек Wildberries
+        Nevario — AI-студия карточек для Wildberries
       </footer>
     </div>
   );

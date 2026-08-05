@@ -53,7 +53,7 @@ function LoginInner() {
           <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 text-primary">
             <Lock className="h-5 w-5" />
           </div>
-          <CardTitle className="text-base">WB Card Studio</CardTitle>
+          <CardTitle className="text-base">Nevario</CardTitle>
           <p className="text-sm text-muted-foreground">Вход в аккаунт</p>
         </CardHeader>
         <CardContent>

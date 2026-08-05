@@ -23,8 +23,8 @@ export const PRICES: Record<SparkAction, number> = {
   analyze: 5,
   generate: 7,
   infographic: 10,
-  /** «Карточка под ключ»: 7 изображений пакетом (по 7 ⚡ за штуку вместо 7–10) */
-  turnkey: 49,
+  /** «Карточка под ключ»: 7 изображений (по 7 ⚡ за успешное) + SEO-тексты (6 ⚡) */
+  turnkey: 55,
   ideas: 0,
   write_prompt: 0,
   improve_prompt: 0,
@@ -34,8 +34,10 @@ export const PRICES: Record<SparkAction, number> = {
   extract_style: 0,
 };
 
-/** списание за каждый УСПЕШНЫЙ элемент пакета «под ключ» (49 / 7) */
+/** списание за каждое УСПЕШНОЕ изображение пакета «под ключ» */
 export const TURNKEY_ITEM_PRICE = 7;
+/** списание за SEO-блок пакета (7×7 + 6 = 55) */
+export const TURNKEY_SEO_PRICE = 6;
 
 export const ACTION_LABELS: Record<SparkAction, string> = {
   analyze: "Анализ карточки",
