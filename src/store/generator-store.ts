@@ -3,7 +3,7 @@ import { create } from "zustand";
 import type { PhotoScenarioId } from "@/core/domain/photo-scenarios";
 import type { StyleId } from "@/core/domain/styles";
 import type { AspectRatioId } from "@/core/domain/export-presets";
-import type { ProductInfo, StoredImage } from "@/core/domain/types";
+import type { CardScore, ProductInfo, StoredImage } from "@/core/domain/types";
 import { EMPTY_PRODUCT } from "@/core/domain/types";
 
 export interface GeneratedVariant {
@@ -53,6 +53,8 @@ interface GeneratorState {
   selectedVariantId: string | null;
   status: GenStatus;
   error: string | null;
+  /** score of the latest generation (best-effort, may stay null) */
+  lastScore: CardScore | null;
 
   setProduct: (patch: Partial<ProductInfo>) => void;
   setField: <K extends keyof GeneratorState>(key: K, value: GeneratorState[K]) => void;
@@ -84,6 +86,7 @@ export const useGeneratorStore = create<GeneratorState>((set) => ({
   selectedVariantId: null,
   status: "idle",
   error: null,
+  lastScore: null,
 
   setProduct: (patch) => set((s) => ({ product: { ...s.product, ...patch } })),
   setField: (key, value) => set({ [key]: value } as Partial<GeneratorState>),

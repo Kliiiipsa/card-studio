@@ -24,7 +24,6 @@ import { ExportPanel } from "@/components/generator/export-panel";
 import { ImageUploader } from "@/components/media/image-uploader";
 import { ImagePreview } from "@/components/media/image-preview";
 import { useGeneratorStore, type StyleMode } from "@/store/generator-store";
-import { useProjectStore } from "@/store/project-store";
 import { useCardGeneration } from "@/hooks/use-card-generation";
 import { PHOTO_SCENARIOS, PHOTO_SCENARIO_MAP, type PhotoScenarioId } from "@/core/domain/photo-scenarios";
 import { INFOGRAPHICS_PREFILL_KEY } from "@/components/ai/analysis-report";
@@ -41,7 +40,6 @@ const STYLE_MODES: { id: StyleMode; label: string }[] = [
 function GeneratorInner() {
   const params = useSearchParams();
   const s = useGeneratorStore();
-  const project = useProjectStore();
   const { writePrompt, generate, improvePrompt } = useCardGeneration();
   const [writing, setWriting] = React.useState(false);
   const [improving, setImproving] = React.useState(false);
@@ -52,14 +50,9 @@ function GeneratorInner() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  React.useEffect(() => {
-    if (project.current) s.setProduct(project.current.product);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [project.current?.id]);
-
   const busy = s.status === "generating" || s.status === "scoring";
   const selected = s.variants.find((v) => v.id === s.selectedVariantId);
-  const latestScore = project.generations[0]?.score;
+  const latestScore = s.lastScore;
 
   const handleWrite = async () => {
     setWriting(true);

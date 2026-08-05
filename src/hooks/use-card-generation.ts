@@ -1,13 +1,11 @@
 "use client";
 import { useCallback } from "react";
 import { useGeneratorStore, type GeneratedVariant } from "@/store/generator-store";
-import { useProjectStore } from "@/store/project-store";
 import { api } from "@/lib/client-api";
 import { toast } from "@/components/ui/toaster";
 import { uid } from "@/lib/utils";
 import { PHOTO_SCENARIO_MAP } from "@/core/domain/photo-scenarios";
 import { styleModeGuidance } from "@/core/prompting/prompt-intent";
-import type { Generation } from "@/core/domain/types";
 
 /**
  * Generation pipeline.
@@ -20,7 +18,6 @@ import type { Generation } from "@/core/domain/types";
  */
 export function useCardGeneration() {
   const gen = useGeneratorStore();
-  const project = useProjectStore();
 
   /** "Написать промпт" — AI authors the prompt from photo + product data. */
   const writePrompt = useCallback(async () => {
@@ -112,43 +109,16 @@ export function useCardGeneration() {
 
         // Score the variant (best-effort; non-fatal)
         gen.setField("status", "scoring");
-        let score;
         try {
-          score = await api.score({
+          const score = await api.score({
             imageDataUrl: variants[0].url,
             product: s.product,
             cardType: s.cardType,
           });
+          gen.setField("lastScore", score);
         } catch {
           // scoring is non-critical
-        }
-
-        if (project.current) {
-          const record: Generation = {
-            id: uid("gen"),
-            projectId: project.current.id,
-            mode: s.reference ? "image-to-image" : "text-to-image",
-            params: {
-              cardType: s.cardType,
-              style: s.style,
-              aspectRatio: s.aspectRatio,
-              userPrompt: s.userPrompt,
-              negativePrompt: s.negativePrompt,
-              finalPrompt,
-              referenceStrength: s.reference ? s.referenceStrength : undefined,
-              referenceImageId: s.reference?.id,
-            },
-            images: variants.map((v) => ({
-              id: v.id,
-              dataUrl: v.url,
-              width: v.width,
-              height: v.height,
-              createdAt: Date.now(),
-            })),
-            score,
-            createdAt: Date.now(),
-          };
-          await project.addGeneration(record);
+          gen.setField("lastScore", null);
         }
 
         gen.setField("status", "done");
@@ -160,7 +130,7 @@ export function useCardGeneration() {
         toast.error(msg);
       }
     },
-    [gen, project],
+    [gen],
   );
 
   /** Secondary "Переписать / Сделать лучше" — improve the existing prompt text. */

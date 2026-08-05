@@ -1,16 +1,12 @@
 "use client";
 import * as React from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { Wand2, ScanSearch, LayoutTemplate, Plus, FolderKanban } from "lucide-react";
+import { Wand2, ScanSearch, LayoutTemplate, Package, Images, ArrowRight } from "lucide-react";
 import { AppShell } from "@/components/layout/app-shell";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ProjectCard } from "@/components/project/project-card";
+import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/project/empty-state";
-import { useProjectStore } from "@/store/project-store";
-import { listGenerations } from "@/core/storage/repository";
-import { toast } from "@/components/ui/toaster";
 
 const QUICK = [
   {
@@ -20,60 +16,56 @@ const QUICK = [
     desc: "Новый фон, свет и подача — по описанию или из снимка",
   },
   {
-    href: "/analysis",
-    icon: ScanSearch,
-    title: "Анализ и улучшение",
-    desc: "Аудит карточки + улучшение ИИ",
-  },
-  {
     href: "/infographics",
     icon: LayoutTemplate,
     title: "Инфографика",
     desc: "Готовая карточка с русским текстом и плашками",
   },
+  {
+    href: "/turnkey",
+    icon: Package,
+    title: "Карточка под ключ",
+    desc: "Одно фото → 7 изображений и SEO-тексты",
+  },
+  {
+    href: "/analysis",
+    icon: ScanSearch,
+    title: "Анализ и улучшение",
+    desc: "Аудит карточки + улучшение ИИ",
+  },
 ];
 
+type CardItem = {
+  id: string;
+  kind: string;
+  url: string;
+  title: string | null;
+  createdAt: string;
+};
+
+const KIND_LABEL: Record<string, string> = {
+  generator: "Генератор",
+  infographic: "Инфографика",
+  improve: "Улучшение",
+};
+
 export default function DashboardPage() {
-  const router = useRouter();
-  const { projects, loaded, loadProjects, createProject, removeProject } = useProjectStore();
-  const [covers, setCovers] = React.useState<Record<string, { cover?: string; count: number }>>({});
+  const [cards, setCards] = React.useState<CardItem[] | null>(null);
 
   React.useEffect(() => {
-    loadProjects();
-  }, [loadProjects]);
-
-  React.useEffect(() => {
-    (async () => {
-      const map: Record<string, { cover?: string; count: number }> = {};
-      for (const p of projects) {
-        // eslint-disable-next-line no-await-in-loop
-        const gens = await listGenerations(p.id);
-        map[p.id] = {
-          cover: gens[0]?.images[0]?.dataUrl ?? p.uploads[0]?.dataUrl,
-          count: gens.length,
-        };
-      }
-      setCovers(map);
-    })();
-  }, [projects]);
-
-  const handleCreate = async () => {
-    const project = await createProject("Новый проект");
-    router.push(`/projects/${project.id}`);
-  };
-
-  const handleDelete = async (id: string) => {
-    await removeProject(id);
-    toast.success("Проект удалён");
-  };
+    fetch("/api/cards")
+      .then((r) => r.json())
+      .then((d: { cards?: CardItem[] }) => setCards((d.cards ?? []).slice(0, 8)))
+      .catch(() => setCards([]));
+  }, []);
 
   return (
-    <AppShell title="Дашборд">
+    <AppShell title="Главная">
       <div className="space-y-8">
         {/* Quick actions */}
         <section>
           <h2 className="mb-3 text-sm font-semibold text-muted-foreground">Быстрые действия</h2>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {QUICK.map((q) => (
               <Link key={q.href} href={q.href}>
                 <Card className="h-full transition-all hover:border-primary/40 hover:shadow-md">
@@ -92,44 +84,66 @@ export default function DashboardPage() {
           </div>
         </section>
 
-        {/* Projects */}
+        {/* Recent work — server-side, synced across devices */}
         <section>
           <div className="mb-3 flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-muted-foreground">Мои проекты</h2>
-            <Button onClick={handleCreate} size="sm" variant="gradient">
-              <Plus className="h-4 w-4" />
-              Новый проект
-            </Button>
+            <h2 className="text-sm font-semibold text-muted-foreground">Последние работы</h2>
+            {cards !== null && cards.length > 0 && (
+              <Button asChild variant="ghost" size="sm">
+                <Link href="/cards">
+                  Все карточки
+                  <ArrowRight className="h-4 w-4" />
+                </Link>
+              </Button>
+            )}
           </div>
 
-          {!loaded ? (
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {cards === null ? (
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
               {Array.from({ length: 4 }).map((_, i) => (
-                <div key={i} className="aspect-[4/3] animate-pulse rounded-xl bg-muted" />
+                <div key={i} className="aspect-[3/4] animate-pulse rounded-xl bg-muted" />
               ))}
             </div>
-          ) : projects.length === 0 ? (
+          ) : cards.length === 0 ? (
             <EmptyState
-              icon={<FolderKanban className="h-6 w-6" />}
-              title="Пока нет проектов"
-              description="Создайте первый проект, чтобы загрузить товар и сгенерировать карточки."
+              icon={<Images className="h-6 w-6" />}
+              title="Пока ничего нет"
+              description="Сгенерируйте первую карточку — она появится здесь и в «Моих карточках»."
               action={
-                <Button onClick={handleCreate} variant="gradient">
-                  <Plus className="h-4 w-4" />
-                  Создать проект
+                <Button asChild variant="gradient">
+                  <Link href="/infographics">
+                    <LayoutTemplate className="h-4 w-4" />
+                    Собрать инфографику
+                  </Link>
                 </Button>
               }
             />
           ) : (
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              {projects.map((p) => (
-                <ProjectCard
-                  key={p.id}
-                  project={p}
-                  cover={covers[p.id]?.cover}
-                  count={covers[p.id]?.count}
-                  onDelete={handleDelete}
-                />
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+              {cards.map((c) => (
+                <Link
+                  key={c.id}
+                  href="/cards"
+                  className="group overflow-hidden rounded-xl border bg-card"
+                >
+                  <div className="relative aspect-[3/4] overflow-hidden bg-muted">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={c.url}
+                      alt={c.title ?? "Сгенерированная карточка"}
+                      loading="lazy"
+                      className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
+                    />
+                  </div>
+                  <div className="flex items-center justify-between gap-2 p-2.5">
+                    <p className="truncate text-xs font-medium">
+                      {c.title ?? KIND_LABEL[c.kind] ?? c.kind}
+                    </p>
+                    <Badge variant="secondary" className="shrink-0 px-1.5 py-0 text-[10px] font-normal">
+                      {KIND_LABEL[c.kind] ?? c.kind}
+                    </Badge>
+                  </div>
+                </Link>
               ))}
             </div>
           )}
