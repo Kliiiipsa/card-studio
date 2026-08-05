@@ -370,10 +370,14 @@ function buildBaseRequest(args: InfographicBaseArgs, bake: boolean): BuiltReques
   const product = args.productName?.trim() || "the user's product";
   // Library styles come with a real exemplar card baked at build time — passing
   // it as the style image transfers the look far stronger than palette words.
+  // ONLY together with a product photo though: the two-image prompt pins the
+  // product to the FIRST image. Without a product photo the "restyle the
+  // reference" branch lets the exemplar's own product take over the frame
+  // (a face cream turned into the exemplar's suit) — text profile only then.
   // A user-uploaded reference always wins over the library exemplar.
   const styleReferenceImage =
     args.styleReferenceImage ??
-    (args.brief.styleProfile?.source === "library"
+    (args.productImage && args.brief.styleProfile?.source === "library"
       ? STYLE_REF_IMAGES[args.brief.styleProfile.id]
       : undefined);
   args = { ...args, styleReferenceImage };
