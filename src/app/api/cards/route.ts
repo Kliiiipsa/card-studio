@@ -16,7 +16,9 @@ export async function GET(req: Request) {
     const offset = Number(url.searchParams.get("offset") ?? 0) || 0;
     const jobs = await listCompleted({ email: session.email, kind, limit: 60, offset });
     return ok({
-      cards: jobs.map((j) => {
+      // turnkey parents are progress containers — their items are already
+      // recorded individually as infographic/generator cards
+      cards: jobs.filter((j) => j.kind !== "turnkey").map((j) => {
         const payload = (j.payload ?? {}) as {
           brief?: { headline?: string };
           prompt?: string;

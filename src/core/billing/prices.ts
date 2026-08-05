@@ -9,6 +9,7 @@ export type SparkAction =
   | "analyze"
   | "generate"
   | "infographic"
+  | "turnkey"
   | "ideas"
   | "write_prompt"
   | "improve_prompt"
@@ -22,6 +23,8 @@ export const PRICES: Record<SparkAction, number> = {
   analyze: 5,
   generate: 7,
   infographic: 10,
+  /** «Карточка под ключ»: 7 изображений пакетом (по 7 ⚡ за штуку вместо 7–10) */
+  turnkey: 49,
   ideas: 0,
   write_prompt: 0,
   improve_prompt: 0,
@@ -31,10 +34,14 @@ export const PRICES: Record<SparkAction, number> = {
   extract_style: 0,
 };
 
+/** списание за каждый УСПЕШНЫЙ элемент пакета «под ключ» (49 / 7) */
+export const TURNKEY_ITEM_PRICE = 7;
+
 export const ACTION_LABELS: Record<SparkAction, string> = {
   analyze: "Анализ карточки",
-  generate: "Генерация карточки",
+  generate: "Фото товара",
   infographic: "Инфографика",
+  turnkey: "Карточка под ключ (7 изображений)",
   ideas: "Идеи карточек",
   write_prompt: "Написание промпта",
   improve_prompt: "Улучшение промпта",

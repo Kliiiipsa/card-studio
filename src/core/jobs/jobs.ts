@@ -89,15 +89,32 @@ export async function createJob(args: {
   email: string;
   kind: string;
   payload: unknown;
-  falStatusUrl: string;
-  falResponseUrl: string;
+  /** absent for server-orchestrated jobs (e.g. turnkey) with no fal handle */
+  falStatusUrl?: string;
+  falResponseUrl?: string;
 }): Promise<void> {
   await ensureSchema();
   await getPool().query(
     `insert into gen_jobs (id, email, kind, payload, fal_status_url, fal_response_url)
      values ($1, $2, $3, $4, $5, $6) on conflict (id) do nothing`,
-    [args.id, args.email, args.kind, JSON.stringify(args.payload), args.falStatusUrl, args.falResponseUrl],
+    [
+      args.id,
+      args.email,
+      args.kind,
+      JSON.stringify(args.payload),
+      args.falStatusUrl ?? null,
+      args.falResponseUrl ?? null,
+    ],
   );
+}
+
+/** Replace a job's payload (used by orchestrators to publish step progress). */
+export async function updateJobPayload(id: string, payload: unknown): Promise<void> {
+  await ensureSchema();
+  await getPool().query(`update gen_jobs set payload = $2 where id = $1`, [
+    id,
+    JSON.stringify(payload),
+  ]);
 }
 
 export async function completeJob(id: string, resultUrl: string, sizeBytes?: number): Promise<void> {
