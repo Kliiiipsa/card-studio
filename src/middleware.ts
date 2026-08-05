@@ -19,7 +19,13 @@ export async function middleware(req: NextRequest) {
     pathname.startsWith("/examples/") ||
     pathname.startsWith("/login") ||
     pathname.startsWith("/register") ||
-    pathname.startsWith("/api/auth")
+    pathname.startsWith("/api/auth") ||
+    // crawlers and link-preview bots must reach these without a session
+    pathname === "/robots.txt" ||
+    pathname === "/sitemap.xml" ||
+    pathname === "/og.jpg" ||
+    pathname === "/icon.png" ||
+    pathname === "/apple-icon.png"
   ) {
     return NextResponse.next();
   }
