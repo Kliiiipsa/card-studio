@@ -12,7 +12,11 @@ export async function middleware(req: NextRequest) {
   if (!secret) return NextResponse.next();
 
   const { pathname } = req.nextUrl;
+  // Public: the landing page and its example images — visitors must be able to
+  // see what the product does before signing up. The studio itself stays gated.
   if (
+    pathname === "/" ||
+    pathname.startsWith("/examples/") ||
     pathname.startsWith("/login") ||
     pathname.startsWith("/register") ||
     pathname.startsWith("/api/auth")
