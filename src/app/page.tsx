@@ -1,5 +1,7 @@
 import Link from "next/link";
 import Image from "next/image";
+import { cookies } from "next/headers";
+import { SESSION_COOKIE, verifySessionToken } from "@/core/auth/session";
 import {
   Wand2,
   ScanSearch,
@@ -73,7 +75,12 @@ const STEPS = [
   { icon: Download, title: "Скачайте результат", text: "Готовая графика в нужном размере." },
 ];
 
-export default function LandingPage() {
+export default async function LandingPage() {
+  // The landing is public; greet an already-authenticated visitor properly —
+  // otherwise logging in "does nothing" visually (the page looks identical).
+  const secret = process.env.AUTH_SECRET;
+  const token = cookies().get(SESSION_COOKIE)?.value;
+  const authed = secret ? Boolean(await verifySessionToken(secret, token)) : false;
   return (
     <div className="min-h-screen surface-gradient">
       {/* Nav */}
@@ -87,15 +94,26 @@ export default function LandingPage() {
           </span>
         </Link>
         <div className="flex shrink-0 items-center gap-1.5 sm:gap-3">
-          <Button asChild variant="ghost" size="sm">
-            <Link href="/login">Войти</Link>
-          </Button>
-          <Button asChild variant="gradient" size="sm">
-            <Link href="/register">
-              <span className="sm:hidden">Начать</span>
-              <span className="hidden sm:inline">Начать бесплатно</span>
-            </Link>
-          </Button>
+          {authed ? (
+            <Button asChild variant="gradient" size="sm">
+              <Link href="/dashboard">
+                В студию
+                <ArrowRight className="h-4 w-4" />
+              </Link>
+            </Button>
+          ) : (
+            <>
+              <Button asChild variant="ghost" size="sm">
+                <Link href="/login">Войти</Link>
+              </Button>
+              <Button asChild variant="gradient" size="sm">
+                <Link href="/register">
+                  <span className="sm:hidden">Начать</span>
+                  <span className="hidden sm:inline">Начать бесплатно</span>
+                </Link>
+              </Button>
+            </>
+          )}
         </div>
       </header>
 
@@ -114,8 +132,8 @@ export default function LandingPage() {
         </p>
         <div className="mt-8 flex flex-col gap-3 sm:flex-row">
           <Button asChild size="lg" variant="gradient">
-            <Link href="/register">
-              Начать бесплатно
+            <Link href={authed ? "/dashboard" : "/register"}>
+              {authed ? "Открыть студию" : "Начать бесплатно"}
               <ArrowRight className="h-4 w-4" />
             </Link>
           </Button>
@@ -123,10 +141,12 @@ export default function LandingPage() {
             <Link href="#examples">Посмотреть примеры</Link>
           </Button>
         </div>
-        <p className="mt-3 flex items-center gap-1.5 text-sm text-muted-foreground">
-          <Zap className="h-4 w-4 text-amber-500" />
-          20 искр в подарок при регистрации — хватит на первые карточки
-        </p>
+        {!authed && (
+          <p className="mt-3 flex items-center gap-1.5 text-sm text-muted-foreground">
+            <Zap className="h-4 w-4 text-amber-500" />
+            20 искр в подарок при регистрации — хватит на первые карточки
+          </p>
+        )}
 
         {/* Hero preview strip — real generated cards */}
         <div className="mt-16 grid w-full max-w-5xl grid-cols-2 gap-4 sm:grid-cols-4">
@@ -204,8 +224,8 @@ export default function LandingPage() {
             платите только за готовые изображения.
           </p>
           <Button asChild size="lg" variant="secondary" className="mt-8">
-            <Link href="/register">
-              Начать бесплатно
+            <Link href={authed ? "/dashboard" : "/register"}>
+              {authed ? "Открыть студию" : "Начать бесплатно"}
               <ArrowRight className="h-4 w-4" />
             </Link>
           </Button>

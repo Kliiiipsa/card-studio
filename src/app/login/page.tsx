@@ -35,8 +35,9 @@ function LoginInner() {
         setError((data as { error?: string }).error ?? "Не удалось войти.");
         return;
       }
-      const from = params.get("from") || "/";
-      router.replace(from.startsWith("/") ? from : "/");
+      // "/" is the public landing now — a successful login must land in the studio
+      const from = params.get("from") || "/dashboard";
+      router.replace(from.startsWith("/") && from !== "/" ? from : "/dashboard");
       router.refresh();
     } catch {
       setError("Сеть недоступна. Попробуйте ещё раз.");

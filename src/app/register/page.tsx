@@ -55,7 +55,7 @@ export default function RegisterPage() {
       };
       // open mode: the account is created immediately, no email code
       if (data.registered) {
-        router.replace("/");
+        router.replace("/dashboard");
         router.refresh();
         return;
       }
@@ -80,7 +80,7 @@ export default function RegisterPage() {
     setBusy(true);
     try {
       await post("/api/auth/verify", { email: email.trim(), code: code.trim() });
-      router.replace("/");
+      router.replace("/dashboard");
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Что-то пошло не так.");
