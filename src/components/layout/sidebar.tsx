@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 
 export const NAV = [
   { href: "/dashboard", label: "Мои проекты", icon: LayoutDashboard },
-  { href: "/generator", label: "Создать карточку", icon: Wand2 },
+  { href: "/generator", label: "Фото товара", icon: Wand2 },
   { href: "/infographics", label: "Инфографика", icon: LayoutGrid },
   { href: "/analysis", label: "Анализ и улучшение", icon: ScanSearch },
   { href: "/cards", label: "Мои карточки", icon: Images },

@@ -16,6 +16,7 @@ import { useProjectStore } from "@/store/project-store";
 import { api } from "@/lib/client-api";
 import { toast } from "@/components/ui/toaster";
 import { uid, formatRelative } from "@/lib/utils";
+import { PHOTO_SCENARIO_MAP } from "@/core/domain/photo-scenarios";
 import { CARD_TYPE_MAP } from "@/core/domain/card-types";
 import type { CardIdea } from "@/core/domain/types";
 
@@ -185,7 +186,7 @@ export default function ProjectPage() {
                     <div key={g.id}>
                       <div className="mb-2 flex items-center gap-2 text-xs text-muted-foreground">
                         <Badge variant="secondary" className="text-[10px]">
-                          {CARD_TYPE_MAP[g.params.cardType]?.title}
+                          {PHOTO_SCENARIO_MAP[g.params.cardType]?.title ?? CARD_TYPE_MAP[g.params.cardType as keyof typeof CARD_TYPE_MAP]?.title ?? g.params.cardType}
                         </Badge>
                         <span>{g.mode === "image-to-image" ? "по фото" : "по промпту"}</span>
                         {g.score && <span>· балл {g.score.total}</span>}

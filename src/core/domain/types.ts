@@ -30,7 +30,8 @@ export interface StoredImage {
 }
 
 export interface GenerationParams {
-  cardType: CardTypeId;
+  /** card type id or photo scenario id (generator switched to scenarios) */
+  cardType: CardTypeId | string;
   style: StyleId;
   aspectRatio: AspectRatioId;
   userPrompt: string;

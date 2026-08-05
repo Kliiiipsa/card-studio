@@ -1,6 +1,6 @@
 "use client";
 import { create } from "zustand";
-import type { CardTypeId } from "@/core/domain/card-types";
+import type { PhotoScenarioId } from "@/core/domain/photo-scenarios";
 import type { StyleId } from "@/core/domain/styles";
 import type { AspectRatioId } from "@/core/domain/export-presets";
 import type { ProductInfo, StoredImage } from "@/core/domain/types";
@@ -34,7 +34,7 @@ export type StyleMode = "auto" | "minimal" | "premium" | "bold" | "lifestyle";
 
 interface GeneratorState {
   product: ProductInfo;
-  cardType: CardTypeId;
+  cardType: PhotoScenarioId;
   style: StyleId;
   styleMode: StyleMode;
   aspectRatio: AspectRatioId;
@@ -67,7 +67,7 @@ export const DEFAULT_NEGATIVE =
 
 export const useGeneratorStore = create<GeneratorState>((set) => ({
   product: { ...EMPTY_PRODUCT },
-  cardType: "cover",
+  cardType: "studio",
   style: "premium-minimal",
   styleMode: "auto",
   aspectRatio: "3:4",

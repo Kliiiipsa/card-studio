@@ -16,8 +16,8 @@ const QUICK = [
   {
     href: "/generator",
     icon: Wand2,
-    title: "Создать карточку",
-    desc: "Генерация по описанию или фото",
+    title: "Фото товара",
+    desc: "Новый фон, свет и подача — по описанию или из снимка",
   },
   {
     href: "/analysis",
@@ -26,10 +26,10 @@ const QUICK = [
     desc: "Аудит карточки + улучшение ИИ",
   },
   {
-    href: "/generator?type=benefits",
+    href: "/infographics",
     icon: LayoutTemplate,
-    title: "Инфографика преимуществ",
-    desc: "Карточка с выгодами товара",
+    title: "Инфографика",
+    desc: "Готовая карточка с русским текстом и плашками",
   },
 ];
 

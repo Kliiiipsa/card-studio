@@ -1,8 +1,9 @@
 "use client";
 import * as React from "react";
 import { Suspense } from "react";
-import { useSearchParams } from "next/navigation";
-import { Wand2, Loader2, RefreshCw, Sparkles, Eraser, ImagePlus } from "lucide-react";
+import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Wand2, Loader2, RefreshCw, Sparkles, Eraser, ImagePlus, LayoutGrid } from "lucide-react";
 import { AppShell } from "@/components/layout/app-shell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -25,7 +26,8 @@ import { ImagePreview } from "@/components/media/image-preview";
 import { useGeneratorStore, type StyleMode } from "@/store/generator-store";
 import { useProjectStore } from "@/store/project-store";
 import { useCardGeneration } from "@/hooks/use-card-generation";
-import { CARD_TYPES, type CardTypeId } from "@/core/domain/card-types";
+import { PHOTO_SCENARIOS, PHOTO_SCENARIO_MAP, type PhotoScenarioId } from "@/core/domain/photo-scenarios";
+import { INFOGRAPHICS_PREFILL_KEY } from "@/components/ai/analysis-report";
 import { uid } from "@/lib/utils";
 
 const STYLE_MODES: { id: StyleMode; label: string }[] = [
@@ -46,7 +48,7 @@ function GeneratorInner() {
 
   React.useEffect(() => {
     const type = params.get("type");
-    if (type) s.setField("cardType", type as CardTypeId);
+    if (type && PHOTO_SCENARIO_MAP[type]) s.setField("cardType", type as PhotoScenarioId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -69,6 +71,22 @@ function GeneratorInner() {
     setImproving(true);
     await improvePrompt();
     setImproving(false);
+  };
+
+  // hand the generated photo over to the infographics section as the product
+  // photo — the natural "clean photo → card with text" pipeline
+  const router = useRouter();
+  const toInfographic = () => {
+    if (!selected) return;
+    sessionStorage.setItem(
+      INFOGRAPHICS_PREFILL_KEY,
+      JSON.stringify({
+        name: s.product.name,
+        benefits: s.product.benefits,
+        image: selected.url,
+      }),
+    );
+    router.push("/infographics");
   };
 
   return (
@@ -153,16 +171,16 @@ function GeneratorInner() {
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label className="text-xs">Что создаём?</Label>
+              <Label className="text-xs">Сценарий фото</Label>
               <Select
                 value={s.cardType}
-                onValueChange={(v) => s.setField("cardType", v as CardTypeId)}
+                onValueChange={(v) => s.setField("cardType", v as PhotoScenarioId)}
               >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {CARD_TYPES.map((t) => (
+                  {PHOTO_SCENARIOS.map((t) => (
                     <SelectItem key={t.id} value={t.id}>
                       {t.title}
                     </SelectItem>
@@ -189,6 +207,13 @@ function GeneratorInner() {
               </Select>
             </div>
           </div>
+          <p className="text-[11px] leading-4 text-muted-foreground">
+            Этот раздел делает чистое фото без надписей. Нужна карточка с текстом и плашками —{" "}
+            <Link href="/infographics" className="font-medium text-primary hover:underline">
+              соберите инфографику
+            </Link>
+            .
+          </p>
         </CardContent>
       </Card>
 
@@ -266,7 +291,7 @@ function GeneratorInner() {
               className="w-full"
             >
               {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />}
-              Сгенерировать карточку · 7 ⚡
+              Сгенерировать фото · 7 ⚡
             </Button>
 
             {busy ? (
@@ -277,7 +302,7 @@ function GeneratorInner() {
               <div className="flex aspect-[3/4] max-w-sm mx-auto items-center justify-center rounded-xl border border-dashed text-center text-sm text-muted-foreground">
                 <span className="flex flex-col items-center gap-2 px-6">
                   <ImagePlus className="h-6 w-6 opacity-60" />
-                  Здесь появится карточка
+                  Здесь появится фото
                 </span>
               </div>
             )}
@@ -304,6 +329,10 @@ function GeneratorInner() {
                     scrim: true,
                   }}
                 />
+                <Button variant="outline" className="w-full" onClick={toInfographic}>
+                  <LayoutGrid className="h-4 w-4" />
+                  Сделать инфографику из этого фото · 10 ⚡
+                </Button>
                 {latestScore && (
                   <p className="text-center text-xs text-muted-foreground">
                     Оценка карточки: <span className="font-semibold">{latestScore.total}/100</span>
@@ -324,7 +353,7 @@ function GeneratorInner() {
           className="w-full"
         >
           {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />}
-          Сгенерировать карточку · 7 ⚡
+          Сгенерировать фото · 7 ⚡
         </Button>
       </div>
     </div>
@@ -333,7 +362,7 @@ function GeneratorInner() {
 
 export default function GeneratorPage() {
   return (
-    <AppShell title="Создать карточку">
+    <AppShell title="Фото товара">
       <Suspense fallback={<div className="p-8 text-center text-muted-foreground">Загрузка…</div>}>
         <GeneratorInner />
       </Suspense>

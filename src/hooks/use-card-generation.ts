@@ -5,7 +5,7 @@ import { useProjectStore } from "@/store/project-store";
 import { api } from "@/lib/client-api";
 import { toast } from "@/components/ui/toaster";
 import { uid } from "@/lib/utils";
-import { CARD_TYPE_MAP } from "@/core/domain/card-types";
+import { PHOTO_SCENARIO_MAP } from "@/core/domain/photo-scenarios";
 import { styleModeGuidance } from "@/core/prompting/prompt-intent";
 import type { Generation } from "@/core/domain/types";
 
@@ -60,10 +60,10 @@ export function useCardGeneration() {
 
         // The type/style selects must matter even when the prompt was written
         // earlier (or by hand): their guidance is appended at generation time.
-        const cardType = CARD_TYPE_MAP[s.cardType];
+        const scenario = PHOTO_SCENARIO_MAP[s.cardType];
         const styleGuidance = s.styleMode !== "auto" ? styleModeGuidance(s.styleMode) : null;
         const suffix = [
-          cardType && `Формат карточки: ${cardType.title}. Composition: ${cardType.promptHint}`,
+          scenario && `Сценарий фото: ${scenario.title}. Composition: ${scenario.promptHint}`,
           styleGuidance && `Стиль: ${styleGuidance}`,
         ]
           .filter(Boolean)
@@ -152,7 +152,7 @@ export function useCardGeneration() {
         }
 
         gen.setField("status", "done");
-        toast.success("Карточка сгенерирована");
+        toast.success("Фото готово");
       } catch (e) {
         const msg = e instanceof Error ? e.message : "Ошибка генерации";
         gen.setField("error", msg);

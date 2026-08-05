@@ -192,14 +192,24 @@ export default function InfographicsPage() {
       const raw = sessionStorage.getItem(INFOGRAPHICS_PREFILL_KEY);
       if (!raw) return;
       sessionStorage.removeItem(INFOGRAPHICS_PREFILL_KEY);
-      const p = JSON.parse(raw) as { name?: string; headline?: string; benefits?: string[] };
+      const p = JSON.parse(raw) as {
+        name?: string;
+        headline?: string;
+        benefits?: string[];
+        image?: string;
+      };
       setProduct((s) => ({
         ...s,
         name: p.name || s.name,
         benefits: p.benefits?.length ? p.benefits : s.benefits,
       }));
+      if (p.image) setReference(p.image);
       if (p.headline) setUserNote(`Заголовок карточки: «${p.headline}»`);
-      toast.success("Идея из анализа подставлена — нажмите «Собрать инфографику»");
+      toast.success(
+        p.image
+          ? "Фото из генератора подставлено — нажмите «Собрать инфографику»"
+          : "Идея из анализа подставлена — нажмите «Собрать инфографику»",
+      );
     } catch {
       // malformed prefill is not worth breaking the page for
     }

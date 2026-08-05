@@ -16,7 +16,7 @@ export function Topbar({ title }: { title?: string }) {
         <ProviderBadge />
         <ThemeToggle />
         <Button asChild variant="gradient" size="sm">
-          <Link href="/generator" aria-label="Новая карточка">
+          <Link href="/infographics" aria-label="Новая карточка">
             <Plus className="h-4 w-4" />
             <span className="hidden sm:inline">Новая карточка</span>
           </Link>
