@@ -22,9 +22,21 @@ export class FalImageProvider implements ImageProvider {
 
   async textToImage(req: T2IRequest): Promise<ImageResult> {
     const ratio = req.aspectRatio ?? this.defaultRatio;
+    // jpeg output ≈ 3–4× smaller than png with no visible difference on
+    // photographic cards — matters because results are persisted to our S3
     const input = isKontext(this.t2iModel)
-      ? { prompt: req.prompt, aspect_ratio: toAspectRatio(ratio), num_images: req.count ?? 2 }
-      : { prompt: req.prompt, image_size: toImageSize(ratio), num_images: req.count ?? 2 };
+      ? {
+          prompt: req.prompt,
+          aspect_ratio: toAspectRatio(ratio),
+          num_images: req.count ?? 2,
+          output_format: "jpeg",
+        }
+      : {
+          prompt: req.prompt,
+          image_size: toImageSize(ratio),
+          num_images: req.count ?? 2,
+          output_format: "jpeg",
+        };
     return this.run(this.t2iModel, input);
   }
 
@@ -36,6 +48,7 @@ export class FalImageProvider implements ImageProvider {
           image_url: req.referenceImageDataUrl,
           aspect_ratio: toAspectRatio(ratio),
           num_images: req.count ?? 2,
+          output_format: "jpeg",
         }
       : {
           prompt: req.prompt,
@@ -44,6 +57,7 @@ export class FalImageProvider implements ImageProvider {
           strength: req.strength ?? 0.55,
           image_size: toImageSize(ratio),
           num_images: req.count ?? 2,
+          output_format: "jpeg",
         };
     return this.run(this.i2iModel, input);
   }

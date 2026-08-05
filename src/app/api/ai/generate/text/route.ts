@@ -1,5 +1,6 @@
 import { parseBody, ok, fail } from "@/lib/api";
 import { requireSparks, chargeSparks } from "@/core/billing/api";
+import { persistGeneration } from "@/core/jobs/persist";
 import { generateTextRequestSchema } from "@/core/ai/schemas";
 import { generateImageFromText } from "@/core/ai/service";
 
@@ -11,6 +12,15 @@ export async function POST(req: Request) {
     const bill = await requireSparks(req, "generate");
     const body = await parseBody(req, generateTextRequestSchema);
     const result = await generateImageFromText(body);
+    // permanent copies in our S3 + «Мои карточки» records (fal URLs expire)
+    for (const img of result.images) {
+      img.url = await persistGeneration({
+        email: bill.email,
+        kind: "generator",
+        sourceUrl: img.url,
+        payload: { prompt: body.prompt.slice(0, 300), cardText: body.cardText },
+      });
+    }
     const balance = await chargeSparks(bill);
     return ok({ ...result, balance: balance ?? undefined });
   } catch (err) {

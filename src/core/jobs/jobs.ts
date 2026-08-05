@@ -57,6 +57,7 @@ function ensureSchema(): Promise<void> {
         );
         create index if not exists gen_jobs_email_idx on gen_jobs (email, created_at desc);
         create index if not exists gen_jobs_status_idx on gen_jobs (status);
+        alter table gen_jobs add column if not exists size_bytes bigint;
       `);
     })().catch((e) => {
       schemaReady = null;
@@ -99,13 +100,64 @@ export async function createJob(args: {
   );
 }
 
-export async function completeJob(id: string, resultUrl: string): Promise<void> {
+export async function completeJob(id: string, resultUrl: string, sizeBytes?: number): Promise<void> {
   await ensureSchema();
   await getPool().query(
-    `update gen_jobs set status = 'completed', result_url = $2, finished_at = now()
+    `update gen_jobs set status = 'completed', result_url = $2, size_bytes = $3, finished_at = now()
      where id = $1 and status = 'processing'`,
-    [id, resultUrl],
+    [id, resultUrl, sizeBytes ?? null],
   );
+}
+
+/** One-shot record for synchronous generations (generator, Flux fallback). */
+export async function insertCompletedJob(args: {
+  id: string;
+  email: string;
+  kind: string;
+  payload: unknown;
+  resultUrl: string;
+  sizeBytes?: number;
+}): Promise<void> {
+  await ensureSchema();
+  await getPool().query(
+    `insert into gen_jobs (id, email, kind, status, payload, result_url, size_bytes, finished_at)
+     values ($1, $2, $3, 'completed', $4, $5, $6, now()) on conflict (id) do nothing`,
+    [args.id, args.email, args.kind, JSON.stringify(args.payload), args.resultUrl, args.sizeBytes ?? null],
+  );
+}
+
+/** Completed generations for the "Мои карточки" gallery, newest first. */
+export async function listCompleted(args: {
+  email: string;
+  kind?: string;
+  limit?: number;
+  offset?: number;
+}): Promise<GenJob[]> {
+  await ensureSchema();
+  const limit = Math.min(Math.max(args.limit ?? 60, 1), 200);
+  const offset = Math.max(args.offset ?? 0, 0);
+  const { rows } = args.kind
+    ? await getPool().query(
+        `select * from gen_jobs where email = $1 and kind = $2 and status = 'completed' and result_url is not null
+         order by created_at desc limit $3 offset $4`,
+        [args.email, args.kind, limit, offset],
+      )
+    : await getPool().query(
+        `select * from gen_jobs where email = $1 and status = 'completed' and result_url is not null
+         order by created_at desc limit $2 offset $3`,
+        [args.email, limit, offset],
+      );
+  return rows.map(toJob);
+}
+
+/** Aggregate storage usage for the admin dashboard. */
+export async function storageStats(): Promise<{ count: number; bytes: number }> {
+  await ensureSchema();
+  const { rows } = await getPool().query<{ count: string; bytes: string | null }>(
+    `select count(*) as count, coalesce(sum(size_bytes), 0) as bytes
+     from gen_jobs where status = 'completed' and result_url is not null`,
+  );
+  return { count: Number(rows[0].count), bytes: Number(rows[0].bytes ?? 0) };
 }
 
 export async function failJob(id: string, error: string): Promise<void> {

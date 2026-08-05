@@ -54,16 +54,19 @@ async function run(args: WatchArgs): Promise<void> {
       if (st.status === "completed" && st.images?.[0]?.url) {
         const falUrl = st.images[0].url;
         let finalUrl = falUrl;
+        let sizeBytes: number | undefined;
         if (s3Enabled()) {
           try {
-            finalUrl = await persistImageToS3(falUrl, `cards/${args.id}.png`);
+            const saved = await persistImageToS3(falUrl, `cards/${args.id}.png`);
+            finalUrl = saved.url;
+            sizeBytes = saved.bytes;
           } catch (e) {
             // S3 hiccup → keep the fal URL rather than losing the result
             console.error("[jobs] S3 persist failed:", e);
           }
         }
         await chargeIfNeeded(args.email, args.falResponseUrl);
-        await completeJob(args.id, finalUrl);
+        await completeJob(args.id, finalUrl, sizeBytes);
         return;
       }
     } catch (e) {

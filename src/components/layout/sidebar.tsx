@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Wand2, ScanSearch, LayoutGrid, Gem } from "lucide-react";
+import { LayoutDashboard, Wand2, ScanSearch, LayoutGrid, Gem, Images } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export const NAV = [
@@ -9,6 +9,7 @@ export const NAV = [
   { href: "/generator", label: "Создать карточку", icon: Wand2 },
   { href: "/infographics", label: "Инфографика", icon: LayoutGrid },
   { href: "/analysis", label: "Анализ и улучшение", icon: ScanSearch },
+  { href: "/cards", label: "Мои карточки", icon: Images },
 ];
 
 export function NavLinks({ onNavigate }: { onNavigate?: () => void }) {

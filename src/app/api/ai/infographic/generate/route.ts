@@ -2,6 +2,7 @@ import { parseBody, ok, fail } from "@/lib/api";
 import { requireSparks, chargeSparks } from "@/core/billing/api";
 import { createJob, jobsEnabled } from "@/core/jobs/jobs";
 import { ensureWatcherBoot, watchJob } from "@/core/jobs/watcher";
+import { persistGeneration } from "@/core/jobs/persist";
 import { uid } from "@/lib/utils";
 import { infographicGenerateSchema } from "@/core/infographics/schemas";
 import {
@@ -40,10 +41,16 @@ export async function POST(req: Request) {
     // Client asks for the Flux fallback after a queued gpt-image job failed.
     if (body.forceFallback) {
       const { baseImageUrl, textBaked } = await generateInfographicFallback(args);
+      const finalUrl = await persistGeneration({
+        email: bill.email,
+        kind: "infographic",
+        sourceUrl: baseImageUrl,
+        payload: { brief, textBaked },
+      });
       const balance = await chargeSparks(bill);
       return ok({
         done: true,
-        baseImageUrl,
+        baseImageUrl: finalUrl,
         overlayPlan: brief.overlayPlan,
         brief,
         textBaked,
@@ -54,10 +61,16 @@ export async function POST(req: Request) {
     const result = await submitInfographicBase(args);
     if (result.kind === "done") {
       // fast provider (mock/Flux) finished inline
+      const finalUrl = await persistGeneration({
+        email: bill.email,
+        kind: "infographic",
+        sourceUrl: result.baseImageUrl,
+        payload: { brief, textBaked: result.textBaked },
+      });
       const balance = await chargeSparks(bill);
       return ok({
         done: true,
-        baseImageUrl: result.baseImageUrl,
+        baseImageUrl: finalUrl,
         overlayPlan: brief.overlayPlan,
         brief,
         textBaked: result.textBaked,

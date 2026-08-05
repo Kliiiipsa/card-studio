@@ -32,6 +32,7 @@ const TX_LABEL: Record<string, string> = {
 export default function AdminPage() {
   const [users, setUsers] = React.useState<AdminUser[] | null>(null);
   const [txs, setTxs] = React.useState<SparkTransaction[] | null>(null);
+  const [storage, setStorage] = React.useState<{ count: number; bytes: number } | null>(null);
   const [error, setError] = React.useState<string | null>(null);
   const [search, setSearch] = React.useState("");
 
@@ -61,6 +62,12 @@ export default function AdminPage() {
   React.useEffect(() => {
     loadUsers();
     loadTxs();
+    fetch("/api/admin/storage")
+      .then((r) => r.json())
+      .then((d: { count?: number; bytes?: number }) =>
+        setStorage({ count: d.count ?? 0, bytes: d.bytes ?? 0 }),
+      )
+      .catch(() => undefined);
   }, [loadUsers, loadTxs]);
 
   const applySparks = async () => {
@@ -98,9 +105,15 @@ export default function AdminPage() {
   return (
     <AppShell title="Админка">
       <div className="mx-auto max-w-4xl">
-        <div className="mb-4 flex items-center gap-2">
+        <div className="mb-4 flex flex-wrap items-center gap-2">
           <ShieldCheck className="h-5 w-5 text-primary" />
           <h2 className="text-sm font-semibold">Управление студией</h2>
+          {storage && (
+            <span className="ml-auto text-xs text-muted-foreground">
+              Хранилище: {storage.count} карточек ·{" "}
+              {(storage.bytes / 1024 / 1024).toFixed(0)} МБ из 10 240 МБ
+            </span>
+          )}
         </div>
 
         <Tabs defaultValue="users">

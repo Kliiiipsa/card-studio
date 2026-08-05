@@ -71,10 +71,14 @@ export async function s3Put(key: string, body: Buffer, contentType: string): Pro
 }
 
 /** Download a remote image (e.g. a temporary fal URL) and persist it to S3. */
-export async function persistImageToS3(sourceUrl: string, key: string): Promise<string> {
+export async function persistImageToS3(
+  sourceUrl: string,
+  key: string,
+): Promise<{ url: string; bytes: number; contentType: string }> {
   const res = await fetch(sourceUrl);
   if (!res.ok) throw new Error(`image download failed: ${res.status}`);
   const contentType = res.headers.get("content-type") ?? "image/png";
   const body = Buffer.from(await res.arrayBuffer());
-  return s3Put(key, body, contentType);
+  const url = await s3Put(key, body, contentType);
+  return { url, bytes: body.length, contentType };
 }
