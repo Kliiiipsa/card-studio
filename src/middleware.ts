@@ -8,6 +8,20 @@ import { SESSION_COOKIE, verifySessionToken } from "@/core/auth/session";
  * requires the admin role.
  */
 export async function middleware(req: NextRequest) {
+  // Canonical domain: the technical *.twc1.net fqdn can't be detached from the
+  // Timeweb app, so permanently redirect it (and any other alias) to kartogen.ru.
+  // Sessions carry over — the auth cookie is host-scoped, but login works on the
+  // canonical host, so users simply continue there.
+  const host = req.headers.get("host") ?? "";
+  const canonical = process.env.CANONICAL_HOST;
+  if (canonical && host && host !== canonical && !host.startsWith("localhost")) {
+    const url = req.nextUrl.clone();
+    url.host = canonical;
+    url.protocol = "https:";
+    url.port = "";
+    return NextResponse.redirect(url, 301);
+  }
+
   const secret = process.env.AUTH_SECRET;
   if (!secret) return NextResponse.next();
 
