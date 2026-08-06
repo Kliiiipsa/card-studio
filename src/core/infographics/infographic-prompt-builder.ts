@@ -237,6 +237,10 @@ export function buildBakedCardPrompt(args: {
     args;
   const product = productName.trim() || "the product";
   const spec = TYPE_BAKED_SPEC[type];
+  // A user-uploaded reference is the design authority: our generic poster
+  // typography and the composition variant pool step aside so the card lands
+  // in the reference's style family (similar, never a replica).
+  const referenceDriven = styleProfile?.source === "reference";
 
   const base = args.hasProductImage
     ? `Using the provided product photo, create a FINISHED Wildberries marketplace infographic card for ${product}. Keep the product/person photorealistic — same identity, clothing, materials, colors and proportions.`
@@ -252,19 +256,28 @@ export function buildBakedCardPrompt(args: {
     `Card purpose: ${spec.intent}.`,
     "Portrait 3:4 composition, product as the hero with tasteful clean space for text.",
     describeBakedStyle(style, styleProfile, args.hasProductImage) + ".",
-    describeBakedComposition({
-      plan: layoutPlan,
-      type,
-      benefitCount: benefits.length,
-      productName: product,
-      variantSeed: args.variantSeed ?? 0,
-    }),
+    referenceDriven
+      ? `Composition: follow the style reference's composition and layout rhythm.${
+          layoutPlan
+            ? ` In the source photo the product sits at the ${placementOf(layoutPlan.product)} — place text in the free space around it.`
+            : ""
+        }`
+      : describeBakedComposition({
+          plan: layoutPlan,
+          type,
+          benefitCount: benefits.length,
+          productName: product,
+          variantSeed: args.variantSeed ?? 0,
+        }),
     "If it suits the product and style, ground the product in a believable real-world environment (real surface, subtle context props, natural depth) instead of a flat empty backdrop.",
     "Render the following RUSSIAN text directly inside the image as polished, modern marketplace typography — integrated into the layout, NOT as flat stickers, plastic pills or pasted badges:",
     `• Headline (dominant): «${headline.trim()}»`,
     subheadline ? `• Subheadline (smaller, lighter): «${subheadline.trim()}»` : "",
     benefitsList ? `• ${spec.blocks(benefits.length, benefitsList)}` : "",
-    "POSTER-GRADE TYPOGRAPHY: the headline is the main visual element of the card — set it VERY large in a heavy bold sans-serif, like a magazine cover or promo poster. Break the headline into 2–3 size steps: the key product word largest, secondary words clearly smaller. If a provided text contains a number or measurement, it may be highlighted in a compact accent plate.",
+    referenceDriven
+      ? "TYPOGRAPHY: mirror the reference's typographic treatment — headline scale, weight, placement, letter case, plates and decorative effects — recreated with the RUSSIAN texts provided above. The goal is a card in the SAME style family as the reference: clearly similar, never a pixel-perfect replica." +
+        (styleProfile?.typography ? ` Reference typography: ${styleProfile.typography}.` : "")
+      : "POSTER-GRADE TYPOGRAPHY: the headline is the main visual element of the card — set it VERY large in a heavy bold sans-serif, like a magazine cover or promo poster. Break the headline into 2–3 size steps: the key product word largest, secondary words clearly smaller. If a provided text contains a number or measurement, it may be highlighted in a compact accent plate.",
     "Letterforms must keep NATURAL, optically correct proportions — never artificially stretch, squeeze, condense or expand the letters to fill space. Scale comes from font SIZE only; if a word doesn't fit, make it smaller or break the line, don't distort it. Letter width and spacing stay uniform within each line.",
     "The headline must stay high-contrast and readable against its background even at thumbnail size.",
     "Typography rules: correct Russian spelling is MANDATORY — no gibberish, no invented or duplicated words, high legibility, elegant visual hierarchy and consistent alignment.",

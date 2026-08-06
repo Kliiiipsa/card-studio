@@ -297,7 +297,8 @@ export async function extractStyleProfile(referenceImageDataUrl: string): Promis
   "visualLanguage": "english descriptors of the look",
   "background": "english background description",
   "lighting": "english lighting description",
-  "accentElements": ["english short list"]
+  "accentElements": ["english short list"],
+  "typography": "english description of the HEADLINE treatment: relative scale, weight, letter case, colors, and effects (outline, halftone shadow, bubble letters, plates), plus how secondary text and benefit chips are set"
 }
 Только стиль, без копирования товара/текста/логотипа.`,
           imageDataUrl: image,
@@ -329,6 +330,7 @@ export async function extractStyleProfile(referenceImageDataUrl: string): Promis
       radius: typeof d.radius === "number" ? Math.max(0, Math.min(40, d.radius)) : 20,
       headlinePosition: d.headlinePosition === "bottom" ? "bottom" : "top",
       accentElements: Array.isArray(d.accentElements) ? d.accentElements.slice(0, 4) : [],
+      typography: typeof d.typography === "string" ? d.typography.slice(0, 400) : undefined,
     };
   } catch {
     return {
@@ -407,7 +409,7 @@ function buildBaseRequest(args: InfographicBaseArgs, bake: boolean): BuiltReques
   // (gpt-image-2 takes multiple images; single-image models use just the product).
   if (args.styleReferenceImage && args.productImage) {
     const twoImageNote = bake
-      ? ` Two images are provided. The FIRST image is the user's product — keep THAT exact product (same garment, colors, materials, person/identity). The SECOND image is a STYLE REFERENCE ONLY: copy its composition, layout rhythm, palette, typography and decorative language, but DO NOT reuse its product, its model, its photo or its text.`
+      ? ` Two images are provided. The FIRST image is the user's product — keep THAT exact product (same garment, colors, materials, person/identity). The SECOND image is a STYLE REFERENCE ONLY: take its composition, layout rhythm, palette, typography and decorative language, but DO NOT reuse its product, its model, its photo or its text. Aim for a card in the same style family — clearly similar, not an exact replica.`
       : ` The product is the FIRST image — keep it unchanged. Use the SECOND image only as a STYLE reference (palette, composition, rhythm); do not copy its product or text. Remove any text/logo, leave empty space for a future text overlay.`;
     return {
       kind: "i2i",

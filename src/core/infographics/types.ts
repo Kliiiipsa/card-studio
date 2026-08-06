@@ -99,6 +99,9 @@ export type StyleProfile = {
   radius: number;
   headlinePosition: "top" | "bottom";
   accentElements: string[];
+  /** English description of the reference's headline treatment (scale, weight,
+   *  case, color, effects) — extracted from uploaded references only */
+  typography?: string;
 };
 
 /** Result of /autofill — AI suggestions from the product photo. */

@@ -104,7 +104,7 @@ export function InfographicReferencePicker({
           value={refImage}
           onChange={setRefImage}
           label="Загрузите референс-инфографику"
-          hint="Например, удачная карточка конкурента — возьмём только её стиль"
+          hint="Например, удачная карточка конкурента — возьмём только её стиль. Работает точнее вместе с фото вашего товара"
         />
         <Button
           onClick={extract}

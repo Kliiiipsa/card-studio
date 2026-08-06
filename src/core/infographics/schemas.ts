@@ -43,6 +43,7 @@ export const styleProfileSchema = z
     radius: z.number(),
     headlinePosition: z.enum(["top", "bottom"]),
     accentElements: z.array(z.string()).default([]),
+    typography: z.string().optional(),
   })
   .passthrough();
 
