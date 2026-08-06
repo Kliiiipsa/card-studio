@@ -58,7 +58,8 @@ export function ProfileMenu() {
       </button>
 
       {open && (
-        <div className="absolute right-0 top-11 z-50 w-64 rounded-xl border bg-popover p-2 shadow-xl">
+        {/* bg-card, not bg-popover — the popover token isn't defined in our theme */}
+        <div className="absolute right-0 top-11 z-50 w-64 rounded-xl border bg-card text-card-foreground p-2 shadow-xl">
           <div className="border-b px-3 pb-2.5 pt-1.5">
             <p className="truncate text-sm font-medium">{email ?? "…"}</p>
             <p className="text-xs text-muted-foreground">
