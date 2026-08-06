@@ -28,7 +28,7 @@ export function MobileNav() {
               <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-blue-500 text-white shadow-md">
                 <Gem className="h-5 w-5" />
               </div>
-              <span className="text-sm font-semibold whitespace-nowrap">Nevario</span>
+              <span className="text-sm font-semibold whitespace-nowrap">Kartogen</span>
             </Link>
             <Dialog.Close asChild>
               <Button variant="ghost" size="icon" aria-label="Закрыть меню">

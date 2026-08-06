@@ -6,7 +6,7 @@ import { Toaster } from "@/components/ui/toaster";
 const inter = Inter({ subsets: ["latin", "cyrillic"], variable: "--font-inter" });
 
 const SITE_URL = process.env.SITE_URL || "https://kliiiipsa-card-studio-30da.twc1.net";
-const TITLE = "Nevario — AI-карточки и инфографика для Wildberries";
+const TITLE = "Kartogen — AI-карточки и инфографика для Wildberries";
 const DESCRIPTION =
   "Фото товара, готовая инфографика с русским текстом и анализ карточек — за минуты. 20 искр в подарок при регистрации.";
 
@@ -19,10 +19,10 @@ export const metadata: Metadata = {
     title: TITLE,
     description: DESCRIPTION,
     url: "/",
-    siteName: "Nevario",
+    siteName: "Kartogen",
     locale: "ru_RU",
     type: "website",
-    images: [{ url: "/og.jpg", width: 1200, height: 630, alt: "Nevario" }],
+    images: [{ url: "/og.jpg", width: 1200, height: 630, alt: "Kartogen" }],
   },
   twitter: {
     card: "summary_large_image",

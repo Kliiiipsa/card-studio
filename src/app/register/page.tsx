@@ -96,7 +96,7 @@ export default function RegisterPage() {
           <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 text-primary">
             {step === "form" ? <UserPlus className="h-5 w-5" /> : <MailCheck className="h-5 w-5" />}
           </div>
-          <CardTitle className="text-base">Nevario</CardTitle>
+          <CardTitle className="text-base">Kartogen</CardTitle>
           <p className="text-sm text-muted-foreground">
             {step === "form" ? "Регистрация" : "Подтверждение почты"}
           </p>

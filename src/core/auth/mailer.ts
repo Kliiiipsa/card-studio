@@ -95,13 +95,13 @@ export async function sendVerificationEmail(to: string, code: string): Promise<v
   const pass = process.env.SMTP_PASS!;
   const from = process.env.MAIL_FROM || user;
 
-  const subject = `=?UTF-8?B?${b64("Код подтверждения — Nevario")}?=`;
+  const subject = `=?UTF-8?B?${b64("Код подтверждения — Kartogen")}?=`;
   const body = b64(
     `Ваш код подтверждения: ${code}\r\n\r\n` +
-      `Код действует 15 минут. Если вы не регистрировались в Nevario, просто проигнорируйте это письмо.\r\n`,
+      `Код действует 15 минут. Если вы не регистрировались в Kartogen, просто проигнорируйте это письмо.\r\n`,
   );
   const message =
-    `From: Nevario <${from}>\r\n` +
+    `From: Kartogen <${from}>\r\n` +
     `To: <${to}>\r\n` +
     `Subject: ${subject}\r\n` +
     `MIME-Version: 1.0\r\n` +
