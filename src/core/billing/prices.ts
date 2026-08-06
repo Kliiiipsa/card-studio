@@ -10,6 +10,7 @@ export type SparkAction =
   | "generate"
   | "infographic"
   | "turnkey"
+  | "seo"
   | "ideas"
   | "write_prompt"
   | "improve_prompt"
@@ -25,6 +26,8 @@ export const PRICES: Record<SparkAction, number> = {
   infographic: 10,
   /** «Карточка под ключ»: 7 изображений (по 7 ⚡ за успешное) + SEO-тексты (6 ⚡) */
   turnkey: 55,
+  /** отдельная генерация SEO-текстов (название + описание + ключи) */
+  seo: 1,
   ideas: 0,
   write_prompt: 0,
   improve_prompt: 0,
@@ -44,6 +47,7 @@ export const ACTION_LABELS: Record<SparkAction, string> = {
   generate: "Фото товара",
   infographic: "Инфографика",
   turnkey: "Карточка под ключ (7 изображений)",
+  seo: "SEO-тексты",
   ideas: "Идеи карточек",
   write_prompt: "Написание промпта",
   improve_prompt: "Улучшение промпта",

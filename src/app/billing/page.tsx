@@ -127,7 +127,7 @@ export default function BillingPage() {
           <CardContent>
             <div className="grid gap-1.5 text-sm sm:grid-cols-2">
               {(Object.keys(PRICES) as (keyof typeof PRICES)[])
-                .filter((a) => PRICES[a] > 0)
+                .filter((a) => PRICES[a] > 0 && a !== "turnkey") // turnkey скрыт на доработке
                 .map((a) => (
                   <div key={a} className="flex items-center justify-between rounded-lg border px-3 py-2">
                     <span className="text-muted-foreground">{ACTION_LABELS[a]}</span>

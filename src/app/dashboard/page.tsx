@@ -1,7 +1,7 @@
 "use client";
 import * as React from "react";
 import Link from "next/link";
-import { Wand2, ScanSearch, LayoutTemplate, Package, Images, ArrowRight } from "lucide-react";
+import { Wand2, ScanSearch, LayoutTemplate, FileText, Images, ArrowRight } from "lucide-react";
 import { AppShell } from "@/components/layout/app-shell";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -22,10 +22,10 @@ const QUICK = [
     desc: "Готовая карточка с русским текстом и плашками",
   },
   {
-    href: "/turnkey",
-    icon: Package,
-    title: "Карточка под ключ",
-    desc: "Одно фото → 7 изображений и SEO-тексты",
+    href: "/seo",
+    icon: FileText,
+    title: "SEO-тексты",
+    desc: "Название, описание и ключевые запросы для карточки",
   },
   {
     href: "/analysis",
