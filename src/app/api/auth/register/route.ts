@@ -15,6 +15,7 @@ const schema = z.object({
     .string()
     .min(8, "Пароль должен быть не короче 8 символов.")
     .max(72, "Пароль слишком длинный."),
+  inviteCode: z.string().max(64).optional(),
 });
 
 export async function POST(req: Request) {
@@ -23,6 +24,16 @@ export async function POST(req: Request) {
       throw new AppError("Регистрация не настроена: AUTH_SECRET не задан.", 500);
     }
     const body = await parseBody(req, schema);
+    // Тестовый режим: пока сервис не открыт публично, регистрация только по
+    // инвайт-коду — чтобы посторонние не оставляли свои email (обязательства
+    // по ПДн наступают с первого чужого адреса). Убрать код = убрать env.
+    const invite = process.env.REGISTRATION_INVITE_CODE;
+    if (invite && (body.inviteCode ?? "").trim() !== invite) {
+      throw new AppError(
+        "Сервис в закрытом тестировании — регистрация по инвайт-коду. Напишите нам, чтобы получить доступ.",
+        403,
+      );
+    }
     const emailError = validateRussianEmail(body.email);
     if (emailError) throw new AppError(emailError);
     const email = normalizeEmail(body.email);

@@ -18,6 +18,7 @@ export default function RegisterPage() {
   const [password, setPassword] = React.useState("");
   const [password2, setPassword2] = React.useState("");
   const [code, setCode] = React.useState("");
+  const [inviteCode, setInviteCode] = React.useState("");
   const [devCode, setDevCode] = React.useState<string | null>(null);
   const [error, setError] = React.useState<string | null>(null);
   const [notice, setNotice] = React.useState<string | null>(null);
@@ -48,7 +49,11 @@ export default function RegisterPage() {
     if (password !== password2) return setError("Пароли не совпадают.");
     setBusy(true);
     try {
-      const data = (await post("/api/auth/register", { email: email.trim(), password })) as {
+      const data = (await post("/api/auth/register", {
+        email: email.trim(),
+        password,
+        inviteCode: inviteCode.trim() || undefined,
+      })) as {
         sent?: boolean;
         devCode?: string;
         registered?: boolean;
@@ -146,6 +151,20 @@ export default function RegisterPage() {
                   autoComplete="new-password"
                   placeholder="••••••••"
                 />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="invite" className="text-xs">
+                  Инвайт-код
+                </Label>
+                <Input
+                  id="invite"
+                  value={inviteCode}
+                  onChange={(e) => setInviteCode(e.target.value)}
+                  placeholder="Код приглашения"
+                />
+                <p className="text-[11px] leading-4 text-muted-foreground">
+                  Сервис в закрытом тестировании — регистрация по приглашениям.
+                </p>
               </div>
               {error && <p className="text-sm text-destructive">{error}</p>}
               <Button type="submit" disabled={busy} className="w-full">
