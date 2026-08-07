@@ -2,7 +2,7 @@
 import * as React from "react";
 import { UploadCloud, X } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { validateImageFile, readFileAsDataUrl } from "@/lib/image-validation";
+import { validateImageFile } from "@/lib/image-validation";
 import { compressImage } from "@/lib/image-compress";
 import { toast } from "@/components/ui/toaster";
 import { Button } from "@/components/ui/button";
@@ -27,14 +27,10 @@ export function ImageUploader({
     if (!file) return;
     try {
       validateImageFile(file);
-      // shrink in-browser so the request stays under Vercel's 4.5 MB body limit;
-      // fall back to the raw file if canvas compression isn't available
-      let dataUrl: string;
-      try {
-        dataUrl = await compressImage(file);
-      } catch {
-        dataUrl = await readFileAsDataUrl(file);
-      }
+      // Canvas re-encode keeps requests small AND guarantees the original file's
+      // metadata (EXIF: geolocation, camera serials) never leaves the browser —
+      // providers must only ever see anonymous pixels. No raw-file fallback.
+      const dataUrl = await compressImage(file);
       onChange(dataUrl);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Не удалось загрузить файл.");
