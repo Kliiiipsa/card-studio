@@ -69,6 +69,7 @@ export class FalImageProvider implements ImageProvider {
         headers: {
           "Content-Type": "application/json",
           Authorization: `Key ${this.apiKey}`,
+          ...FAL_PRIVACY_HEADERS,
         },
         body: JSON.stringify(prune(input)),
         cache: "no-store",
@@ -106,6 +107,17 @@ export class FalImageProvider implements ImageProvider {
 /** Proven Flux defaults — the safety net while Seedream is unvalidated. */
 const FALLBACK_T2I = "fal-ai/flux/dev";
 const FALLBACK_I2I = "fal-ai/flux-pro/kontext";
+
+/**
+ * Privacy: user photos travel in these requests. Don't let fal store request
+ * payloads (default 30 days), and expire generated files on their public CDN
+ * after 1 hour — every result is persisted to our own S3 right away, so the
+ * fal URL only needs to survive the immediate download.
+ */
+export const FAL_PRIVACY_HEADERS: Record<string, string> = {
+  "X-Fal-Store-IO": "0",
+  "X-Fal-Object-Lifecycle-Preference": JSON.stringify({ expiration_duration_seconds: 3600 }),
+};
 
 function buildT2IInput(model: string, req: T2IRequest, ratio: string): Record<string, unknown> {
   if (isSeedream(model)) {

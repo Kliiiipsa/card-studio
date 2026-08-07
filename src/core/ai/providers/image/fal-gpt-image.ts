@@ -8,6 +8,7 @@ import type {
   ImageJobStatus,
 } from "../types";
 import { ProviderError } from "@/lib/errors";
+import { FAL_PRIVACY_HEADERS } from "./fal";
 
 /**
  * OpenAI gpt-image-2 hosted on fal.ai. Enabled via
@@ -85,7 +86,11 @@ export class FalGptImageProvider implements ImageProvider {
     }
     const submitted = await this.fetchJson(`https://queue.fal.run/${model}`, {
       method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Key ${this.apiKey}` },
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Key ${this.apiKey}`,
+        ...FAL_PRIVACY_HEADERS,
+      },
       body: JSON.stringify(input),
     });
     const statusUrl = submitted.status_url as string | undefined;
