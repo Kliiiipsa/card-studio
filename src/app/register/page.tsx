@@ -19,6 +19,7 @@ export default function RegisterPage() {
   const [password2, setPassword2] = React.useState("");
   const [code, setCode] = React.useState("");
   const [inviteCode, setInviteCode] = React.useState("");
+  const [agreed, setAgreed] = React.useState(false);
   const [devCode, setDevCode] = React.useState<string | null>(null);
   const [error, setError] = React.useState<string | null>(null);
   const [notice, setNotice] = React.useState<string | null>(null);
@@ -47,12 +48,15 @@ export default function RegisterPage() {
     if (emailError) return setError(emailError);
     if (password.length < 8) return setError("Пароль должен быть не короче 8 символов.");
     if (password !== password2) return setError("Пароли не совпадают.");
+    if (!agreed)
+      return setError("Чтобы зарегистрироваться, примите Пользовательское соглашение и Политику.");
     setBusy(true);
     try {
       const data = (await post("/api/auth/register", {
         email: email.trim(),
         password,
         inviteCode: inviteCode.trim() || undefined,
+        acceptTerms: agreed,
       })) as {
         sent?: boolean;
         devCode?: string;
@@ -166,8 +170,28 @@ export default function RegisterPage() {
                   Сервис в закрытом тестировании — регистрация по приглашениям.
                 </p>
               </div>
+              {/* consent must be an explicit, unchecked-by-default action (152-ФЗ) */}
+              <label className="flex cursor-pointer items-start gap-2 text-xs leading-5 text-muted-foreground">
+                <input
+                  type="checkbox"
+                  checked={agreed}
+                  onChange={(e) => setAgreed(e.target.checked)}
+                  className="mt-0.5 h-4 w-4 shrink-0 rounded border-input accent-primary"
+                />
+                <span>
+                  Я принимаю{" "}
+                  <Link href="/terms" target="_blank" className="font-medium text-primary hover:underline">
+                    Пользовательское соглашение
+                  </Link>{" "}
+                  и даю согласие на обработку персональных данных согласно{" "}
+                  <Link href="/privacy" target="_blank" className="font-medium text-primary hover:underline">
+                    Политике
+                  </Link>
+                  .
+                </span>
+              </label>
               {error && <p className="text-sm text-destructive">{error}</p>}
-              <Button type="submit" disabled={busy} className="w-full">
+              <Button type="submit" disabled={busy || !agreed} className="w-full">
                 {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
                 Получить код
               </Button>

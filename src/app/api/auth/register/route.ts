@@ -6,6 +6,7 @@ import { startRegistration, confirmRegistration } from "@/core/auth/store";
 import { isSmtpConfigured, sendVerificationEmail } from "@/core/auth/mailer";
 import { respondWithSession } from "@/core/auth/cookies";
 import { grantWelcomeBonus } from "@/core/billing/welcome";
+import { recordConsent } from "@/core/auth/consent";
 
 export const runtime = "nodejs";
 
@@ -16,6 +17,7 @@ const schema = z.object({
     .min(8, "Пароль должен быть не короче 8 символов.")
     .max(72, "Пароль слишком длинный."),
   inviteCode: z.string().max(64).optional(),
+  acceptTerms: z.boolean().optional(),
 });
 
 export async function POST(req: Request) {
@@ -24,6 +26,14 @@ export async function POST(req: Request) {
       throw new AppError("Регистрация не настроена: AUTH_SECRET не задан.", 500);
     }
     const body = await parseBody(req, schema);
+    // Explicit consent is required server-side too — the checkbox alone can be
+    // bypassed by a crafted request, and 152-ФЗ wants a real affirmative act.
+    if (body.acceptTerms !== true) {
+      throw new AppError(
+        "Для регистрации необходимо принять Пользовательское соглашение и Политику обработки персональных данных.",
+        400,
+      );
+    }
     // Тестовый режим: пока сервис не открыт публично, регистрация только по
     // инвайт-коду — чтобы посторонние не оставляли свои email (обязательства
     // по ПДн наступают с первого чужого адреса). Убрать код = убрать env.
@@ -56,6 +66,11 @@ export async function POST(req: Request) {
       if (confirmed.status !== "ok") {
         throw new AppError("Не удалось создать аккаунт. Попробуйте ещё раз.", 500);
       }
+      await recordConsent({
+        email,
+        ip: req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? null,
+        userAgent: req.headers.get("user-agent"),
+      });
       const balance = await grantWelcomeBonus(email);
       return respondWithSession({ registered: true, balance: balance ?? undefined }, confirmed.user);
     }

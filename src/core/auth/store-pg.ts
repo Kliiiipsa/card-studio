@@ -24,7 +24,7 @@ import {
 let pool: Pool | null = null;
 let schemaReady: Promise<void> | null = null;
 
-function getPool(): Pool {
+export function getPool(): Pool {
   if (!pool) {
     pool = process.env.DATABASE_URL
       ? new Pool({ connectionString: process.env.DATABASE_URL, max: 5 })

@@ -4,6 +4,7 @@ import { AppError } from "@/lib/errors";
 import { confirmRegistration } from "@/core/auth/store";
 import { respondWithSession } from "@/core/auth/cookies";
 import { grantWelcomeBonus } from "@/core/billing/welcome";
+import { recordConsent } from "@/core/auth/consent";
 
 export const runtime = "nodejs";
 
@@ -18,6 +19,13 @@ export async function POST(req: Request) {
     const result = await confirmRegistration(body.email, body.code);
     switch (result.status) {
       case "ok": {
+        // the consent checkbox was ticked on the form step that started this
+        // registration (server-enforced in /register); journal it on completion
+        await recordConsent({
+          email: result.user.email,
+          ip: req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? null,
+          userAgent: req.headers.get("user-agent"),
+        });
         const balance = await grantWelcomeBonus(result.user.email);
         return respondWithSession({ ok: true, balance: balance ?? undefined }, result.user);
       }

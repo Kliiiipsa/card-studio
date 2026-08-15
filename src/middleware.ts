@@ -34,6 +34,10 @@ export async function middleware(req: NextRequest) {
     pathname.startsWith("/login") ||
     pathname.startsWith("/register") ||
     pathname.startsWith("/api/auth") ||
+    // legal documents are public by law
+    pathname === "/terms" ||
+    pathname === "/offer" ||
+    pathname === "/privacy" ||
     // crawlers and link-preview bots must reach these without a session
     pathname === "/robots.txt" ||
     pathname === "/sitemap.xml" ||

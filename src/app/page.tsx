@@ -232,8 +232,26 @@ export default async function LandingPage() {
         </div>
       </section>
 
-      <footer className="container border-t py-8 text-center text-sm text-muted-foreground">
-        Kartogen — AI-студия карточек для Wildberries
+      <footer className="container flex flex-col items-center gap-3 border-t py-8 text-center text-sm text-muted-foreground">
+        <p>Kartogen — AI-студия карточек для Wildberries</p>
+        <nav className="flex flex-wrap justify-center gap-x-4 gap-y-1">
+          <Link href="/terms" className="hover:text-foreground">
+            Пользовательское соглашение
+          </Link>
+          <Link href="/offer" className="hover:text-foreground">
+            Публичная оферта
+          </Link>
+          <Link href="/privacy" className="hover:text-foreground">
+            Политика конфиденциальности
+          </Link>
+          <a href="mailto:admin@kartogen.ru" className="hover:text-foreground">
+            admin@kartogen.ru
+          </a>
+        </nav>
+        <p className="text-xs">
+          Самозанятый Плотников А. И., ИНН 220452891248. Сервис не аффилирован с Wildberries и
+          Ozon.
+        </p>
       </footer>
     </div>
   );
