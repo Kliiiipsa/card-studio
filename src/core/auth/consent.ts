@@ -31,6 +31,25 @@ function ensure(): Promise<void> {
   return ready;
 }
 
+/** Registration IP per email (latest consent row) — for the admin's fraud eye. */
+export async function registrationIps(emails: string[]): Promise<Record<string, string>> {
+  if ((!process.env.PGHOST && !process.env.DATABASE_URL) || !emails.length) return {};
+  try {
+    await ensure();
+    const { rows } = await getPool().query<{ email: string; ip: string | null }>(
+      `select distinct on (email) email, ip
+         from auth_consents
+        where email = any($1)
+        order by email, accepted_at desc`,
+      [emails],
+    );
+    return Object.fromEntries(rows.filter((r) => r.ip).map((r) => [r.email, r.ip as string]));
+  } catch (e) {
+    console.error("[consent] ip lookup failed:", e);
+    return {};
+  }
+}
+
 export async function recordConsent(args: {
   email: string;
   ip?: string | null;

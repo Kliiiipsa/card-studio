@@ -12,6 +12,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { toast } from "@/components/ui/toaster";
 import { ACTION_LABELS } from "@/core/billing/prices";
 import type { SparkTransaction } from "@/core/billing/billing";
+import { cn } from "@/lib/utils";
 
 type AdminUser = {
   email: string;
@@ -19,6 +20,8 @@ type AdminUser = {
   verified: boolean;
   createdAt: string;
   balance: number | null;
+  /** IP at registration (from the consent journal); null for pre-journal accounts */
+  ip: string | null;
 };
 
 const TX_LABEL: Record<string, string> = {
@@ -100,7 +103,15 @@ export default function AdminPage() {
     }
   };
 
-  const filtered = users?.filter((u) => u.email.includes(search.trim().toLowerCase())) ?? null;
+  const q = search.trim().toLowerCase();
+  const filtered =
+    users?.filter((u) => u.email.includes(q) || (u.ip ?? "").toLowerCase().includes(q)) ?? null;
+  // how many accounts share each registration IP — the fraud tell at a glance
+  const ipCounts = React.useMemo(() => {
+    const m: Record<string, number> = {};
+    for (const u of users ?? []) if (u.ip) m[u.ip] = (m[u.ip] ?? 0) + 1;
+    return m;
+  }, [users]);
 
   return (
     <AppShell title="Админка">
@@ -133,7 +144,7 @@ export default function AdminPage() {
                 <Input
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Поиск по почте…"
+                  placeholder="Поиск по почте или IP…"
                   className="mb-3 max-w-sm"
                 />
                 {error ? (
@@ -152,6 +163,7 @@ export default function AdminPage() {
                           <th className="py-2 pr-4 font-medium">Почта</th>
                           <th className="py-2 pr-4 font-medium">Роль</th>
                           <th className="py-2 pr-4 font-medium">Баланс</th>
+                          <th className="py-2 pr-4 font-medium">IP регистрации</th>
                           <th className="py-2 pr-4 font-medium">Создан</th>
                           <th className="py-2 font-medium" />
                         </tr>
@@ -177,6 +189,26 @@ export default function AdminPage() {
                                   <Zap className="h-3.5 w-3.5 text-amber-500" />
                                   {u.balance}
                                 </span>
+                              )}
+                            </td>
+                            <td className="py-2 pr-4">
+                              {u.ip ? (
+                                <button
+                                  type="button"
+                                  onClick={() => setSearch(u.ip ?? "")}
+                                  title="Показать все аккаунты с этого IP"
+                                  className={cn(
+                                    "font-mono text-xs hover:underline",
+                                    (ipCounts[u.ip] ?? 0) > 1
+                                      ? "font-semibold text-amber-600 dark:text-amber-400"
+                                      : "text-muted-foreground",
+                                  )}
+                                >
+                                  {u.ip}
+                                  {(ipCounts[u.ip] ?? 0) > 1 ? ` ×${ipCounts[u.ip]}` : ""}
+                                </button>
+                              ) : (
+                                <span className="text-xs text-muted-foreground">—</span>
                               )}
                             </td>
                             <td className="py-2 pr-4 text-muted-foreground">
