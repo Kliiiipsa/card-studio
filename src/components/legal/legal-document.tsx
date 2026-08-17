@@ -156,6 +156,10 @@ export function LegalDocument({ slug }: { slug: LegalSlug }) {
         ·{" "}
         <Link href="/privacy" className="hover:text-foreground">
           Персональные данные
+        </Link>{" "}
+        ·{" "}
+        <Link href="/pricing" className="hover:text-foreground">
+          Тарифы
         </Link>
       </footer>
     </div>

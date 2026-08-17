@@ -38,6 +38,7 @@ export async function middleware(req: NextRequest) {
     pathname === "/terms" ||
     pathname === "/offer" ||
     pathname === "/privacy" ||
+    pathname === "/pricing" ||
     // crawlers and link-preview bots must reach these without a session
     pathname === "/robots.txt" ||
     pathname === "/sitemap.xml" ||
