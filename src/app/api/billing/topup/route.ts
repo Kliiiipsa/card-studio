@@ -30,6 +30,17 @@ export async function POST(req: Request) {
     const pack = TOPUP_PACKAGES.find((p) => p.id === packageId);
     if (!pack) throw new AppError("Неизвестный пакет пополнения.");
 
+    // Demo crediting is OFF by default now that the site is under ЮKassa
+    // review — a "payment" that instantly credits sparks without money would
+    // look like a broken checkout. BILLING_DEMO_TOPUP=true re-enables it for
+    // internal testing; the real integration replaces this branch entirely.
+    if (process.env.BILLING_DEMO_TOPUP !== "true") {
+      throw new AppError(
+        "Оплата подключается: приём платежей через ЮKassa скоро появится. Пока пополнить баланс можно через поддержку — admin@kartogen.ru.",
+        503,
+      );
+    }
+
     const { balance } = await applyTx({
       email: session.email,
       amount: pack.sparks + pack.bonus,

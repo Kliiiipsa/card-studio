@@ -219,17 +219,25 @@ export default function BillingPage() {
                     <span className="font-semibold">{buying.priceRub} ₽</span>
                   </div>
                 </div>
-                <p className="rounded-lg bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-400">
-                  Демо-режим: настоящая оплата картой появится после подключения кассы. Сейчас
-                  нажатие кнопки просто зачислит искры.
-                </p>
+                <div className="rounded-lg border bg-muted/40 px-3 py-3 text-xs leading-5 text-muted-foreground">
+                  <p className="font-medium text-foreground">Оплата подключается</p>
+                  <p className="mt-1">
+                    Приём платежей банковской картой и через СБП с электронным чеком (ЮKassa)
+                    появится здесь в ближайшее время. Пока пополнить баланс можно через
+                    поддержку —{" "}
+                    <a href="mailto:admin@kartogen.ru" className="text-primary hover:underline">
+                      admin@kartogen.ru
+                    </a>
+                    .
+                  </p>
+                </div>
                 <Button variant="gradient" className="w-full" onClick={pay} disabled={paying}>
                   {paying ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
                   ) : (
                     <ShieldCheck className="h-4 w-4" />
                   )}
-                  Оплатить {buying.priceRub} ₽ (демо)
+                  Оплатить {buying.priceRub} ₽
                 </Button>
               </div>
             )}
