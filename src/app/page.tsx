@@ -242,7 +242,7 @@ export default async function LandingPage() {
             Публичная оферта
           </Link>
           <Link href="/privacy" className="hover:text-foreground">
-            Политика конфиденциальности
+            Политика обработки персональных данных
           </Link>
           <a href="mailto:admin@kartogen.ru" className="hover:text-foreground">
             admin@kartogen.ru
