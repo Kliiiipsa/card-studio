@@ -3,17 +3,82 @@ import tls from "node:tls";
 import { AppError } from "@/lib/errors";
 
 /**
- * Minimal SMTP sender — enough to deliver a verification code without adding
- * a dependency (npm install is unreliable in this environment). Two transports:
- *   - SMTP_SECURE=tls (default): implicit TLS from the first byte (port 465);
- *   - SMTP_SECURE=starttls: plain connect, then upgrade via STARTTLS (587/2525).
- * Timeweb's 465 endpoint accepts TCP but never completes the TLS handshake (as
- * of 2026-08), while 2525 answers and advertises STARTTLS — so prod uses that.
- * Env: SMTP_HOST / SMTP_PORT / SMTP_SECURE / SMTP_USER / SMTP_PASS / MAIL_FROM.
- * When SMTP is not configured the register route falls back to a dev-mode code.
+ * Verification-code sender, no dependencies (npm install is unreliable here).
+ * Transports, picked by env:
+ *   - NOTISEND_API_KEY set → HTTPS API of NotiSend (api.notisend.ru, reserve
+ *     host api-reserve.msndr.net). This is what prod uses: Timeweb App Platform
+ *     blocks outgoing SMTP ports (25/465/587/2525) entirely, HTTPS/443 is open.
+ *   - else SMTP_HOST/USER/PASS → raw SMTP; SMTP_SECURE=tls (implicit, 465) or
+ *     starttls (587/2525). Kept for local dev and as a fallback.
+ * MAIL_FROM is the sender for both (must be a verified sender in NotiSend).
+ * When nothing is configured the register route falls back to a dev-mode code.
  */
 export function isSmtpConfigured(): boolean {
-  return Boolean(process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS);
+  return Boolean(
+    process.env.NOTISEND_API_KEY ||
+      (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS),
+  );
+}
+
+const CODE_SUBJECT = (code: string) => `${code} — код подтверждения Kartogen`;
+const CODE_TEXT = (code: string) =>
+  `Ваш код подтверждения: ${code}\r\n\r\n` +
+  `Код действует 15 минут. Если вы не регистрировались в Kartogen, просто проигнорируйте это письмо.\r\n`;
+const CODE_HTML = (code: string) =>
+  `<p style="font:16px/1.5 -apple-system,Segoe UI,Roboto,sans-serif;color:#1d1c19">Ваш код подтверждения:</p>` +
+  `<p style="font:700 32px/1.2 -apple-system,Segoe UI,Roboto,sans-serif;letter-spacing:6px;color:#1d1c19">${code}</p>` +
+  `<p style="font:14px/1.5 -apple-system,Segoe UI,Roboto,sans-serif;color:#6e6a61">Код действует 15 минут. Если вы не регистрировались в Kartogen, просто проигнорируйте это письмо.</p>`;
+
+/* ------------------------------ NotiSend API ------------------------------ */
+
+const NOTISEND_HOSTS = ["https://api.notisend.ru/v1", "https://api-reserve.msndr.net/v1"];
+
+/**
+ * POST /email/messages. Tries the reserve host if the primary is unreachable
+ * (their docs: use it when the primary is blocked/limited). Honors 429 with a
+ * bounded wait — a rate-limited code must be delivered, not silently dropped.
+ */
+async function sendViaNotiSend(to: string, code: string): Promise<void> {
+  const key = process.env.NOTISEND_API_KEY!;
+  const from = process.env.MAIL_FROM || "admin@kartogen.ru";
+  const body = JSON.stringify({
+    from_email: from,
+    from_name: "Kartogen",
+    to,
+    subject: CODE_SUBJECT(code),
+    text: CODE_TEXT(code),
+    html: CODE_HTML(code),
+  });
+  let lastErr: unknown = null;
+  for (const host of NOTISEND_HOSTS) {
+    for (let attempt = 0; attempt < 3; attempt++) {
+      let res: Response;
+      try {
+        res = await fetch(`${host}/email/messages`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
+          body,
+          cache: "no-store",
+          signal: AbortSignal.timeout(15_000),
+        });
+      } catch (e) {
+        lastErr = e;
+        break; // network-level failure → try the reserve host
+      }
+      if (res.ok) return;
+      const detail = (await res.text().catch(() => "")).slice(0, 300);
+      if (res.status === 429) {
+        const m = /(\d+)\s*seconds?/i.exec(detail);
+        const wait = Math.min(Number(m?.[1] ?? 5), 20) * 1000;
+        await new Promise((r) => setTimeout(r, wait));
+        lastErr = new Error(`notisend 429: ${detail}`);
+        continue;
+      }
+      // 4xx/5xx with a body — the reserve host won't help; surface the reason
+      throw new Error(`notisend ${res.status}: ${detail}`);
+    }
+  }
+  throw lastErr instanceof Error ? lastErr : new Error(String(lastErr ?? "notisend unreachable"));
 }
 
 function b64(text: string): string {
@@ -124,6 +189,22 @@ async function connect(host: string, port: number, implicitTls: boolean): Promis
 }
 
 export async function sendVerificationEmail(to: string, code: string): Promise<void> {
+  if (process.env.NOTISEND_API_KEY) {
+    try {
+      await sendViaNotiSend(to, code);
+      return;
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error("[mailer:notisend]", err);
+      throw new AppError("Не удалось отправить письмо с кодом. Попробуйте позже.", 502);
+    }
+  }
+  return sendViaSmtp(to, code);
+}
+
+/* --------------------------------- SMTP ---------------------------------- */
+
+async function sendViaSmtp(to: string, code: string): Promise<void> {
   const host = process.env.SMTP_HOST!;
   const port = Number(process.env.SMTP_PORT ?? 465);
   const startTls = (process.env.SMTP_SECURE ?? "tls").toLowerCase() === "starttls";
@@ -131,11 +212,8 @@ export async function sendVerificationEmail(to: string, code: string): Promise<v
   const pass = process.env.SMTP_PASS!;
   const from = process.env.MAIL_FROM || user;
 
-  const subject = `=?UTF-8?B?${b64("Код подтверждения — Kartogen")}?=`;
-  const body = b64(
-    `Ваш код подтверждения: ${code}\r\n\r\n` +
-      `Код действует 15 минут. Если вы не регистрировались в Kartogen, просто проигнорируйте это письмо.\r\n`,
-  );
+  const subject = `=?UTF-8?B?${b64(CODE_SUBJECT(code))}?=`;
+  const body = b64(CODE_TEXT(code));
   const message =
     `From: Kartogen <${from}>\r\n` +
     `To: <${to}>\r\n` +
