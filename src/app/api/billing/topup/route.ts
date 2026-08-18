@@ -3,12 +3,16 @@ import { parseBody, ok, fail } from "@/lib/api";
 import { AppError } from "@/lib/errors";
 import { sessionFromRequest } from "@/core/auth/session";
 import { billingEnabled, applyTx } from "@/core/billing/billing";
-import { TOPUP_PACKAGES } from "@/core/billing/prices";
+import { TOPUP_PACKAGES, CUSTOM_TOPUP, customTopup } from "@/core/billing/prices";
 import { uid } from "@/lib/utils";
 
 export const runtime = "nodejs";
 
-const schema = z.object({ packageId: z.string() });
+const schema = z.object({
+  packageId: z.string(),
+  /** only for packageId === "custom": whole rubles */
+  amountRub: z.number().int().optional(),
+});
 
 /**
  * DEMO top-up. Until a real ЮKassa shop is connected (needs ИП/самозанятость)
@@ -26,9 +30,18 @@ export async function POST(req: Request) {
     if (!session) throw new AppError("Требуется вход.", 401);
     if (!billingEnabled()) throw new AppError("Биллинг не настроен.", 500);
 
-    const { packageId } = await parseBody(req, schema);
-    const pack = TOPUP_PACKAGES.find((p) => p.id === packageId);
-    if (!pack) throw new AppError("Неизвестный пакет пополнения.");
+    const { packageId, amountRub } = await parseBody(req, schema);
+    const pack =
+      packageId === CUSTOM_TOPUP.id
+        ? customTopup(amountRub ?? 0)
+        : TOPUP_PACKAGES.find((p) => p.id === packageId);
+    if (!pack) {
+      throw new AppError(
+        packageId === CUSTOM_TOPUP.id
+          ? `Сумма должна быть целым числом от ${CUSTOM_TOPUP.minRub} до ${CUSTOM_TOPUP.maxRub} ₽.`
+          : "Неизвестный пакет пополнения.",
+      );
+    }
 
     // Demo crediting is OFF by default now that the site is under ЮKassa
     // review — a "payment" that instantly credits sparks without money would

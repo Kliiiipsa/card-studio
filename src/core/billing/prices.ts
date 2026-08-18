@@ -67,3 +67,17 @@ export const TOPUP_PACKAGES: TopupPackage[] = [
   { id: "s500", sparks: 500, bonus: 25, priceRub: 500 },
   { id: "s1000", sparks: 1000, bonus: 100, priceRub: 1000 },
 ];
+
+/**
+ * Произвольная сумма: 1 ₽ = 1 искра, без бонуса (бонус — привилегия пакетов).
+ * Минимум 10 ₽ = одна инфографика (решение пользователя 2026-08-18); верхняя
+ * граница — здравый смысл и антифрод.
+ */
+export const CUSTOM_TOPUP = { id: "custom", minRub: 10, maxRub: 50_000 } as const;
+
+/** Build a one-off "package" for an arbitrary amount (validated by the server too). */
+export function customTopup(amountRub: number): TopupPackage | null {
+  if (!Number.isInteger(amountRub)) return null;
+  if (amountRub < CUSTOM_TOPUP.minRub || amountRub > CUSTOM_TOPUP.maxRub) return null;
+  return { id: CUSTOM_TOPUP.id, sparks: amountRub, bonus: 0, priceRub: amountRub };
+}

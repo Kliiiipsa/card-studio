@@ -8,7 +8,15 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "@/components/ui/toaster";
 import { useProfileStore } from "@/store/profile-store";
-import { TOPUP_PACKAGES, PRICES, ACTION_LABELS, type TopupPackage } from "@/core/billing/prices";
+import { Input } from "@/components/ui/input";
+import {
+  TOPUP_PACKAGES,
+  PRICES,
+  ACTION_LABELS,
+  CUSTOM_TOPUP,
+  customTopup,
+  type TopupPackage,
+} from "@/core/billing/prices";
 import type { SparkTransaction } from "@/core/billing/billing";
 
 const TX_LABEL: Record<string, string> = {
@@ -23,6 +31,8 @@ export default function BillingPage() {
   const { balance, role, fetchMe } = useProfileStore();
   const [buying, setBuying] = React.useState<TopupPackage | null>(null);
   const [paying, setPaying] = React.useState(false);
+  const [customAmount, setCustomAmount] = React.useState("");
+  const customPack = customTopup(Number(customAmount));
   const [history, setHistory] = React.useState<SparkTransaction[] | null>(null);
 
   const loadHistory = React.useCallback(() => {
@@ -44,7 +54,11 @@ export default function BillingPage() {
       const res = await fetch("/api/billing/topup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ packageId: buying.id }),
+        body: JSON.stringify(
+          buying.id === CUSTOM_TOPUP.id
+            ? { packageId: buying.id, amountRub: buying.priceRub }
+            : { packageId: buying.id },
+        ),
       });
       const data = (await res.json()) as { balance?: number; error?: string };
       if (!res.ok) throw new Error(data.error ?? "Оплата не прошла");
@@ -85,7 +99,7 @@ export default function BillingPage() {
         {/* Packages */}
         <div>
           <h2 className="mb-3 text-sm font-semibold">Пакеты пополнения</h2>
-          <div className="grid gap-3 sm:grid-cols-3">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {TOPUP_PACKAGES.map((p) => (
               <Card key={p.id} className="relative overflow-hidden">
                 {p.bonus > 0 && (
@@ -111,7 +125,45 @@ export default function BillingPage() {
                 </CardContent>
               </Card>
             ))}
+            {/* Arbitrary amount: 1 ₽ = 1 spark, no bonus */}
+            <Card className="relative overflow-hidden">
+              <CardContent className="flex flex-col items-start gap-3 p-5">
+                <p className="flex items-center gap-1.5 text-2xl font-bold">
+                  <Zap className="h-5 w-5 text-amber-500" />
+                  {customPack ? customPack.sparks : "Своя"}
+                </p>
+                <div className="flex w-full items-center gap-2">
+                  <Input
+                    type="number"
+                    inputMode="numeric"
+                    min={CUSTOM_TOPUP.minRub}
+                    max={CUSTOM_TOPUP.maxRub}
+                    step={1}
+                    value={customAmount}
+                    onChange={(e) => setCustomAmount(e.target.value.replace(/\D/g, ""))}
+                    placeholder={`от ${CUSTOM_TOPUP.minRub}`}
+                    disabled={role === "admin"}
+                    className="h-9"
+                    aria-label="Сумма пополнения в рублях"
+                  />
+                  <span className="text-sm text-muted-foreground">₽</span>
+                </div>
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => customPack && setBuying(customPack)}
+                  disabled={role === "admin" || !customPack}
+                >
+                  <ShoppingCart className="h-4 w-4" />
+                  Купить
+                </Button>
+              </CardContent>
+            </Card>
           </div>
+          <p className="mt-2 text-xs text-muted-foreground">
+            Своя сумма — от {CUSTOM_TOPUP.minRub} до {CUSTOM_TOPUP.maxRub.toLocaleString("ru-RU")} ₽,
+            1 ₽ = 1 искра, без бонуса.
+          </p>
           {role === "admin" && (
             <p className="mt-2 text-xs text-muted-foreground">
               Администратор пользуется студией без списаний — пополнение не требуется.

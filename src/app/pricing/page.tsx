@@ -1,7 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Gem, Zap } from "lucide-react";
-import { PRICES, TOPUP_PACKAGES, WELCOME_SPARKS, ACTION_LABELS } from "@/core/billing/prices";
+import {
+  PRICES,
+  TOPUP_PACKAGES,
+  WELCOME_SPARKS,
+  ACTION_LABELS,
+  CUSTOM_TOPUP,
+} from "@/core/billing/prices";
 
 export const metadata: Metadata = {
   title: "Тарифы — Kartogen",
@@ -80,6 +86,10 @@ export default function PricingPage() {
               </div>
             ))}
           </div>
+          <p className="text-sm text-muted-foreground">
+            Также можно пополнить баланс на произвольную сумму от {CUSTOM_TOPUP.minRub} до{" "}
+            {CUSTOM_TOPUP.maxRub.toLocaleString("ru-RU")} ₽ по курсу 1 ₽ = 1 искра (без бонуса).
+          </p>
           <p className="text-sm text-muted-foreground">
             Новым пользователям при регистрации начисляется {WELCOME_SPARKS} приветственных искр.
             Бонусные искры используются на тех же условиях, что и купленные, но не подлежат возврату
