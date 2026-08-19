@@ -31,6 +31,7 @@ export async function middleware(req: NextRequest) {
   if (
     pathname === "/" ||
     pathname.startsWith("/examples/") ||
+    pathname.startsWith("/help/") || // static help screenshots (the /help page itself stays gated)
     pathname.startsWith("/login") ||
     pathname.startsWith("/register") ||
     pathname.startsWith("/api/auth") ||
