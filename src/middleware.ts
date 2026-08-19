@@ -35,6 +35,9 @@ export async function middleware(req: NextRequest) {
     pathname.startsWith("/login") ||
     pathname.startsWith("/register") ||
     pathname.startsWith("/api/auth") ||
+    // ЮKassa server-to-server notifications carry no session cookie; the
+    // route itself trusts nothing from the body (re-fetches the payment)
+    pathname === "/api/billing/yookassa/webhook" ||
     // legal documents are public by law
     pathname === "/terms" ||
     pathname === "/offer" ||

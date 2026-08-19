@@ -4,6 +4,7 @@ import { AppError } from "@/lib/errors";
 import { sessionFromRequest } from "@/core/auth/session";
 import { billingEnabled, applyTx } from "@/core/billing/billing";
 import { TOPUP_PACKAGES, CUSTOM_TOPUP, customTopup } from "@/core/billing/prices";
+import { yookassaConfigured, createPayment } from "@/core/billing/yookassa";
 import { uid } from "@/lib/utils";
 
 export const runtime = "nodejs";
@@ -15,14 +16,13 @@ const schema = z.object({
 });
 
 /**
- * DEMO top-up. Until a real ЮKassa shop is connected (needs ИП/самозанятость)
- * this endpoint credits the package immediately, marked as a demo payment.
- *
- * Real integration plan (swap-in, same route):
- *  1. POST https://api.yookassa.ru/v3/payments  (amount, capture, return_url,
- *     metadata: {email, packageId}, Idempotence-Key) → return confirmation_url.
- *  2. Webhook route verifies the notification and calls applyTx with
- *     reference = yookassa payment id (already idempotent).
+ * Top-up entry point.
+ *  - ЮKassa настроена (YOOKASSA_SHOP_ID + YOOKASSA_SECRET_KEY): создаёт платёж
+ *    и возвращает confirmationUrl — клиент уходит на страницу оплаты. Искры
+ *    зачисляет вебхук или проверка при возврате (см. yookassa-credit.ts).
+ *  - Иначе, BILLING_DEMO_TOPUP=true (локальная разработка): мгновенное
+ *    демо-зачисление без денег.
+ *  - Иначе: 503 «оплата подключается».
  */
 export async function POST(req: Request) {
   try {
@@ -43,10 +43,27 @@ export async function POST(req: Request) {
       );
     }
 
-    // Demo crediting is OFF by default now that the site is under ЮKassa
-    // review — a "payment" that instantly credits sparks without money would
-    // look like a broken checkout. BILLING_DEMO_TOPUP=true re-enables it for
-    // internal testing; the real integration replaces this branch entirely.
+    if (yookassaConfigured()) {
+      const origin = process.env.CANONICAL_HOST
+        ? `https://${process.env.CANONICAL_HOST}`
+        : new URL(req.url).origin;
+      const { id, confirmationUrl } = await createPayment({
+        amountRub: pack.priceRub,
+        description: `Kartogen: ${pack.sparks} искр${pack.bonus ? ` + ${pack.bonus} бонус` : ""}`,
+        // paymentId кладёт в sessionStorage клиент перед редиректом —
+        // на возврате страница /billing сама проверит и зачислит платёж
+        returnUrl: `${origin}/billing`,
+        metadata: {
+          email: session.email,
+          packageId: pack.id,
+          sparks: String(pack.sparks),
+          bonus: String(pack.bonus),
+        },
+      });
+      return ok({ paymentId: id, confirmationUrl });
+    }
+
+    // Demo crediting: только когда ЮKassa не настроена (локальные тесты).
     if (process.env.BILLING_DEMO_TOPUP !== "true") {
       throw new AppError(
         "Оплата подключается: приём платежей через ЮKassa скоро появится. Пока пополнить баланс можно через поддержку — admin@kartogen.ru.",

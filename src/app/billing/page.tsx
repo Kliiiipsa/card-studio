@@ -47,6 +47,53 @@ export default function BillingPage() {
     loadHistory();
   }, [fetchMe, loadHistory]);
 
+  // Возврат со страницы оплаты ЮKassa: paymentId лежит в sessionStorage,
+  // проверяем статус (сервер перепроверит у ЮKassa и зачислит идемпотентно).
+  React.useEffect(() => {
+    const paymentId = sessionStorage.getItem("yk_payment");
+    if (!paymentId) return;
+    let cancelled = false;
+    let attempts = 0;
+    const check = async () => {
+      attempts++;
+      try {
+        const res = await fetch("/api/billing/topup/status", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ paymentId }),
+        });
+        const data = (await res.json()) as {
+          status?: string;
+          sparks?: number;
+          balance?: number;
+          error?: string;
+        };
+        if (cancelled) return;
+        if (res.ok && data.status === "succeeded") {
+          sessionStorage.removeItem("yk_payment");
+          if (typeof data.balance === "number") useProfileStore.getState().setBalance(data.balance);
+          toast.success(`Оплата прошла — зачислено ${data.sparks ?? ""} искр`.replace("  ", " "));
+          loadHistory();
+          return;
+        }
+        if (res.ok && data.status === "canceled") {
+          sessionStorage.removeItem("yk_payment");
+          toast.error("Платёж отменён — деньги не списаны.");
+          return;
+        }
+        // pending / временная ошибка — подождём и спросим ещё раз
+        if (attempts < 6) setTimeout(check, 2500);
+        else sessionStorage.removeItem("yk_payment"); // зачислит вебхук, когда банк подтвердит
+      } catch {
+        if (!cancelled && attempts < 6) setTimeout(check, 2500);
+      }
+    };
+    void check();
+    return () => {
+      cancelled = true;
+    };
+  }, [loadHistory]);
+
   const pay = async () => {
     if (!buying) return;
     setPaying(true);
@@ -60,8 +107,19 @@ export default function BillingPage() {
             : { packageId: buying.id },
         ),
       });
-      const data = (await res.json()) as { balance?: number; error?: string };
+      const data = (await res.json()) as {
+        balance?: number;
+        confirmationUrl?: string;
+        paymentId?: string;
+        error?: string;
+      };
       if (!res.ok) throw new Error(data.error ?? "Оплата не прошла");
+      if (data.confirmationUrl && data.paymentId) {
+        // реальный платёж: запоминаем id и уходим на страницу оплаты ЮKassa
+        sessionStorage.setItem("yk_payment", data.paymentId);
+        window.location.href = data.confirmationUrl;
+        return; // не снимаем спиннер — идёт переход
+      }
       if (typeof data.balance === "number") useProfileStore.getState().setBalance(data.balance);
       toast.success(`Зачислено ${buying.sparks + buying.bonus} искр`);
       setBuying(null);
@@ -238,7 +296,7 @@ export default function BillingPage() {
         </Card>
       </div>
 
-      {/* Demo YooKassa dialog */}
+      {/* YooKassa checkout dialog */}
       <Dialog.Root open={!!buying} onOpenChange={(o) => !o && !paying && setBuying(null)}>
         <Dialog.Portal>
           <Dialog.Overlay className="fixed inset-0 z-40 bg-black/50 data-[state=open]:animate-in data-[state=open]:fade-in-0" />
@@ -272,11 +330,11 @@ export default function BillingPage() {
                   </div>
                 </div>
                 <div className="rounded-lg border bg-muted/40 px-3 py-3 text-xs leading-5 text-muted-foreground">
-                  <p className="font-medium text-foreground">Оплата подключается</p>
+                  <p className="font-medium text-foreground">Безопасная оплата через ЮKassa</p>
                   <p className="mt-1">
-                    Приём платежей банковской картой и через СБП с электронным чеком (ЮKassa)
-                    появится здесь в ближайшее время. Пока пополнить баланс можно через
-                    поддержку —{" "}
+                    После нажатия вы перейдёте на защищённую страницу ЮKassa — банковская карта,
+                    СБП и другие способы. Искры зачислятся автоматически сразу после оплаты.
+                    Вопросы —{" "}
                     <a href="mailto:admin@kartogen.ru" className="text-primary hover:underline">
                       admin@kartogen.ru
                     </a>
