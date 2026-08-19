@@ -232,6 +232,8 @@ export function buildBakedCardPrompt(args: {
   hasProductImage: boolean;
   /** advanced on each regenerate so the next base tries another composition */
   variantSeed?: number;
+  /** a user-uploaded style reference image is attached to this request */
+  hasStyleReference?: boolean;
 }): string {
   const { productName, headline, subheadline, benefits, type, style, styleProfile, layoutPlan } =
     args;
@@ -240,7 +242,9 @@ export function buildBakedCardPrompt(args: {
   // A user-uploaded reference is the design authority: our generic poster
   // typography and the composition variant pool step aside so the card lands
   // in the reference's style family (similar, never a replica).
-  const referenceDriven = styleProfile?.source === "reference";
+  // Also true when the reference IMAGE is attached without an extracted profile —
+  // the picture must still win over our generic composition/typography rules.
+  const referenceDriven = styleProfile?.source === "reference" || !!args.hasStyleReference;
 
   const base = args.hasProductImage
     ? `Using the provided product photo, create a FINISHED Wildberries marketplace infographic card for ${product}. Keep the product/person photorealistic — same identity, clothing, materials, colors and proportions.`

@@ -402,6 +402,7 @@ function buildBaseRequest(args: InfographicBaseArgs, bake: boolean): BuiltReques
       layoutPlan: args.brief.layoutPlan,
       hasProductImage: !!args.productImage || !!args.styleReferenceImage,
       variantSeed: args.variantSeed,
+      hasStyleReference: !!args.styleReferenceImage,
     });
 
   // Custom style reference + product photo: give the model BOTH images — the
@@ -409,7 +410,7 @@ function buildBaseRequest(args: InfographicBaseArgs, bake: boolean): BuiltReques
   // (gpt-image-2 takes multiple images; single-image models use just the product).
   if (args.styleReferenceImage && args.productImage) {
     const twoImageNote = bake
-      ? ` Two images are provided. The FIRST image is the user's product — keep THAT exact product (same garment, colors, materials, person/identity). The SECOND image is a STYLE REFERENCE ONLY: take its composition, layout rhythm, palette, typography and decorative language, but DO NOT reuse its product, its model, its photo or its text. Aim for a card in the same style family — clearly similar, not an exact replica.`
+      ? ` Two images are provided. The FIRST image is the user's product — keep THAT exact product (same garment, colors, materials, person/identity). The SECOND image is a STYLE REFERENCE ONLY: take its composition, layout rhythm, palette, typography and decorative language, but DO NOT reuse its product, its model, its photo or its text. CRITICAL: every word, number, price, sales figure, size range, feature claim or badge text visible in the reference belongs to a DIFFERENT product — none of it may appear on this card. Recreate the reference's TEXT STYLE (lettering, plates, effects) using ONLY the Russian texts listed in this prompt; if the reference has more text blocks than provided texts, leave those blocks out rather than inventing or copying content. Aim for a card in the same style family — clearly similar, not an exact replica.`
       : ` The product is the FIRST image — keep it unchanged. Use the SECOND image only as a STYLE reference (palette, composition, rhythm); do not copy its product or text. Remove any text/logo, leave empty space for a future text overlay.`;
     return {
       kind: "i2i",
@@ -430,7 +431,10 @@ function buildBaseRequest(args: InfographicBaseArgs, bake: boolean): BuiltReques
     const styleNote =
       ` The provided image is a STYLE REFERENCE: reproduce its visual style — layout rhythm,` +
       ` palette, background, lighting and composition — but the product MUST be ${product}, not` +
-      ` the reference's. Replace the reference product with ${product}.`;
+      ` the reference's. Replace the reference product with ${product}. Do NOT copy any words,` +
+      ` numbers, prices, sales figures or claims from the reference — they describe another product;` +
+      ` use ONLY the Russian texts listed in this prompt, and drop reference text blocks that have no` +
+      ` matching provided text.`;
     const prompt = bake
       ? bakedPrompt() + styleNote
       : `${args.brief.imagePrompt}${styleNote} Remove any text, captions or logo from the reference. Clean base only, leave empty space for a future text overlay.`;

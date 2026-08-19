@@ -27,21 +27,31 @@ export function InfographicReferencePicker({
   const [refImage, setRefImage] = React.useState<string | null>(null);
   const [extracting, setExtracting] = React.useState(false);
 
-  const extract = async () => {
-    if (!refImage) {
-      toast.error("Загрузите изображение референса.");
-      return;
-    }
-    setExtracting(true);
-    try {
-      const profile = await api.infographic.extractStyle(refImage);
-      onChange(profile);
-      onReferenceImageChange?.(refImage);
-      toast.success("Стиль референса извлечён");
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Не удалось извлечь стиль");
-    } finally {
-      setExtracting(false);
+  const extract = React.useCallback(
+    async (image: string) => {
+      setExtracting(true);
+      try {
+        const profile = await api.infographic.extractStyle(image);
+        onChange(profile);
+        onReferenceImageChange?.(image);
+        toast.success("Стиль референса применён");
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : "Не удалось извлечь стиль");
+      } finally {
+        setExtracting(false);
+      }
+    },
+    [onChange, onReferenceImageChange],
+  );
+
+  // Uploading a reference is the intent — apply it right away. Users expected
+  // one step and generated with "Авто" while the reference sat unused.
+  const handleUpload = (image: string | null) => {
+    setRefImage(image);
+    if (image) void extract(image);
+    else {
+      onChange(null);
+      onReferenceImageChange?.(null);
     }
   };
 
@@ -102,26 +112,28 @@ export function InfographicReferencePicker({
       <TabsContent value="upload" className="mt-0 space-y-3">
         <ImageUploader
           value={refImage}
-          onChange={setRefImage}
+          onChange={handleUpload}
           label="Загрузите референс-инфографику"
           hint="Например, удачная карточка конкурента — возьмём только её стиль. Работает точнее вместе с фото вашего товара"
         />
-        <Button
-          onClick={extract}
-          disabled={extracting || !refImage}
-          variant="outline"
-          className="w-full"
-        >
-          {extracting ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <Wand2 className="h-4 w-4" />
-          )}
-          Извлечь стиль референса
-        </Button>
-        {value?.source === "reference" && (
-          <p className="text-xs text-emerald-600">Стиль «{value.name}» применён.</p>
-        )}
+        {extracting ? (
+          <p className="flex items-center gap-2 text-xs text-muted-foreground">
+            <Loader2 className="h-3.5 w-3.5 animate-spin" /> Изучаем стиль референса…
+          </p>
+        ) : value?.source === "reference" ? (
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-xs text-emerald-600">Стиль «{value.name}» применён.</p>
+            <Button
+              onClick={() => refImage && extract(refImage)}
+              variant="ghost"
+              size="sm"
+              className="h-7 text-xs"
+            >
+              <Wand2 className="mr-1 h-3.5 w-3.5" />
+              Извлечь заново
+            </Button>
+          </div>
+        ) : null}
       </TabsContent>
     </Tabs>
   );
