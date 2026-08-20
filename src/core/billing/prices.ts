@@ -67,9 +67,10 @@ export const WELCOME_SPARKS = 20;
 export type TopupPackage = { id: string; sparks: number; bonus: number; priceRub: number };
 
 export const TOPUP_PACKAGES: TopupPackage[] = [
-  { id: "s100", sparks: 100, bonus: 0, priceRub: 100 },
-  { id: "s500", sparks: 500, bonus: 25, priceRub: 500 },
-  { id: "s1000", sparks: 1000, bonus: 100, priceRub: 1000 },
+  // состав пакетов — решение пользователя 2026-08-20 (бонус растёт с суммой)
+  { id: "s200", sparks: 200, bonus: 10, priceRub: 200 },
+  { id: "s500", sparks: 500, bonus: 50, priceRub: 500 },
+  { id: "s1000", sparks: 1000, bonus: 150, priceRub: 1000 },
 ];
 
 /**

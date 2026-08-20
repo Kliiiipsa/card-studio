@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "@/components/ui/toaster";
 import { useProfileStore } from "@/store/profile-store";
 import { Input } from "@/components/ui/input";
+import { cn } from "@/lib/utils";
 import {
   TOPUP_PACKAGES,
   PRICES,
@@ -18,6 +19,16 @@ import {
   type TopupPackage,
 } from "@/core/billing/prices";
 import type { SparkTransaction } from "@/core/billing/billing";
+
+/** Оформление кнопки «Купить» под каждый пакет (решение по дизайну 2026-08-20). */
+const PACK_BUTTON: Record<string, { variant: "outline" | "default"; className?: string }> = {
+  s200: { variant: "outline" },
+  s500: { variant: "default" },
+  s1000: {
+    variant: "default",
+    className: "bg-blue-600 text-white shadow-sm hover:bg-blue-700",
+  },
+};
 
 const TX_LABEL: Record<string, string> = {
   welcome: "Бонус за регистрацию",
@@ -172,8 +183,8 @@ export default function BillingPage() {
                   </p>
                   <p className="text-sm text-muted-foreground">{p.priceRub} ₽</p>
                   <Button
-                    variant={p.bonus > 0 ? "gradient" : "outline"}
-                    className="w-full"
+                    variant={PACK_BUTTON[p.id]?.variant ?? "outline"}
+                    className={cn("w-full", PACK_BUTTON[p.id]?.className)}
                     onClick={() => setBuying(p)}
                     disabled={role === "admin"}
                   >
