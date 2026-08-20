@@ -18,7 +18,7 @@ export const EXPORT_PRESETS: ExportPreset[] = [
 
 /** Aspect ratios offered to the image model. */
 export const ASPECT_RATIOS = [
-  { id: "3:4", label: "3:4 (WB)" },
+  { id: "3:4", label: "3:4 (маркетплейс)" },
   { id: "4:5", label: "4:5" },
   { id: "1:1", label: "1:1" },
   { id: "9:16", label: "9:16" },

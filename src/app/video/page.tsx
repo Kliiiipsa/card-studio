@@ -262,7 +262,7 @@ export default function VideoPage() {
               </Button>
               <p className="text-xs leading-5 text-muted-foreground">
                 Ролик {VIDEO_DURATION_SEC} секунд, 1080p; формат кадра повторяет формат вашего фото
-                (для Wildberries — 3:4). Генерация занимает 1–3 минуты. {SPARK} Искры списываются
+                (для карточки маркетплейса — 3:4). Генерация занимает 1–3 минуты. {SPARK} Искры списываются
                 только за готовое видео — за ошибки вы не платите.
               </p>
               <div className="rounded-lg border bg-muted/40 px-3 py-2.5 text-xs leading-5 text-muted-foreground">
@@ -318,7 +318,7 @@ export default function VideoPage() {
               <EmptyState
                 icon={<Clapperboard className="h-6 w-6" />}
                 title="Здесь появится ваш ролик"
-                description="Загрузите фото, выберите движение — и получите живое видео товара для карточки Wildberries."
+                description="Загрузите фото — и получите живое видео товара для карточки маркетплейса."
               />
             )}
           </CardContent>

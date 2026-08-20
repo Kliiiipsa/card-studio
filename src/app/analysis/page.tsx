@@ -169,7 +169,7 @@ export default function AnalysisPage() {
                 value={image}
                 onChange={setImage}
                 label="Загрузите карточку или фото товара"
-                hint="Скриншот карточки из выдачи WB или фото товара"
+                hint="Скриншот карточки из выдачи маркетплейса или фото товара"
               />
               <div className="space-y-1.5">
                 <Label htmlFor="aname">Название товара (необязательно)</Label>

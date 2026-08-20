@@ -67,7 +67,7 @@ export default function SeoPage() {
           <CardContent className="space-y-4">
             <p className="text-xs text-muted-foreground">
               Заполните данные — ИИ напишет SEO-название (главные ключи в начале), продающее
-              описание и 12–15 реальных поисковых запросов покупателей WB.
+              описание и 12–15 реальных поисковых запросов покупателей маркетплейса.
             </p>
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="space-y-1.5">

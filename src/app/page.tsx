@@ -58,7 +58,7 @@ const FEATURES = [
   },
   {
     icon: LayoutTemplate,
-    title: "Инфографика под WB",
+    title: "Инфографика под маркетплейс",
     text: "Готовая карточка с русским текстом: стили, композиции и плашки — внутри изображения.",
   },
   {
@@ -69,7 +69,7 @@ const FEATURES = [
 ];
 
 const STEPS = [
-  { icon: Upload, title: "Загрузите товар", text: "Фото товара или текущую карточку WB." },
+  { icon: Upload, title: "Загрузите товар", text: "Фото товара или текущую карточку с маркетплейса." },
   { icon: Lightbulb, title: "Получите идеи", text: "ИИ предложит смыслы и закроет боли клиента." },
   { icon: Wand2, title: "Сгенерируйте карточку", text: "Структурный промпт → дорогой визуал." },
   { icon: Download, title: "Скачайте результат", text: "Готовая графика в нужном размере." },
@@ -124,7 +124,7 @@ export default async function LandingPage() {
           AI-студия контента для маркетплейсов
         </Badge>
         <h1 className="max-w-4xl text-4xl font-bold tracking-tight sm:text-5xl lg:text-6xl">
-          Создавайте премиальные карточки для <span className="text-gradient">Wildberries</span> с
+          Создавайте премиальные карточки для <span className="text-gradient">маркетплейсов</span> с
           помощью ИИ
         </h1>
         <p className="mt-5 max-w-2xl text-lg text-muted-foreground">
@@ -233,7 +233,7 @@ export default async function LandingPage() {
       </section>
 
       <footer className="container flex flex-col items-center gap-3 border-t py-8 text-center text-sm text-muted-foreground">
-        <p>Kartogen — AI-студия карточек для Wildberries</p>
+        <p>Kartogen — AI-студия карточек для маркетплейсов</p>
         <nav className="flex flex-wrap justify-center gap-x-4 gap-y-1">
           <Link href="/pricing" className="hover:text-foreground">
             Тарифы
@@ -252,8 +252,8 @@ export default async function LandingPage() {
           </a>
         </nav>
         <p className="text-xs">
-          Самозанятый Плотников А. И., ИНН 220452891248. Сервис не аффилирован с Wildberries и
-          Ozon.
+          Самозанятый Плотников А. И., ИНН 220452891248. Сервис не аффилирован с Wildberries, Ozon и
+          иными маркетплейсами.
         </p>
       </footer>
     </div>

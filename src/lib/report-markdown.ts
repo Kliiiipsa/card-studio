@@ -58,7 +58,7 @@ export function reportToMarkdown(r: AnalysisReport, productName?: string): strin
   lines.push(`${r.thumbnailTest.readable ? "✅ Читается" : "❌ Не читается"}. ${r.thumbnailTest.verdict}`);
 
   if (r.riskFlags.length) {
-    section("Риски модерации WB");
+    section("Риски модерации маркетплейса");
     list(r.riskFlags);
   }
 

@@ -232,7 +232,7 @@ export function AnalysisReportView({
               <p className="text-foreground/80">{report.thumbnailTest.verdict}</p>
             </div>
           </Section>
-          <Section icon={<ShieldAlert className="h-4 w-4" />} title="Риски модерации WB">
+          <Section icon={<ShieldAlert className="h-4 w-4" />} title="Риски модерации маркетплейса">
             {report.riskFlags.length > 0 ? (
               <List items={report.riskFlags} />
             ) : (

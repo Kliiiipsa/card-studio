@@ -41,7 +41,7 @@ export const QUICK_ACTIONS: QuickAction[] = [
   },
 ];
 
-const WB_CHECKLIST = [
+const CARD_CHECKLIST = [
   "Понятное УТП за 2 секунды",
   "Товар крупный и в центре",
   "Заголовок-выгода до 5 слов",
@@ -94,7 +94,7 @@ export function AIRecommendations({
         </CardHeader>
         <CardContent>
           <ul className="space-y-2">
-            {WB_CHECKLIST.map((item, i) => (
+            {CARD_CHECKLIST.map((item, i) => (
               <li key={i} className="flex items-start gap-2 text-sm text-muted-foreground">
                 <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-primary/50" />
                 {item}

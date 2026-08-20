@@ -24,7 +24,7 @@ export const CARD_TYPES: CardType[] = [
   {
     id: "cover",
     title: "Главная обложка",
-    description: "Первая карточка, которая ловит взгляд в выдаче WB",
+    description: "Первая карточка, которая ловит взгляд в выдаче маркетплейса",
     promptHint:
       "premium cover image, product large and centered, clear empty zone for a short headline, instantly readable value",
   },
