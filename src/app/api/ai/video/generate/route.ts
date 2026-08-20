@@ -52,6 +52,8 @@ export async function POST(req: Request) {
           productName: body.productName,
           presetId: body.presetId,
           aspectRatio: body.aspectRatio ?? "3:4",
+          // для отладки качества: что реально ушло в модель
+          videoPrompt: prompt,
         },
         falStatusUrl: job.statusUrl,
         falResponseUrl: job.responseUrl,
