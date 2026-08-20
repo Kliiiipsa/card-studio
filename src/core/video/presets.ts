@@ -28,13 +28,10 @@ export const VIDEO_PRESETS: VideoPreset[] = [
     template:
       "Very gentle, subtle cinematic camera push-in toward {product}, moving only slightly closer over the whole clip",
   },
-  {
-    id: "orbit",
-    label: "Облёт камерой",
-    description: "Камера медленно смещается по небольшой дуге, добавляя объём кадру",
-    template:
-      "Smooth, slow camera drift along a small arc around {product}, only a slight angle change, keeping it centered and in sharp focus",
-  },
+  // «Облёт камерой» удалён (2026-08-20): боевой тест на стуле показал, что
+  // «малую дугу» Seedance превращает в свободный полёт камеры с полным
+  // пересочинением сцены и деформацией товара. Камерное движение оставляем
+  // только самое короткое (push-in).
   {
     id: "turntable",
     label: "Поворот товара",

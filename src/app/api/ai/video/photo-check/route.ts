@@ -24,6 +24,7 @@ export async function POST(req: Request) {
     if (productImage.startsWith("data:")) validateDataUrl(productImage);
 
     let hasPerson = false;
+    let hasText = false;
     try {
       const llm = getLLMProvider();
       const res = await llm.complete({
@@ -31,28 +32,29 @@ export async function POST(req: Request) {
         json: true,
         vision: true,
         temperature: 0,
-        maxTokens: 60,
+        maxTokens: 80,
         messages: [
           {
             role: "system",
             content:
-              'Ты определяешь, есть ли на фото человек (модель, части тела). Ответ строго JSON: {"hasPerson": true|false}',
+              'Ты проверяешь фото для видео-генерации. Ответ строго JSON: {"hasPerson": true|false, "hasText": true|false}. hasPerson — есть ли человек или части тела. hasText — есть ли НАЛОЖЕННЫЕ надписи, заголовки, плашки, цены (как на готовой карточке маркетплейса); мелкий текст на этикетке самого товара НЕ считается.',
           },
           {
             role: "user",
-            content: "Есть ли на этом фото человек или части тела человека?",
+            content: "Проверь фото: есть ли человек и есть ли наложенный текст/плашки?",
             imageDataUrl: productImage,
           },
         ],
       });
       const parsed = JSON.parse(
         res.text.trim().replace(/^```(?:json)?/i, "").replace(/```$/i, "").trim(),
-      ) as { hasPerson?: boolean };
+      ) as { hasPerson?: boolean; hasText?: boolean };
       hasPerson = parsed.hasPerson === true;
+      hasText = parsed.hasText === true;
     } catch {
       // не смогли проверить — не мешаем пользователю
     }
-    return ok({ hasPerson });
+    return ok({ hasPerson, hasText });
   } catch (err) {
     return fail(err);
   }

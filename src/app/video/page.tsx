@@ -91,6 +91,7 @@ function VideoLoading({ image }: { image: string | null }) {
 export default function VideoPage() {
   const [image, setImage] = React.useState<string | null>(null);
   const [hasPerson, setHasPerson] = React.useState(false);
+  const [hasText, setHasText] = React.useState(false);
   const [productName, setProductName] = React.useState("");
   const [presetId, setPresetId] = React.useState(VIDEO_PRESETS[0].id);
   const [aspect, setAspect] = React.useState<VideoAspect>("3:4");
@@ -132,6 +133,7 @@ export default function VideoPage() {
   const onImageChange = (dataUrl: string | null) => {
     setImage(dataUrl);
     setHasPerson(false);
+    setHasText(false);
     if (!dataUrl) return;
     fetch("/api/ai/video/photo-check", {
       method: "POST",
@@ -139,7 +141,10 @@ export default function VideoPage() {
       body: JSON.stringify({ productImage: dataUrl }),
     })
       .then((r) => r.json())
-      .then((d: { hasPerson?: boolean }) => setHasPerson(d.hasPerson === true))
+      .then((d: { hasPerson?: boolean; hasText?: boolean }) => {
+        setHasPerson(d.hasPerson === true);
+        setHasText(d.hasText === true);
+      })
       .catch(() => undefined);
   };
 
@@ -205,6 +210,20 @@ export default function VideoPage() {
                 label="Загрузите фото товара"
                 hint="Лучше всего работает чистое фото на светлом фоне · PNG, JPG, WEBP"
               />
+              {hasText && (
+                <div className="flex gap-2.5 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2.5 text-xs leading-5">
+                  <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
+                  <div className="text-muted-foreground">
+                    <p className="font-medium text-foreground">
+                      Похоже, это готовая карточка с надписями
+                    </p>
+                    <p className="mt-0.5">
+                      Плашки и заголовки исчезнут в первые секунды видео. Загрузите чистое фото
+                      товара — без текста поверх.
+                    </p>
+                  </div>
+                </div>
+              )}
               {hasPerson && (
                 <div className="flex gap-2.5 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2.5 text-xs leading-5">
                   <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
