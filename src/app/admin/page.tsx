@@ -13,7 +13,7 @@ import { toast } from "@/components/ui/toaster";
 import { ACTION_LABELS } from "@/core/billing/prices";
 import type { SparkTransaction } from "@/core/billing/billing";
 import { cn } from "@/lib/utils";
-import { VIDEO_PRESETS } from "@/core/video/presets";
+import { ALL_VIDEO_PRESETS } from "@/core/video/presets";
 import { INFOGRAPHIC_TYPES, INFOGRAPHIC_STYLES } from "@/core/infographics/types";
 
 type AdminUser = {
@@ -151,7 +151,7 @@ function genSections(g: Generation): Section[] {
     out.push({
       title: "Что выбрал",
       fields: [
-        { label: "Движение", value: labelOf(VIDEO_PRESETS, p.presetId) },
+        { label: "Движение", value: labelOf(ALL_VIDEO_PRESETS, p.presetId) },
         { label: "Модель", value: p.model },
       ],
     });

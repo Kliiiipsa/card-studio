@@ -9,9 +9,11 @@ import { toast } from "@/components/ui/toaster";
 import { ImageUploader } from "@/components/media/image-uploader";
 import { EmptyState } from "@/components/project/empty-state";
 import { api } from "@/lib/client-api";
-import { cn } from "@/lib/utils";
 import { PRICES, SPARK } from "@/core/billing/prices";
-import { VIDEO_PRESETS, VIDEO_DURATION_SEC } from "@/core/video/presets";
+import { VIDEO_PRESETS, DEFAULT_VIDEO_PRESET_ID, VIDEO_DURATION_SEC } from "@/core/video/presets";
+
+/** Пользователю доступен один проверенный сценарий — «Оживить фото». */
+const PRESET = VIDEO_PRESETS[0];
 
 /** Этапы «съёмки» — по прошедшему времени (сек). Реального прогресса fal не
  * отдаёт, поэтому бар — честная асимптота к ~93%, добивается при завершении. */
@@ -93,7 +95,6 @@ export default function VideoPage() {
   const [hasPerson, setHasPerson] = React.useState(false);
   const [hasText, setHasText] = React.useState(false);
   const [productName, setProductName] = React.useState("");
-  const [presetId, setPresetId] = React.useState(VIDEO_PRESETS[0].id);
   const [busy, setBusy] = React.useState(false);
   const [videoUrl, setVideoUrl] = React.useState<string | null>(null);
   const [downloading, setDownloading] = React.useState(false);
@@ -161,7 +162,7 @@ export default function VideoPage() {
     try {
       const { videoUrl } = await api.video.generate({
         productName: productName.trim(),
-        presetId,
+        presetId: DEFAULT_VIDEO_PRESET_ID,
         productImage: image,
       });
       setVideoUrl(videoUrl);
@@ -247,31 +248,14 @@ export default function VideoPage() {
 
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-sm">2. Движение в ролике</CardTitle>
+              <CardTitle className="text-sm">2. Оживление</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid gap-2 sm:grid-cols-2">
-                {VIDEO_PRESETS.map((p) => (
-                  <button
-                    key={p.id}
-                    type="button"
-                    onClick={() => setPresetId(p.id)}
-                    className={cn(
-                      "rounded-xl border p-3 text-left transition-colors",
-                      presetId === p.id
-                        ? "border-primary bg-primary/5 ring-1 ring-primary"
-                        : "hover:border-primary/40 hover:bg-accent/40",
-                    )}
-                  >
-                    <p className="text-sm font-medium">{p.label}</p>
-                    <p className="mt-0.5 text-xs leading-4 text-muted-foreground">{p.description}</p>
-                  </button>
-                ))}
-              </div>
+              <p className="text-xs leading-5 text-muted-foreground">{PRESET.description}.</p>
 
               <Button variant="gradient" className="w-full" onClick={generate} disabled={busy}>
                 {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-                Сгенерировать видео
+                {PRESET.label}
                 <span className="ml-1 inline-flex items-center gap-0.5 text-xs opacity-90">
                   · {PRICES.video} <Zap className="h-3 w-3" />
                 </span>

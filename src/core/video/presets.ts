@@ -18,25 +18,36 @@ export type VideoPreset = {
   template: string;
   /** зафиксировать камеру (движется только товар/сцена) */
   cameraFixed?: boolean;
+  /** false — сценарий скрыт из UI, но живёт в коде (старые задачи, будущий A/B) */
+  visible?: boolean;
 };
 
-export const VIDEO_PRESETS: VideoPreset[] = [
+/**
+ * ВСЕ сценарии, включая скрытые: нужны серверу (getVideoPreset по id старых
+ * задач) и админке (подписи в журнале генераций).
+ *
+ * Решение пользователя 2026-08-20: клиенту показываем ОДИН сценарий —
+ * «Оживить фото» (бывший «Облёт камерой»), единственный проверенный на Kling
+ * 2.5 Turbo Pro (2 чистых ролика в A/B на сложных фото с людьми). Остальные
+ * скрыты, а не удалены: вернуть можно флагом, когда появится бюджет на
+ * сравнительный тест (методика — в памяти проекта).
+ */
+export const ALL_VIDEO_PRESETS: VideoPreset[] = [
+  {
+    id: "orbit",
+    label: "Оживить фото",
+    description:
+      "Камера медленно смещается по небольшой дуге: товар остаётся собой, кадр получает объём и жизнь",
+    template:
+      "Smooth, slow camera drift along a small arc around {product}, only a slight angle change, keeping it centered and in sharp focus",
+    visible: true,
+  },
   {
     id: "push-in",
     label: "Медленный наезд",
     description: "Камера едва заметно приближается к товару — мягкий кинематографичный кадр",
     template:
       "Very gentle, subtle cinematic camera push-in toward {product}, moving only slightly closer over the whole clip",
-  },
-  // «Облёт» удалялся после провала Seedance Fast на стуле (полёт камеры с
-  // пересочинением сцены) и ВОЗВРАЩЁН с переходом на Kling 2.5 Turbo Pro —
-  // в A/B 2026-08-20 Kling отработал этот же сценарий чисто на двух фото.
-  {
-    id: "orbit",
-    label: "Облёт камерой",
-    description: "Камера медленно смещается по небольшой дуге, добавляя объём кадру",
-    template:
-      "Smooth, slow camera drift along a small arc around {product}, only a slight angle change, keeping it centered and in sharp focus",
   },
   {
     id: "turntable",
@@ -64,6 +75,12 @@ export const VIDEO_PRESETS: VideoPreset[] = [
   },
 ];
 
+/** Сценарии, доступные пользователю (сейчас — один). */
+export const VIDEO_PRESETS: VideoPreset[] = ALL_VIDEO_PRESETS.filter((p) => p.visible);
+
+/** Сценарий по умолчанию — им идут все генерации, пока выбор скрыт. */
+export const DEFAULT_VIDEO_PRESET_ID = VIDEO_PRESETS[0].id;
+
 /**
  * Страховки, добавляемые к КАЖДОМУ промпту. ВАЖНО (урок боевого теста
  * 2026-08-20): у i2v-моделей нет негативного промпта, и «запрещающие» фразы
@@ -78,16 +95,13 @@ export const VIDEO_GUARDRAILS =
   "The motion described above is the ONLY change between frames. " +
   "Photorealistic, smooth, stable and slow motion; calm, consistent studio lighting; clean noise-free footage.";
 
+/** Ищем среди ВСЕХ сценариев: у старых задач в базе могут быть скрытые id. */
 export function getVideoPreset(id: string): VideoPreset | undefined {
-  return VIDEO_PRESETS.find((p) => p.id === id);
+  return ALL_VIDEO_PRESETS.find((p) => p.id === id);
 }
 
 /** длительность фиксированная: цена fal посекундная, тариф покрывает ровно 5 с */
 export const VIDEO_DURATION_SEC = 5;
 
+/** формат ролика у Kling наследуется от фото; тип оставлен для seedance-ветки */
 export type VideoAspect = "3:4" | "9:16" | "1:1";
-export const VIDEO_ASPECTS: { id: VideoAspect; label: string; hint: string }[] = [
-  { id: "3:4", label: "3:4", hint: "галерея карточки WB" },
-  { id: "9:16", label: "9:16", hint: "видеообложка / Shorts" },
-  { id: "1:1", label: "1:1", hint: "квадрат — универсальный" },
-];
