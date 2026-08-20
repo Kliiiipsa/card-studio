@@ -70,7 +70,7 @@ export function getVideoPreset(id: string): VideoPreset | undefined {
   return VIDEO_PRESETS.find((p) => p.id === id);
 }
 
-/** длительность фиксированная: цена fal посекундная, 25 ⚡ покрывает ровно 5 с */
+/** длительность фиксированная: цена fal посекундная, тариф покрывает ровно 5 с */
 export const VIDEO_DURATION_SEC = 5;
 
 export type VideoAspect = "3:4" | "9:16" | "1:1";
