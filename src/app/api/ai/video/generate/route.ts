@@ -50,10 +50,11 @@ export async function POST(req: Request) {
         kind: "video",
         payload: {
           productName: body.productName,
+          category: body.category,
           presetId: body.presetId,
-          aspectRatio: body.aspectRatio ?? "3:4",
           // для отладки качества: что реально ушло в модель
           videoPrompt: prompt,
+          model: process.env.FAL_VIDEO_MODEL ?? "fal-ai/kling-video/v2.5-turbo/pro/image-to-video",
         },
         falStatusUrl: job.statusUrl,
         falResponseUrl: job.responseUrl,

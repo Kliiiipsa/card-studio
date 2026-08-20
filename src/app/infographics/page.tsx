@@ -244,6 +244,18 @@ export default function InfographicsPage() {
         productName: product.name || undefined,
         aspectRatio: "3:4",
         variantSeed: variantSeedRef.current,
+        // снимок формы для поддержки: что человек ввёл и что выбрал
+        userInput: {
+          productName: product.name || undefined,
+          category: product.category || undefined,
+          targetAudience: product.audience || undefined,
+          benefits: product.benefits,
+          painPoints: product.pains,
+          userNote: userNote || undefined,
+          type,
+          style,
+          styleSource: styleProfile?.name,
+        },
       });
       variantSeedRef.current += 1; // next generate → next composition
       setBaseImageUrl(r.baseImageUrl);

@@ -146,6 +146,24 @@ export const infographicGenerateSchema = z.object({
   forceFallback: z.boolean().optional(),
   /** advanced by the client on each regenerate → next composition variant */
   variantSeed: z.number().int().min(0).max(1000).optional(),
+  /**
+   * Снимок того, что пользователь ЗАПОЛНИЛ и ВЫБРАЛ в форме (без изображений).
+   * Нужен только для разбора жалоб в админке: по нему видно, что человек
+   * вводил и какие настройки стояли. На генерацию не влияет.
+   */
+  userInput: z
+    .object({
+      productName: z.string().max(200).optional(),
+      category: z.string().max(120).optional(),
+      targetAudience: z.string().max(300).optional(),
+      benefits: z.array(z.string().max(200)).max(12).optional(),
+      painPoints: z.array(z.string().max(200)).max(12).optional(),
+      userNote: z.string().max(1000).optional(),
+      type: z.string().max(40).optional(),
+      style: z.string().max(40).optional(),
+      styleSource: z.string().max(60).optional(),
+    })
+    .optional(),
 });
 
 /** Handle to an in-flight fal queue job, echoed back to /generate/status. */

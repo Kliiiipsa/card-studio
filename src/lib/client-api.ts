@@ -55,6 +55,18 @@ type InfographicGenerateArgs = {
   aspectRatio?: "3:4" | "4:5";
   /** advanced on each regenerate → next composition variant */
   variantSeed?: number;
+  /** снимок заполненной формы — только для разбора жалоб в админке */
+  userInput?: {
+    productName?: string;
+    category?: string;
+    targetAudience?: string;
+    benefits?: string[];
+    painPoints?: string[];
+    userNote?: string;
+    type?: string;
+    style?: string;
+    styleSource?: string;
+  };
 };
 
 /** /generate returns either a finished base (fast providers) or a job to poll. */

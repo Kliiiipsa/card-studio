@@ -205,6 +205,45 @@ export async function latestJob(email: string, kind: string): Promise<GenJob | n
   return rows[0] ? toJob(rows[0]) : null;
 }
 
+/**
+ * ADMIN: все генерации всех пользователей — для разбора жалоб («что человек
+ * вводил и почему получилось так»). Фильтры: почта (подстрока), тип, статус.
+ */
+export async function listJobsForAdmin(opts: {
+  email?: string;
+  kind?: string;
+  status?: GenJobStatus;
+  limit?: number;
+  offset?: number;
+}): Promise<GenJob[]> {
+  await ensureSchema();
+  const limit = Math.min(Math.max(opts.limit ?? 50, 1), 200);
+  const offset = Math.max(opts.offset ?? 0, 0);
+  const where: string[] = [];
+  const params: unknown[] = [];
+  if (opts.email) {
+    params.push(`%${opts.email.toLowerCase()}%`);
+    where.push(`lower(email) like $${params.length}`);
+  }
+  if (opts.kind) {
+    params.push(opts.kind);
+    where.push(`kind = $${params.length}`);
+  }
+  if (opts.status) {
+    params.push(opts.status);
+    where.push(`status = $${params.length}`);
+  }
+  params.push(limit, offset);
+  const { rows } = await getPool().query(
+    `select * from gen_jobs
+     ${where.length ? "where " + where.join(" and ") : ""}
+     order by created_at desc
+     limit $${params.length - 1} offset $${params.length}`,
+    params,
+  );
+  return rows.map(toJob);
+}
+
 /** Unfinished jobs — re-watched after a server restart. */
 export async function processingJobs(limit = 50): Promise<GenJob[]> {
   await ensureSchema();

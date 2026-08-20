@@ -29,6 +29,19 @@ export async function POST(req: Request) {
     if (body.productImage?.startsWith("data:")) validateDataUrl(body.productImage);
     if (body.styleReferenceImage?.startsWith("data:")) validateDataUrl(body.styleReferenceImage);
     const brief = body.brief as unknown as InfographicBrief;
+    /**
+     * Что кладём в задачу для разбора жалоб («Генерации» в админке): что
+     * человек заполнил и выбрал, прикладывал ли фото/референс и какой промпт
+     * реально ушёл в модель. Сами изображения НЕ сохраняем.
+     */
+    const debug = {
+      userInput: body.userInput,
+      hasProductPhoto: Boolean(body.productImage),
+      hasStyleReference: Boolean(body.styleReferenceImage),
+      imagePrompt: brief.imagePrompt?.slice(0, 2000),
+      styleProfileName: brief.styleProfile?.name,
+      styleProfileSource: brief.styleProfile?.source,
+    };
     const args: InfographicBaseArgs = {
       brief,
       productImage: body.productImage,
@@ -45,7 +58,7 @@ export async function POST(req: Request) {
         email: bill.email,
         kind: "infographic",
         sourceUrl: baseImageUrl,
-        payload: { brief, textBaked },
+        payload: { brief, textBaked, ...debug, fallback: true },
       });
       const balance = await chargeSparks(bill);
       return ok({
@@ -65,7 +78,7 @@ export async function POST(req: Request) {
         email: bill.email,
         kind: "infographic",
         sourceUrl: result.baseImageUrl,
-        payload: { brief, textBaked: result.textBaked },
+        payload: { brief, textBaked: result.textBaked, ...debug },
       });
       const balance = await chargeSparks(bill);
       return ok({
@@ -88,7 +101,7 @@ export async function POST(req: Request) {
         id: jobId,
         email: bill.email,
         kind: "infographic",
-        payload: { brief, textBaked: result.textBaked },
+        payload: { brief, textBaked: result.textBaked, ...debug },
         falStatusUrl: result.job.statusUrl,
         falResponseUrl: result.job.responseUrl,
       });

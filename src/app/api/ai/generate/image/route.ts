@@ -28,7 +28,15 @@ export async function POST(req: Request) {
         email: bill.email,
         kind: "generator",
         sourceUrl: img.url,
-        payload: { prompt: body.prompt.slice(0, 300), cardText: body.cardText },
+        payload: {
+          prompt: body.prompt.slice(0, 2000),
+          cardText: body.cardText,
+          // для разбора жалоб в админке
+          negativePrompt: body.negativePrompt?.slice(0, 500),
+          aspectRatio: body.aspectRatio,
+          strength: body.strength,
+          mode: "по фото",
+        },
       });
     }
     const balance = await chargeSparks(bill);
