@@ -17,6 +17,7 @@ import type {
   StyleProfile,
 } from "@/core/infographics/types";
 import type { ImageJobHandle } from "@/core/ai/providers/types";
+import { USER_ERRORS } from "@/lib/user-messages";
 
 /** Paid endpoints return the fresh sparks balance — mirror it into the profile store. */
 function syncBalance(data: unknown): void {
@@ -37,7 +38,7 @@ async function post<T>(url: string, body: unknown): Promise<T> {
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
-    throw new Error((data as { error?: string }).error ?? "Ошибка запроса");
+    throw new Error((data as { error?: string }).error ?? USER_ERRORS.unexpected);
   }
   syncBalance(data);
   return data as T;
@@ -99,6 +100,15 @@ export type TrackedJob = {
   finishedAt: string | null;
 };
 
+/**
+ * Сколько подряд неудачных опросов терпим (×2.5 с ≈ 2 минуты). Раньше было 5
+ * (~12 с) — этого не хватало, чтобы пережить деплой: контейнер переключается
+ * 1–3 минуты, и вкладка показывала ошибку, хотя генерация на сервере успешно
+ * доходила до конца (и искры списывались). Сервер всё равно доводит задачу и
+ * кладёт результат в «Мои карточки», но клиент теперь чаще дожидается сам.
+ */
+const MAX_POLL_FAILURES = 48;
+
 /** Poll a server-tracked job until it finishes. */
 async function pollTrackedJob(jobId: string): Promise<TrackedJob> {
   const deadline = Date.now() + 420_000;
@@ -106,17 +116,17 @@ async function pollTrackedJob(jobId: string): Promise<TrackedJob> {
   for (;;) {
     await delay(2500);
     if (Date.now() > deadline) {
-      throw new Error("Генерация заняла слишком долго. Попробуйте ещё раз.");
+      throw new Error(USER_ERRORS.timeout);
     }
     try {
       const res = await fetch(`/api/jobs/${jobId}`);
       const data = (await res.json()) as { job?: TrackedJob; balance?: number; error?: string };
-      if (!res.ok) throw new Error(data.error ?? "Ошибка запроса");
+      if (!res.ok) throw new Error(data.error ?? USER_ERRORS.unexpected);
       failures = 0;
       syncBalance(data);
       if (data.job && data.job.status !== "processing") return data.job;
     } catch (e) {
-      if (++failures >= 5) throw e;
+      if (++failures >= MAX_POLL_FAILURES) throw e;
     }
   }
 }
@@ -174,7 +184,7 @@ async function generateInfographic(
   for (;;) {
     await delay(2500);
     if (Date.now() > deadline) {
-      throw new Error("Генерация заняла слишком долго. Попробуйте ещё раз.");
+      throw new Error(USER_ERRORS.timeout);
     }
     let status: JobStatus;
     try {
@@ -228,7 +238,7 @@ async function generateVideo(args: VideoGenerateArgs): Promise<{ videoUrl: strin
     if (done.status === "completed" && done.resultUrl) {
       return { videoUrl: done.resultUrl };
     }
-    throw new Error(done.error ?? "Не удалось сгенерировать видео. Искры не списаны.");
+    throw new Error(done.error ?? USER_ERRORS.unexpected);
   }
 
   // legacy path (no Postgres): poll the fal handle directly
@@ -237,7 +247,7 @@ async function generateVideo(args: VideoGenerateArgs): Promise<{ videoUrl: strin
   for (;;) {
     await delay(3000);
     if (Date.now() > deadline) {
-      throw new Error("Генерация заняла слишком долго. Попробуйте ещё раз.");
+      throw new Error(USER_ERRORS.timeout);
     }
     let status: { status: string; videoUrl?: string; error?: string };
     try {
@@ -249,7 +259,7 @@ async function generateVideo(args: VideoGenerateArgs): Promise<{ videoUrl: strin
     }
     if (status.status === "completed" && status.videoUrl) return { videoUrl: status.videoUrl };
     if (status.status === "failed") {
-      throw new Error("Видео не прошло генерацию (возможно, модерация). Искры не списаны.");
+      throw new Error(USER_ERRORS.moderation);
     }
   }
 }

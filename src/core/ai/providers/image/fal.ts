@@ -1,5 +1,6 @@
 import type { ImageProvider, T2IRequest, I2IRequest, ImageResult, GeneratedImage } from "../types";
 import { ProviderError } from "@/lib/errors";
+import { USER_ERRORS, providerHttpMessage } from "@/lib/user-messages";
 
 /**
  * fal.ai image provider. Enabled via AI_IMAGE_PROVIDER=fal and FAL_KEY
@@ -56,10 +57,7 @@ export class FalImageProvider implements ImageProvider {
 
   private async run(model: string, input: Record<string, unknown>): Promise<ImageResult> {
     if (!this.apiKey) {
-      throw new ProviderError(
-        "Генерация изображений не настроена. Добавьте FAL_KEY в переменные окружения.",
-        "missing FAL_KEY",
-      );
+      throw new ProviderError(USER_ERRORS.notConfigured, "missing FAL_KEY");
     }
 
     let res: Response;
@@ -75,18 +73,13 @@ export class FalImageProvider implements ImageProvider {
         cache: "no-store",
       });
     } catch (e) {
-      throw new ProviderError(
-        "Не удалось связаться с сервисом генерации. Попробуйте позже.",
-        `fal fetch failed: ${String(e)}`,
-      );
+      throw new ProviderError(USER_ERRORS.transient, `fal fetch failed: ${String(e)}`);
     }
 
     if (!res.ok) {
       const detail = await safeText(res);
-      throw new ProviderError(
-        "Сервис генерации вернул ошибку. Попробуйте ещё раз.",
-        `fal ${res.status}: ${detail}`,
-      );
+      // текст клиенту зависит от кода: кончился баланс ≠ «попробуйте ещё раз»
+      throw new ProviderError(providerHttpMessage(res.status), `fal ${res.status}: ${detail}`);
     }
 
     const data = (await res.json()) as {

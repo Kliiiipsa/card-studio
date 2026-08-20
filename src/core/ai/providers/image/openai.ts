@@ -1,5 +1,6 @@
 import type { ImageProvider, T2IRequest, I2IRequest, ImageResult, GeneratedImage } from "../types";
 import { ProviderError } from "@/lib/errors";
+import { USER_ERRORS, providerHttpMessage } from "@/lib/user-messages";
 
 /**
  * OpenAI gpt-image provider (Images API). Enabled via
@@ -61,7 +62,7 @@ export class OpenAIImageProvider implements ImageProvider {
   private assertKey() {
     if (!this.apiKey) {
       throw new ProviderError(
-        "Генерация изображений не настроена. Добавьте OPENAI_API_KEY в переменные окружения.",
+        USER_ERRORS.notConfigured,
         "missing OPENAI_API_KEY",
       );
     }
@@ -73,14 +74,14 @@ export class OpenAIImageProvider implements ImageProvider {
       res = await fetch(url, { method: "POST", cache: "no-store", ...init });
     } catch (e) {
       throw new ProviderError(
-        "Не удалось связаться с сервисом генерации. Попробуйте позже.",
+        USER_ERRORS.transient,
         `openai fetch failed: ${String(e)}`,
       );
     }
     if (!res.ok) {
       const detail = await safeText(res);
       throw new ProviderError(
-        "Сервис генерации вернул ошибку. Попробуйте ещё раз.",
+        providerHttpMessage(res.status),
         `openai ${res.status}: ${detail}`,
       );
     }
@@ -97,7 +98,7 @@ export class OpenAIImageProvider implements ImageProvider {
       })
       .filter((x): x is GeneratedImage => x !== null);
     if (!images.length) {
-      throw new ProviderError("Сервис генерации не вернул изображений.", "openai empty images");
+      throw new ProviderError(USER_ERRORS.providerDown, "openai empty images");
     }
     return { images, provider: this.id };
   }

@@ -1,3 +1,5 @@
+import { USER_ERRORS } from "./user-messages";
+
 /** Domain error with a user-safe message and an HTTP status. */
 export class AppError extends Error {
   status: number;
@@ -27,6 +29,8 @@ export function toErrorResponse(err: unknown): { status: number; body: { error: 
   console.error("[unexpected error]", err);
   return {
     status: 500,
-    body: { error: "Что-то пошло не так. Попробуйте ещё раз." },
+    // текст из общего каталога: клиент не должен видеть «что-то пошло не так»
+    // без объяснения, целы ли его искры и нужно ли повторять
+    body: { error: USER_ERRORS.unexpected },
   };
 }

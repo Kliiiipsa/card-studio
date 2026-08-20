@@ -4,6 +4,7 @@ import { sessionFromRequest } from "@/core/auth/session";
 import { getJob, failJob, jobsEnabled } from "@/core/jobs/jobs";
 import { ensureWatcherBoot } from "@/core/jobs/watcher";
 import { billingEnabled, getBalance } from "@/core/billing/billing";
+import { friendlyJobError } from "@/lib/user-messages";
 
 export const runtime = "nodejs";
 
@@ -30,7 +31,12 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
       job.status === "completed" && billingEnabled() && session.role !== "admin"
         ? await getBalance(session.email)
         : undefined;
-    return ok({ job, balance });
+    // клиенту — человеческий текст; технический остаётся в базе и в админском
+    // журнале генераций (там он и нужен для разбора)
+    return ok({
+      job: { ...job, error: job.error ? friendlyJobError(job.error) : null },
+      balance,
+    });
   } catch (err) {
     return fail(err);
   }

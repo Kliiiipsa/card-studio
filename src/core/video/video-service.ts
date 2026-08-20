@@ -2,6 +2,7 @@ import "server-only";
 import { getLLMProvider } from "@/core/ai/providers";
 import { FAL_PRIVACY_HEADERS } from "@/core/ai/providers/image/fal";
 import { ProviderError } from "@/lib/errors";
+import { USER_ERRORS, providerHttpMessage } from "@/lib/user-messages";
 import {
   getVideoPreset,
   VIDEO_GUARDRAILS,
@@ -95,7 +96,7 @@ export async function buildVideoPrompt(args: {
   category?: string;
 }): Promise<{ prompt: string; cameraFixed: boolean }> {
   const preset = getVideoPreset(args.presetId);
-  if (!preset) throw new ProviderError("Неизвестный пресет движения.", `preset ${args.presetId}`);
+  if (!preset) throw new ProviderError(USER_ERRORS.unexpected, `preset ${args.presetId}`);
   const descriptor = await englishDescriptor(args.productName, args.category);
   return {
     prompt: `${preset.template.replace(/\{product\}/g, descriptor)}. ${VIDEO_GUARDRAILS}`,
@@ -120,7 +121,7 @@ export async function submitVideoJob(args: {
   }
   if (!apiKey()) {
     throw new ProviderError(
-      "Генерация видео не настроена. Добавьте FAL_KEY в переменные окружения.",
+      USER_ERRORS.notConfigured,
       "missing FAL_KEY",
     );
   }
@@ -156,7 +157,7 @@ export async function submitVideoJob(args: {
   const responseUrl = submitted.response_url as string | undefined;
   if (!statusUrl || !responseUrl) {
     throw new ProviderError(
-      "Сервис генерации видео вернул ошибку. Попробуйте ещё раз.",
+      USER_ERRORS.providerDown,
       `fal-video bad submit: ${JSON.stringify(submitted).slice(0, 300)}`,
     );
   }
@@ -177,7 +178,7 @@ export async function pollVideoJob(handle: VideoJobHandle): Promise<VideoJobStat
   }
   if (!apiKey()) {
     throw new ProviderError(
-      "Генерация видео не настроена. Добавьте FAL_KEY в переменные окружения.",
+      USER_ERRORS.notConfigured,
       "missing FAL_KEY",
     );
   }
@@ -223,14 +224,14 @@ async function fetchJson(
       const detail = (await res.text().catch(() => "")).slice(0, 500);
       console.error("[fal-video] http error:", res.status, detail);
       throw new ProviderError(
-        "Сервис генерации видео вернул ошибку. Попробуйте ещё раз.",
+        providerHttpMessage(res.status),
         `fal-video ${res.status}: ${detail}`,
       );
     }
     return (await res.json()) as Record<string, unknown>;
   }
   throw new ProviderError(
-    "Не удалось связаться с сервисом генерации видео. Попробуйте позже.",
+    USER_ERRORS.transient,
     `fal-video fetch failed after ${retries + 1} attempts: ${String(lastErr)}`,
   );
 }

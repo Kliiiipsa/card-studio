@@ -1,7 +1,23 @@
 "use client";
 import * as React from "react";
 import * as Dialog from "@radix-ui/react-dialog";
-import { Loader2, ShieldCheck, Zap, X, ListOrdered, Users, Clapperboard, Search } from "lucide-react";
+import {
+  Loader2,
+  ShieldCheck,
+  Zap,
+  X,
+  ListOrdered,
+  Users,
+  Clapperboard,
+  Search,
+  Activity,
+  RefreshCw,
+  CircleCheck,
+  TriangleAlert,
+  CircleAlert,
+  CircleHelp,
+  CircleMinus,
+} from "lucide-react";
 import { AppShell } from "@/components/layout/app-shell";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -33,6 +49,47 @@ const TX_LABEL: Record<string, string> = {
   refund: "Возврат",
   admin: "Корректировка",
 };
+
+/* --------------------------- состояние сервиса --------------------------- */
+
+type HealthStatus = "ok" | "warn" | "crit" | "unknown" | "off";
+type HealthCheck = {
+  id: string;
+  title: string;
+  status: HealthStatus;
+  value?: string;
+  hint?: string;
+};
+
+const HEALTH_STYLE: Record<HealthStatus, { icon: typeof CircleCheck; cls: string; label: string }> =
+  {
+    ok: { icon: CircleCheck, cls: "text-emerald-600 dark:text-emerald-400", label: "в норме" },
+    warn: { icon: TriangleAlert, cls: "text-amber-600 dark:text-amber-400", label: "внимание" },
+    crit: { icon: CircleAlert, cls: "text-destructive", label: "проблема" },
+    unknown: { icon: CircleHelp, cls: "text-muted-foreground", label: "нет данных" },
+    off: { icon: CircleMinus, cls: "text-muted-foreground", label: "не настроено" },
+  };
+
+function HealthCard({ check }: { check: HealthCheck }) {
+  const s = HEALTH_STYLE[check.status] ?? HEALTH_STYLE.unknown;
+  const Icon = s.icon;
+  return (
+    <div
+      className={cn(
+        "rounded-xl border p-4",
+        check.status === "crit" && "border-destructive/40 bg-destructive/5",
+        check.status === "warn" && "border-amber-500/40 bg-amber-500/5",
+      )}
+    >
+      <div className="flex items-center gap-2">
+        <Icon className={cn("h-4 w-4 shrink-0", s.cls)} />
+        <p className="text-xs font-medium text-muted-foreground">{check.title}</p>
+      </div>
+      <p className="mt-1.5 text-lg font-semibold">{check.value ?? s.label}</p>
+      {check.hint && <p className="mt-0.5 text-xs leading-4 text-muted-foreground">{check.hint}</p>}
+    </div>
+  );
+}
 
 /* ----------------------------- генерации ----------------------------- */
 
@@ -218,6 +275,14 @@ export default function AdminPage() {
   const [error, setError] = React.useState<string | null>(null);
   const [search, setSearch] = React.useState("");
 
+  // «Состояние»: здоровье сервиса
+  const [health, setHealth] = React.useState<{
+    checks: HealthCheck[];
+    overall: HealthStatus;
+    checkedAt: string;
+  } | null>(null);
+  const [healthLoading, setHealthLoading] = React.useState(false);
+
   // «Генерации»: журнал для разбора жалоб
   const [gens, setGens] = React.useState<Generation[] | null>(null);
   const [genEmail, setGenEmail] = React.useState("");
@@ -248,6 +313,17 @@ export default function AdminPage() {
       .catch(() => setTxs([]));
   }, []);
 
+  const loadHealth = React.useCallback(() => {
+    setHealthLoading(true);
+    fetch("/api/admin/health")
+      .then((r) => r.json())
+      .then((d) => {
+        if (d?.checks) setHealth(d);
+      })
+      .catch(() => undefined)
+      .finally(() => setHealthLoading(false));
+  }, []);
+
   const loadGens = React.useCallback(() => {
     setGens(null);
     const qs = new URLSearchParams();
@@ -263,13 +339,14 @@ export default function AdminPage() {
   React.useEffect(() => {
     loadUsers();
     loadTxs();
+    loadHealth();
     fetch("/api/admin/storage")
       .then((r) => r.json())
       .then((d: { count?: number; bytes?: number }) =>
         setStorage({ count: d.count ?? 0, bytes: d.bytes ?? 0 }),
       )
       .catch(() => undefined);
-  }, [loadUsers, loadTxs]);
+  }, [loadUsers, loadTxs, loadHealth]);
 
   // журнал генераций: перезапрос при смене фильтров (почта — с задержкой,
   // чтобы не дёргать сервер на каждую букву)
@@ -332,8 +409,20 @@ export default function AdminPage() {
           )}
         </div>
 
-        <Tabs defaultValue="users">
+        <Tabs defaultValue="health">
           <TabsList className="mb-4">
+            <TabsTrigger value="health" className="gap-1.5">
+              <Activity className="h-4 w-4" />
+              Состояние
+              {health && health.overall !== "ok" && (
+                <span
+                  className={cn(
+                    "ml-0.5 h-1.5 w-1.5 rounded-full",
+                    health.overall === "crit" ? "bg-destructive" : "bg-amber-500",
+                  )}
+                />
+              )}
+            </TabsTrigger>
             <TabsTrigger value="users" className="gap-1.5">
               <Users className="h-4 w-4" /> Пользователи
             </TabsTrigger>
@@ -344,6 +433,64 @@ export default function AdminPage() {
               <Clapperboard className="h-4 w-4" /> Генерации
             </TabsTrigger>
           </TabsList>
+
+          {/* HEALTH — всё, что может тихо сломаться */}
+          <TabsContent value="health">
+            <Card>
+              <CardContent className="p-4">
+                <div className="mb-3 flex flex-wrap items-center gap-2">
+                  <p className="text-sm font-medium">
+                    {health === null
+                      ? "Проверяем…"
+                      : health.overall === "ok"
+                        ? "Всё работает штатно"
+                        : health.overall === "crit"
+                          ? "Есть проблема — нужна реакция"
+                          : health.overall === "warn"
+                            ? "Есть предупреждения"
+                            : "Часть проверок недоступна"}
+                  </p>
+                  {health && (
+                    <span className="text-xs text-muted-foreground">
+                      проверено в {new Date(health.checkedAt).toLocaleTimeString("ru-RU")}
+                    </span>
+                  )}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="ml-auto"
+                    onClick={loadHealth}
+                    disabled={healthLoading}
+                  >
+                    {healthLoading ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <RefreshCw className="h-3.5 w-3.5" />
+                    )}
+                    Проверить
+                  </Button>
+                </div>
+
+                {health === null ? (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Loader2 className="h-4 w-4 animate-spin" /> Загрузка…
+                  </div>
+                ) : (
+                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                    {health.checks.map((c) => (
+                      <HealthCard key={c.id} check={c} />
+                    ))}
+                  </div>
+                )}
+
+                <p className="mt-3 text-xs leading-5 text-muted-foreground">
+                  Проверка выполняется при открытии вкладки и по кнопке. Пополнение fal.ai —
+                  в личном кабинете fal.ai, Timeweb — в панели Timeweb Cloud. Если баланс кончится,
+                  клиенты увидят понятное сообщение и искры за неудачные попытки списаны не будут.
+                </p>
+              </CardContent>
+            </Card>
+          </TabsContent>
 
           {/* USERS */}
           <TabsContent value="users">

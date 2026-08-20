@@ -8,6 +8,7 @@ import type {
   ImageJobStatus,
 } from "../types";
 import { ProviderError } from "@/lib/errors";
+import { USER_ERRORS, providerHttpMessage, friendlyJobError } from "@/lib/user-messages";
 import { FAL_PRIVACY_HEADERS } from "./fal";
 
 /**
@@ -80,7 +81,7 @@ export class FalGptImageProvider implements ImageProvider {
   private async submit(model: string, input: Record<string, unknown>): Promise<ImageJobHandle> {
     if (!this.apiKey) {
       throw new ProviderError(
-        "Генерация изображений не настроена. Добавьте FAL_KEY в переменные окружения.",
+        USER_ERRORS.notConfigured,
         "missing FAL_KEY",
       );
     }
@@ -97,7 +98,7 @@ export class FalGptImageProvider implements ImageProvider {
     const responseUrl = submitted.response_url as string | undefined;
     if (!statusUrl || !responseUrl) {
       throw new ProviderError(
-        "Сервис генерации вернул ошибку. Попробуйте ещё раз.",
+        USER_ERRORS.providerDown,
         `fal-gpt-image bad submit: ${JSON.stringify(submitted).slice(0, 300)}`,
       );
     }
@@ -113,7 +114,7 @@ export class FalGptImageProvider implements ImageProvider {
   async pollJob(handle: ImageJobHandle): Promise<ImageJobStatus> {
     if (!this.apiKey) {
       throw new ProviderError(
-        "Генерация изображений не настроена. Добавьте FAL_KEY в переменные окружения.",
+        USER_ERRORS.notConfigured,
         "missing FAL_KEY",
       );
     }
@@ -149,13 +150,13 @@ export class FalGptImageProvider implements ImageProvider {
       if (st.status === "completed") return { images: st.images ?? [], provider: this.id };
       if (st.status === "failed") {
         throw new ProviderError(
-          "Сервис генерации вернул ошибку. Попробуйте ещё раз.",
+          friendlyJobError(st.error),
           st.error ?? "fal-gpt-image failed",
         );
       }
       if (Date.now() > deadline) {
         throw new ProviderError(
-          "Генерация заняла слишком долго. Попробуйте ещё раз или снизьте качество.",
+          USER_ERRORS.timeout,
           "fal-gpt-image timeout",
         );
       }
@@ -191,14 +192,14 @@ export class FalGptImageProvider implements ImageProvider {
         // eslint-disable-next-line no-console
         console.error("[fal-gpt-image] http error:", res.status, detail);
         throw new ProviderError(
-          "Сервис генерации вернул ошибку. Попробуйте ещё раз.",
+          providerHttpMessage(res.status),
           `fal-gpt-image ${res.status}: ${detail}`,
         );
       }
       return (await res.json()) as Record<string, unknown>;
     }
     throw new ProviderError(
-      "Не удалось связаться с сервисом генерации. Попробуйте позже.",
+      USER_ERRORS.transient,
       `fal-gpt-image fetch failed after ${retries + 1} attempts: ${String(lastErr)}`,
     );
   }
