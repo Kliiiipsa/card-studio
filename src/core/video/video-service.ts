@@ -10,9 +10,15 @@ import {
 } from "./presets";
 
 /**
- * «Видео товара»: image-to-video через очередь fal. Дефолт — ByteDance
- * Seedance 1.0 Pro Fast (1080p, 5 c ≈ $0.243 ≈ 19,5 ₽ — при цене 25 ⚡).
- * Модель переключается через FAL_VIDEO_MODEL без изменения кода.
+ * «Видео товара»: image-to-video через очередь fal. Дефолт — Kling 2.5 Turbo
+ * Pro ($0.35/5с ≈ 28 ₽): в A/B 2026-08-20 единственный сохранил и товар, и
+ * сцену (Seedance Fast дорисовывал логотипы и «переодевал» моделей, Seedance
+ * Pro пересочинял фон). Модель переключается через FAL_VIDEO_MODEL.
+ *
+ * Схема входа зависит от семейства (ветка по id модели):
+ *  - kling: prompt + image_url + duration + NEGATIVE prompt + cfg_scale;
+ *    формат ролика повторяет формат фото (aspect_ratio не принимает)
+ *  - seedance (запасной путь): resolution/aspect_ratio/duration/camera_fixed
  *
  * Схема та же, что у async-инфографики: submit → короткие poll-запросы
  * (клиент или серверный watcher), длительная генерация не держит ни одного
@@ -20,7 +26,15 @@ import {
  * локальных тестов UI и нагрузки.
  */
 
-const DEFAULT_MODEL = "fal-ai/bytedance/seedance/v1/pro/fast/image-to-video";
+const DEFAULT_MODEL = "fal-ai/kling-video/v2.5-turbo/pro/image-to-video";
+
+/**
+ * У Kling есть настоящий негативный промпт — вот где МОЖНО и НУЖНО называть
+ * нежелательное (в позитивном промпте это работало как приглашение).
+ */
+const KLING_NEGATIVE =
+  "blur, distortion, low quality, morphing, deformation, melting, extra objects, " +
+  "added text, captions, subtitles, watermark, logo, brand print, changing clothes, extra limbs";
 
 export type VideoJobHandle = {
   provider: string;
@@ -111,14 +125,24 @@ export async function submitVideoJob(args: {
     );
   }
   const model = process.env.FAL_VIDEO_MODEL ?? DEFAULT_MODEL;
-  const input: Record<string, unknown> = {
-    prompt: args.prompt,
-    image_url: args.imageDataUrl,
-    resolution: process.env.FAL_VIDEO_RESOLUTION ?? "1080p",
-    duration: String(VIDEO_DURATION_SEC),
-    aspect_ratio: args.aspectRatio ?? "3:4",
-    ...(args.cameraFixed ? { camera_fixed: true } : {}),
-  };
+  const input: Record<string, unknown> = model.includes("kling")
+    ? {
+        // Kling: формат ролика повторяет формат исходного фото
+        prompt: args.prompt,
+        image_url: args.imageDataUrl,
+        duration: String(VIDEO_DURATION_SEC),
+        negative_prompt: KLING_NEGATIVE,
+        cfg_scale: 0.5,
+      }
+    : {
+        // Seedance (запасной путь через FAL_VIDEO_MODEL)
+        prompt: args.prompt,
+        image_url: args.imageDataUrl,
+        resolution: process.env.FAL_VIDEO_RESOLUTION ?? "1080p",
+        duration: String(VIDEO_DURATION_SEC),
+        aspect_ratio: args.aspectRatio ?? "auto",
+        ...(args.cameraFixed ? { camera_fixed: true } : {}),
+      };
   const submitted = await fetchJson(`https://queue.fal.run/${model}`, {
     method: "POST",
     headers: {

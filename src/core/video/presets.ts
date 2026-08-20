@@ -28,10 +28,16 @@ export const VIDEO_PRESETS: VideoPreset[] = [
     template:
       "Very gentle, subtle cinematic camera push-in toward {product}, moving only slightly closer over the whole clip",
   },
-  // «Облёт камерой» удалён (2026-08-20): боевой тест на стуле показал, что
-  // «малую дугу» Seedance превращает в свободный полёт камеры с полным
-  // пересочинением сцены и деформацией товара. Камерное движение оставляем
-  // только самое короткое (push-in).
+  // «Облёт» удалялся после провала Seedance Fast на стуле (полёт камеры с
+  // пересочинением сцены) и ВОЗВРАЩЁН с переходом на Kling 2.5 Turbo Pro —
+  // в A/B 2026-08-20 Kling отработал этот же сценарий чисто на двух фото.
+  {
+    id: "orbit",
+    label: "Облёт камерой",
+    description: "Камера медленно смещается по небольшой дуге, добавляя объём кадру",
+    template:
+      "Smooth, slow camera drift along a small arc around {product}, only a slight angle change, keeping it centered and in sharp focus",
+  },
   {
     id: "turntable",
     label: "Поворот товара",

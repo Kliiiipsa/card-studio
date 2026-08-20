@@ -11,7 +11,7 @@ import { EmptyState } from "@/components/project/empty-state";
 import { api } from "@/lib/client-api";
 import { cn } from "@/lib/utils";
 import { PRICES, SPARK } from "@/core/billing/prices";
-import { VIDEO_PRESETS, VIDEO_ASPECTS, VIDEO_DURATION_SEC, type VideoAspect } from "@/core/video/presets";
+import { VIDEO_PRESETS, VIDEO_DURATION_SEC } from "@/core/video/presets";
 
 /** Этапы «съёмки» — по прошедшему времени (сек). Реального прогресса fal не
  * отдаёт, поэтому бар — честная асимптота к ~93%, добивается при завершении. */
@@ -94,7 +94,6 @@ export default function VideoPage() {
   const [hasText, setHasText] = React.useState(false);
   const [productName, setProductName] = React.useState("");
   const [presetId, setPresetId] = React.useState(VIDEO_PRESETS[0].id);
-  const [aspect, setAspect] = React.useState<VideoAspect>("3:4");
   const [busy, setBusy] = React.useState(false);
   const [videoUrl, setVideoUrl] = React.useState<string | null>(null);
   const [downloading, setDownloading] = React.useState(false);
@@ -164,7 +163,6 @@ export default function VideoPage() {
         productName: productName.trim(),
         presetId,
         productImage: image,
-        aspectRatio: aspect,
       });
       setVideoUrl(videoUrl);
       toast.success("Видео готово! Оно также сохранено в «Мои карточки».");
@@ -271,28 +269,6 @@ export default function VideoPage() {
                 ))}
               </div>
 
-              <div>
-                <p className="mb-1.5 text-xs font-medium text-muted-foreground">Формат кадра</p>
-                <div className="flex flex-wrap gap-2">
-                  {VIDEO_ASPECTS.map((a) => (
-                    <button
-                      key={a.id}
-                      type="button"
-                      onClick={() => setAspect(a.id)}
-                      className={cn(
-                        "rounded-lg border px-3 py-1.5 text-xs transition-colors",
-                        aspect === a.id
-                          ? "border-primary bg-primary/5 font-medium text-primary"
-                          : "text-muted-foreground hover:border-primary/40",
-                      )}
-                      title={a.hint}
-                    >
-                      {a.label} · {a.hint}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
               <Button variant="gradient" className="w-full" onClick={generate} disabled={busy}>
                 {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
                 Сгенерировать видео
@@ -301,8 +277,9 @@ export default function VideoPage() {
                 </span>
               </Button>
               <p className="text-xs leading-5 text-muted-foreground">
-                Ролик {VIDEO_DURATION_SEC} секунд, 1080p. Генерация занимает 1–3 минуты. {SPARK} Искры
-                списываются только за готовое видео — за ошибки вы не платите.
+                Ролик {VIDEO_DURATION_SEC} секунд, 1080p; формат кадра повторяет формат вашего фото
+                (для Wildberries — 3:4). Генерация занимает 1–3 минуты. {SPARK} Искры списываются
+                только за готовое видео — за ошибки вы не платите.
               </p>
               <div className="rounded-lg border bg-muted/40 px-3 py-2.5 text-xs leading-5 text-muted-foreground">
                 <p className="font-medium text-foreground">Как получить лучший результат</p>
