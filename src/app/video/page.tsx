@@ -13,6 +13,81 @@ import { cn } from "@/lib/utils";
 import { PRICES, SPARK } from "@/core/billing/prices";
 import { VIDEO_PRESETS, VIDEO_ASPECTS, VIDEO_DURATION_SEC, type VideoAspect } from "@/core/video/presets";
 
+/** Этапы «съёмки» — по прошедшему времени (сек). Реального прогресса fal не
+ * отдаёт, поэтому бар — честная асимптота к ~93%, добивается при завершении. */
+const STAGES: { at: number; text: string }[] = [
+  { at: 0, text: "Отправляем фото на съёмочную площадку…" },
+  { at: 6, text: "Модель изучает товар и планирует движение…" },
+  { at: 16, text: "Выставляем свет и траекторию камеры…" },
+  { at: 30, text: "Рендерим кадры — 120 кадров в 1080p…" },
+  { at: 60, text: "Сводим плавность движения…" },
+  { at: 95, text: "Финальная полировка ролика…" },
+];
+
+function VideoLoading({ image }: { image: string | null }) {
+  const [elapsed, setElapsed] = React.useState(0);
+
+  React.useEffect(() => {
+    const started = Date.now();
+    const t = setInterval(() => setElapsed((Date.now() - started) / 1000), 250);
+    return () => clearInterval(t);
+  }, []);
+
+  // асимптотический прогресс: быстро в начале, плавно замирает у ~93%
+  const progress = Math.min(93, Math.round(100 * (1 - Math.exp(-elapsed / 45))));
+  const stage = [...STAGES].reverse().find((s) => elapsed >= s.at) ?? STAGES[0];
+  const mm = Math.floor(elapsed / 60);
+  const ss = String(Math.floor(elapsed % 60)).padStart(2, "0");
+
+  return (
+    <div className="relative aspect-[3/4] overflow-hidden rounded-xl border bg-muted">
+      {/* «съёмка»: фото товара с медленным наездом + бегущий скан-луч */}
+      {image ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={image}
+          alt=""
+          className="animate-kenburns h-full w-full object-cover opacity-90"
+        />
+      ) : (
+        <div className="h-full w-full bg-gradient-to-br from-primary/15 via-muted to-primary/10" />
+      )}
+      <div
+        className="animate-scanline pointer-events-none absolute left-0 h-[10%] w-full"
+        style={{
+          background:
+            "linear-gradient(to bottom, transparent, hsl(var(--primary) / 0.25), transparent)",
+        }}
+      />
+
+      {/* нижняя панель с этапом и прогрессом */}
+      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/75 via-black/45 to-transparent p-4 pt-12 text-white">
+        <div className="mb-2 flex items-center gap-2 text-sm font-medium">
+          <Loader2 className="h-4 w-4 shrink-0 animate-spin" />
+          <span key={stage.text} className="leading-5">
+            {stage.text}
+          </span>
+        </div>
+        <div className="h-1.5 overflow-hidden rounded-full bg-white/25">
+          <div
+            className="h-full rounded-full bg-gradient-to-r from-primary to-blue-400 transition-[width] duration-500"
+            style={{ width: `${progress}%` }}
+          />
+        </div>
+        <div className="mt-1.5 flex items-center justify-between text-[11px] text-white/80">
+          <span>{progress}%</span>
+          <span>
+            {mm}:{ss} · обычно 1–3 минуты
+          </span>
+        </div>
+        <p className="mt-2 text-[11px] leading-4 text-white/70">
+          Можно закрыть страницу — готовый ролик появится в «Мои карточки».
+        </p>
+      </div>
+    </div>
+  );
+}
+
 export default function VideoPage() {
   const [image, setImage] = React.useState<string | null>(null);
   const [productName, setProductName] = React.useState("");
@@ -191,13 +266,7 @@ export default function VideoPage() {
           </CardHeader>
           <CardContent>
             {busy ? (
-              <div className="flex aspect-[3/4] flex-col items-center justify-center gap-3 rounded-xl border border-dashed text-muted-foreground">
-                <Loader2 className="h-6 w-6 animate-spin" />
-                <p className="text-sm">Снимаем ваш ролик…</p>
-                <p className="max-w-[240px] text-center text-xs">
-                  Обычно 1–3 минуты. Можно закрыть страницу — видео появится в «Мои карточки».
-                </p>
-              </div>
+              <VideoLoading image={image} />
             ) : videoUrl ? (
               <div className="space-y-3">
                 <video

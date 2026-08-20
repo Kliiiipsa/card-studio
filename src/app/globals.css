@@ -94,3 +94,21 @@
     scrollbar-width: none;
   }
 }
+
+/* --- «живая» загрузка генерации видео --- */
+@keyframes kenburns {
+  0% { transform: scale(1); }
+  100% { transform: scale(1.1); }
+}
+@keyframes scanline {
+  0% { top: -12%; opacity: 0; }
+  12% { opacity: 1; }
+  88% { opacity: 1; }
+  100% { top: 108%; opacity: 0; }
+}
+.animate-kenburns {
+  animation: kenburns 14s ease-in-out infinite alternate;
+}
+.animate-scanline {
+  animation: scanline 3.2s ease-in-out infinite;
+}
