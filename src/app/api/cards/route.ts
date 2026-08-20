@@ -23,6 +23,7 @@ export async function GET(req: Request) {
           brief?: { headline?: string };
           prompt?: string;
           cardText?: string;
+          productName?: string;
         };
         return {
           id: j.id,
@@ -31,6 +32,7 @@ export async function GET(req: Request) {
           title:
             payload.brief?.headline ||
             payload.cardText ||
+            payload.productName ||
             payload.prompt?.slice(0, 60) ||
             null,
           createdAt: j.createdAt,

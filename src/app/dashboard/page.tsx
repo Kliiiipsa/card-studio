@@ -1,7 +1,7 @@
 "use client";
 import * as React from "react";
 import Link from "next/link";
-import { Wand2, ScanSearch, LayoutTemplate, FileText, Images, ArrowRight } from "lucide-react";
+import { Wand2, ScanSearch, LayoutTemplate, FileText, Images, ArrowRight, Clapperboard } from "lucide-react";
 import { AppShell } from "@/components/layout/app-shell";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -20,6 +20,12 @@ const QUICK = [
     icon: LayoutTemplate,
     title: "Инфографика",
     desc: "Готовая карточка с русским текстом и плашками",
+  },
+  {
+    href: "/video",
+    icon: Clapperboard,
+    title: "Видео товара",
+    desc: "5-секундный живой ролик из одного фото",
   },
   {
     href: "/seo",
@@ -47,6 +53,7 @@ const KIND_LABEL: Record<string, string> = {
   generator: "Генератор",
   infographic: "Инфографика",
   improve: "Улучшение",
+  video: "Видео",
 };
 
 export default function DashboardPage() {
@@ -127,13 +134,23 @@ export default function DashboardPage() {
                   className="group overflow-hidden rounded-xl border bg-card"
                 >
                   <div className="relative aspect-[3/4] overflow-hidden bg-muted">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={c.url}
-                      alt={c.title ?? "Сгенерированная карточка"}
-                      loading="lazy"
-                      className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
-                    />
+                    {c.kind === "video" ? (
+                      <video
+                        src={c.url}
+                        muted
+                        playsInline
+                        preload="metadata"
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={c.url}
+                        alt={c.title ?? "Сгенерированная карточка"}
+                        loading="lazy"
+                        className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
+                      />
+                    )}
                   </div>
                   <div className="flex items-center justify-between gap-2 p-2.5">
                     <p className="truncate text-xs font-medium">

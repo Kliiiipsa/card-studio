@@ -10,7 +10,7 @@ import { uid } from "@/lib/utils";
  */
 export async function persistGeneration(args: {
   email: string;
-  kind: "generator" | "infographic" | "improve";
+  kind: "generator" | "infographic" | "improve" | "video";
   sourceUrl: string;
   payload: unknown;
 }): Promise<string> {
@@ -19,8 +19,14 @@ export async function persistGeneration(args: {
   const id = uid("card");
   if (s3Enabled() && /^https?:\/\//.test(args.sourceUrl)) {
     try {
-      const ext = args.sourceUrl.includes(".jpeg") || args.sourceUrl.includes(".jpg") ? "jpg" : "png";
-      const saved = await persistImageToS3(args.sourceUrl, `cards/${id}.${ext}`);
+      const ext =
+        args.kind === "video"
+          ? "mp4"
+          : args.sourceUrl.includes(".jpeg") || args.sourceUrl.includes(".jpg")
+            ? "jpg"
+            : "png";
+      const prefix = args.kind === "video" ? "videos" : "cards";
+      const saved = await persistImageToS3(args.sourceUrl, `${prefix}/${id}.${ext}`);
       url = saved.url;
       bytes = saved.bytes;
     } catch (e) {

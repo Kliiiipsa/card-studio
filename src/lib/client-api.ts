@@ -193,6 +193,55 @@ async function generateInfographic(
   }
 }
 
+type VideoGenerateArgs = {
+  productName: string;
+  category?: string;
+  presetId: string;
+  productImage: string;
+  aspectRatio?: "3:4" | "9:16" | "1:1";
+};
+
+type VideoStart = {
+  done: false;
+  jobId?: string;
+  job: ImageJobHandle;
+};
+
+/** Async video: submit → poll (server-tracked job, или fal-handle напрямую). */
+async function generateVideo(args: VideoGenerateArgs): Promise<{ videoUrl: string }> {
+  const started = await post<VideoStart>("/api/ai/video/generate", args);
+
+  if (started.jobId) {
+    const done = await pollTrackedJob(started.jobId);
+    if (done.status === "completed" && done.resultUrl) {
+      return { videoUrl: done.resultUrl };
+    }
+    throw new Error(done.error ?? "Не удалось сгенерировать видео. Искры не списаны.");
+  }
+
+  // legacy path (no Postgres): poll the fal handle directly
+  const deadline = Date.now() + 420_000;
+  let failures = 0;
+  for (;;) {
+    await delay(3000);
+    if (Date.now() > deadline) {
+      throw new Error("Генерация заняла слишком долго. Попробуйте ещё раз.");
+    }
+    let status: { status: string; videoUrl?: string; error?: string };
+    try {
+      status = await post("/api/ai/video/generate/status", { job: started.job });
+      failures = 0;
+    } catch (e) {
+      if (++failures >= 5) throw e;
+      continue;
+    }
+    if (status.status === "completed" && status.videoUrl) return { videoUrl: status.videoUrl };
+    if (status.status === "failed") {
+      throw new Error("Видео не прошло генерацию (возможно, модерация). Искры не списаны.");
+    }
+  }
+}
+
 export const api = {
   analyze: (imageDataUrl: string, product?: Partial<ProductInfo>, concern?: string) =>
     post<AnalysisReport>("/api/ai/analyze", { imageDataUrl, product, concern }),
@@ -259,6 +308,18 @@ export const api = {
       return data.job ?? null;
     },
     /** re-attach to a job started earlier (e.g. before the tab was closed) */
+    resumeJob: (jobId: string) => pollTrackedJob(jobId),
+  },
+
+  video: {
+    generate: (args: VideoGenerateArgs) => generateVideo(args),
+    /** the user's most recent video job (for page restore) */
+    latestJob: async (): Promise<TrackedJob | null> => {
+      const res = await fetch("/api/jobs/latest?kind=video");
+      if (!res.ok) return null;
+      const data = (await res.json()) as { job?: TrackedJob | null };
+      return data.job ?? null;
+    },
     resumeJob: (jobId: string) => pollTrackedJob(jobId),
   },
 };

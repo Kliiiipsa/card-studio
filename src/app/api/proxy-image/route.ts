@@ -18,8 +18,8 @@ export async function GET(req: Request) {
     if (!res.ok) throw new AppError("Не удалось загрузить изображение.", 502);
 
     const contentType = res.headers.get("content-type") ?? "image/jpeg";
-    if (!contentType.startsWith("image/")) {
-      throw new AppError("Ссылка не является изображением.");
+    if (!contentType.startsWith("image/") && !contentType.startsWith("video/")) {
+      throw new AppError("Ссылка не является изображением или видео.");
     }
     const buf = await res.arrayBuffer();
     return new Response(buf, {

@@ -1,4 +1,5 @@
 import { pollInfographicJob } from "@/core/infographics/infographic-service";
+import { pollVideoJob } from "@/core/video/video-service";
 import { completeJob, failJob, processingJobs, jobsEnabled, type GenJob } from "./jobs";
 import { persistImageToS3, s3Enabled } from "@/core/storage/s3";
 import { applyTx, billingEnabled } from "@/core/billing/billing";
@@ -23,11 +24,16 @@ const state: WatcherState = ((globalThis as Record<string, unknown>).__genJobWat
 const POLL_MS = 3000;
 const MAX_POLLS = 120; // ~6 minutes
 
+/** watchable fal-queue job kinds; charge action == kind, оба есть в PRICES */
+type WatchKind = "infographic" | "video";
+
 type WatchArgs = {
   id: string;
   email: string;
   falStatusUrl: string;
   falResponseUrl: string;
+  /** default "infographic" — legacy call sites don't pass it */
+  kind?: WatchKind;
 };
 
 export function watchJob(args: WatchArgs): void {
@@ -36,9 +42,23 @@ export function watchJob(args: WatchArgs): void {
   void run(args).finally(() => state.watching.delete(args.id));
 }
 
+/** Poll one step of the underlying fal job; returns the result URL when done. */
+async function pollOnce(
+  kind: WatchKind,
+  handle: { provider: string; statusUrl: string; responseUrl: string },
+): Promise<{ status: "pending" | "completed" | "failed"; url?: string; error?: string }> {
+  if (kind === "video") {
+    const st = await pollVideoJob(handle);
+    return { status: st.status, url: st.videoUrl, error: st.error };
+  }
+  const st = await pollInfographicJob(handle);
+  return { status: st.status, url: st.images?.[0]?.url, error: st.error };
+}
+
 async function run(args: WatchArgs): Promise<void> {
+  const kind: WatchKind = args.kind ?? "infographic";
   const handle = {
-    provider: "fal-gpt-image",
+    provider: kind === "video" ? "fal-video" : "fal-gpt-image",
     statusUrl: args.falStatusUrl,
     responseUrl: args.falResponseUrl,
   };
@@ -46,18 +66,19 @@ async function run(args: WatchArgs): Promise<void> {
   for (let i = 0; i < MAX_POLLS; i++) {
     await sleep(POLL_MS);
     try {
-      const st = await pollInfographicJob(handle);
+      const st = await pollOnce(kind, handle);
       if (st.status === "failed") {
         await failJob(args.id, st.error ?? "generation failed");
         return;
       }
-      if (st.status === "completed" && st.images?.[0]?.url) {
-        const falUrl = st.images[0].url;
+      if (st.status === "completed" && st.url) {
+        const falUrl = st.url;
         let finalUrl = falUrl;
         let sizeBytes: number | undefined;
         if (s3Enabled()) {
           try {
-            const saved = await persistImageToS3(falUrl, `cards/${args.id}.png`);
+            const key = kind === "video" ? `videos/${args.id}.mp4` : `cards/${args.id}.png`;
+            const saved = await persistImageToS3(falUrl, key);
             finalUrl = saved.url;
             sizeBytes = saved.bytes;
           } catch (e) {
@@ -65,7 +86,7 @@ async function run(args: WatchArgs): Promise<void> {
             console.error("[jobs] S3 persist failed:", e);
           }
         }
-        await chargeIfNeeded(args.email, args.falResponseUrl);
+        await chargeIfNeeded(args.email, args.falResponseUrl, kind);
         await completeJob(args.id, finalUrl, sizeBytes);
         return;
       }
@@ -79,16 +100,16 @@ async function run(args: WatchArgs): Promise<void> {
   await failJob(args.id, "timeout: генерация не завершилась за отведённое время");
 }
 
-async function chargeIfNeeded(email: string, reference: string): Promise<void> {
+async function chargeIfNeeded(email: string, reference: string, kind: WatchKind): Promise<void> {
   if (!billingEnabled()) return;
   try {
     const user = await getUser(email);
     if (user?.role === "admin") return;
     await applyTx({
       email,
-      amount: -PRICES.infographic,
+      amount: -PRICES[kind],
       type: "charge",
-      action: "infographic",
+      action: kind,
       reference,
     });
   } catch (e) {
@@ -109,6 +130,7 @@ export function ensureWatcherBoot(): void {
             email: j.email,
             falStatusUrl: j.falStatusUrl,
             falResponseUrl: j.falResponseUrl,
+            kind: j.kind === "video" ? "video" : "infographic",
           });
         }
       }

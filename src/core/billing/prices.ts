@@ -9,6 +9,7 @@ export type SparkAction =
   | "analyze"
   | "generate"
   | "infographic"
+  | "video"
   | "turnkey"
   | "seo"
   | "ideas"
@@ -24,6 +25,8 @@ export const PRICES: Record<SparkAction, number> = {
   analyze: 5,
   generate: 7,
   infographic: 10,
+  /** 5-секундное видео товара из фото (Seedance 1080p ≈ 19,5 ₽ себестоимость) */
+  video: 25,
   /** «Карточка под ключ»: 7 изображений (по 7 ⚡ за успешное) + SEO-тексты (6 ⚡) */
   turnkey: 55,
   /** отдельная генерация SEO-текстов (название + описание + ключи) */
@@ -46,6 +49,7 @@ export const ACTION_LABELS: Record<SparkAction, string> = {
   analyze: "Анализ карточки",
   generate: "Фото товара",
   infographic: "Инфографика",
+  video: "Видео товара",
   turnkey: "Карточка под ключ (7 изображений)",
   seo: "SEO-тексты",
   ideas: "Идеи карточек",

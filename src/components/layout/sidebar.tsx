@@ -10,6 +10,7 @@ import {
   Images,
   FileText,
   CircleHelp,
+  Clapperboard,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -18,6 +19,7 @@ export const NAV = [
   { href: "/dashboard", label: "Главная", icon: LayoutDashboard },
   { href: "/generator", label: "Фото товара", icon: Wand2 },
   { href: "/infographics", label: "Инфографика", icon: LayoutGrid },
+  { href: "/video", label: "Видео товара", icon: Clapperboard },
   { href: "/seo", label: "SEO-тексты", icon: FileText },
   { href: "/analysis", label: "Анализ и улучшение", icon: ScanSearch },
   { href: "/cards", label: "Мои карточки", icon: Images },

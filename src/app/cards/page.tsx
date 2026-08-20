@@ -20,6 +20,7 @@ const KIND_LABEL: Record<string, string> = {
   generator: "Генератор",
   infographic: "Инфографика",
   improve: "Улучшение",
+  video: "Видео",
 };
 
 export default function MyCardsPage() {
@@ -43,7 +44,9 @@ export default function MyCardsPage() {
       const blob = await res.blob();
       const a = document.createElement("a");
       a.href = URL.createObjectURL(blob);
-      a.download = `card-${card.id}.${blob.type.includes("jpeg") ? "jpg" : "png"}`;
+      a.download = `card-${card.id}.${
+        blob.type.includes("video") ? "mp4" : blob.type.includes("jpeg") ? "jpg" : "png"
+      }`;
       a.click();
       URL.revokeObjectURL(a.href);
     } catch {
@@ -63,6 +66,7 @@ export default function MyCardsPage() {
               <TabsTrigger value="all">Все</TabsTrigger>
               <TabsTrigger value="infographic">Инфографика</TabsTrigger>
               <TabsTrigger value="generator">Генератор</TabsTrigger>
+              <TabsTrigger value="video">Видео</TabsTrigger>
             </TabsList>
           </Tabs>
         </div>
@@ -82,13 +86,25 @@ export default function MyCardsPage() {
             {cards.map((c) => (
               <div key={c.id} className="group overflow-hidden rounded-xl border bg-card">
                 <div className="relative aspect-[3/4] overflow-hidden bg-muted">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={c.url}
-                    alt={c.title ?? "Сгенерированная карточка"}
-                    loading="lazy"
-                    className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
-                  />
+                  {c.kind === "video" ? (
+                    <video
+                      src={c.url}
+                      controls
+                      loop
+                      muted
+                      playsInline
+                      preload="metadata"
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={c.url}
+                      alt={c.title ?? "Сгенерированная карточка"}
+                      loading="lazy"
+                      className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
+                    />
+                  )}
                 </div>
                 <div className="flex items-center justify-between gap-2 p-2.5">
                   <div className="min-w-0">

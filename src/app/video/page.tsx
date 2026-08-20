@@ -1,0 +1,239 @@
+"use client";
+import * as React from "react";
+import { Clapperboard, Download, Loader2, Sparkles, Zap } from "lucide-react";
+import { AppShell } from "@/components/layout/app-shell";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { toast } from "@/components/ui/toaster";
+import { ImageUploader } from "@/components/media/image-uploader";
+import { EmptyState } from "@/components/project/empty-state";
+import { api } from "@/lib/client-api";
+import { cn } from "@/lib/utils";
+import { PRICES, SPARK } from "@/core/billing/prices";
+import { VIDEO_PRESETS, VIDEO_ASPECTS, VIDEO_DURATION_SEC, type VideoAspect } from "@/core/video/presets";
+
+export default function VideoPage() {
+  const [image, setImage] = React.useState<string | null>(null);
+  const [productName, setProductName] = React.useState("");
+  const [presetId, setPresetId] = React.useState(VIDEO_PRESETS[0].id);
+  const [aspect, setAspect] = React.useState<VideoAspect>("3:4");
+  const [busy, setBusy] = React.useState(false);
+  const [videoUrl, setVideoUrl] = React.useState<string | null>(null);
+  const [downloading, setDownloading] = React.useState(false);
+
+  // Вкладку закрывали во время генерации? Подхватываем незавершённую задачу.
+  React.useEffect(() => {
+    let cancelled = false;
+    api.video
+      .latestJob()
+      .then(async (job) => {
+        if (cancelled || !job || job.status !== "processing") return;
+        setBusy(true);
+        try {
+          const done = await api.video.resumeJob(job.id);
+          if (cancelled) return;
+          if (done.status === "completed" && done.resultUrl) {
+            setVideoUrl(done.resultUrl);
+            toast.success("Видео готово!");
+          } else if (done.status === "failed") {
+            toast.error(done.error ?? "Видео не получилось. Искры не списаны.");
+          }
+        } catch {
+          /* поллинг оборвался — пользователь может сгенерировать заново */
+        } finally {
+          if (!cancelled) setBusy(false);
+        }
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const generate = async () => {
+    if (!image) {
+      toast.error("Загрузите фото товара.");
+      return;
+    }
+    if (!productName.trim()) {
+      toast.error("Укажите название товара — оно помогает модели понять, что двигать.");
+      return;
+    }
+    setBusy(true);
+    setVideoUrl(null);
+    try {
+      const { videoUrl } = await api.video.generate({
+        productName: productName.trim(),
+        presetId,
+        productImage: image,
+        aspectRatio: aspect,
+      });
+      setVideoUrl(videoUrl);
+      toast.success("Видео готово! Оно также сохранено в «Мои карточки».");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Не удалось сгенерировать видео.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const download = async () => {
+    if (!videoUrl) return;
+    setDownloading(true);
+    try {
+      const res = await fetch(`/api/proxy-image?url=${encodeURIComponent(videoUrl)}`);
+      if (!res.ok) throw new Error();
+      const blob = await res.blob();
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = "kartogen-video.mp4";
+      a.click();
+      URL.revokeObjectURL(a.href);
+    } catch {
+      toast.error("Не удалось скачать — попробуйте ещё раз.");
+    } finally {
+      setDownloading(false);
+    }
+  };
+
+  return (
+    <AppShell title="Видео товара">
+      <div className="mx-auto grid max-w-6xl gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+        {/* -------- form -------- */}
+        <div className="space-y-5">
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm">1. Фото товара</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <ImageUploader
+                value={image}
+                onChange={setImage}
+                label="Загрузите фото товара"
+                hint="Лучше всего работает чистое фото на светлом фоне · PNG, JPG, WEBP"
+              />
+              <Input
+                value={productName}
+                onChange={(e) => setProductName(e.target.value)}
+                placeholder="Название товара, например: женское пальто из шерсти"
+                maxLength={160}
+                aria-label="Название товара"
+              />
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm">2. Движение в ролике</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid gap-2 sm:grid-cols-2">
+                {VIDEO_PRESETS.map((p) => (
+                  <button
+                    key={p.id}
+                    type="button"
+                    onClick={() => setPresetId(p.id)}
+                    className={cn(
+                      "rounded-xl border p-3 text-left transition-colors",
+                      presetId === p.id
+                        ? "border-primary bg-primary/5 ring-1 ring-primary"
+                        : "hover:border-primary/40 hover:bg-accent/40",
+                    )}
+                  >
+                    <p className="text-sm font-medium">{p.label}</p>
+                    <p className="mt-0.5 text-xs leading-4 text-muted-foreground">{p.description}</p>
+                  </button>
+                ))}
+              </div>
+
+              <div>
+                <p className="mb-1.5 text-xs font-medium text-muted-foreground">Формат кадра</p>
+                <div className="flex flex-wrap gap-2">
+                  {VIDEO_ASPECTS.map((a) => (
+                    <button
+                      key={a.id}
+                      type="button"
+                      onClick={() => setAspect(a.id)}
+                      className={cn(
+                        "rounded-lg border px-3 py-1.5 text-xs transition-colors",
+                        aspect === a.id
+                          ? "border-primary bg-primary/5 font-medium text-primary"
+                          : "text-muted-foreground hover:border-primary/40",
+                      )}
+                      title={a.hint}
+                    >
+                      {a.label} · {a.hint}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <Button variant="gradient" className="w-full" onClick={generate} disabled={busy}>
+                {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                Сгенерировать видео
+                <span className="ml-1 inline-flex items-center gap-0.5 text-xs opacity-90">
+                  · {PRICES.video} <Zap className="h-3 w-3" />
+                </span>
+              </Button>
+              <p className="text-xs leading-5 text-muted-foreground">
+                Ролик {VIDEO_DURATION_SEC} секунд, 1080p. Генерация занимает 1–3 минуты. {SPARK} Искры
+                списываются только за готовое видео — за ошибки вы не платите.
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* -------- result -------- */}
+        <Card className="h-fit lg:sticky lg:top-4">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm">Результат</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {busy ? (
+              <div className="flex aspect-[3/4] flex-col items-center justify-center gap-3 rounded-xl border border-dashed text-muted-foreground">
+                <Loader2 className="h-6 w-6 animate-spin" />
+                <p className="text-sm">Снимаем ваш ролик…</p>
+                <p className="max-w-[240px] text-center text-xs">
+                  Обычно 1–3 минуты. Можно закрыть страницу — видео появится в «Мои карточки».
+                </p>
+              </div>
+            ) : videoUrl ? (
+              <div className="space-y-3">
+                <video
+                  key={videoUrl}
+                  src={videoUrl}
+                  controls
+                  autoPlay
+                  loop
+                  muted
+                  playsInline
+                  className="mx-auto max-h-[520px] w-auto max-w-full rounded-xl border bg-black"
+                />
+                <div className="flex gap-2">
+                  <Button variant="outline" className="flex-1" onClick={download} disabled={downloading}>
+                    {downloading ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Download className="h-4 w-4" />
+                    )}
+                    Скачать MP4
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Видео сохранено в «Мои карточки» — можно скачать в любой момент.
+                </p>
+              </div>
+            ) : (
+              <EmptyState
+                icon={<Clapperboard className="h-6 w-6" />}
+                title="Здесь появится ваш ролик"
+                description="Загрузите фото, выберите движение — и получите живое видео товара для карточки Wildberries."
+              />
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    </AppShell>
+  );
+}
