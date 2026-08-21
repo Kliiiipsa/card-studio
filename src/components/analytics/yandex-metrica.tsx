@@ -1,5 +1,7 @@
 "use client";
+import * as React from "react";
 import Script from "next/script";
+import { usePathname } from "next/navigation";
 
 /**
  * Яндекс.Метрика. Включается переменной NEXT_PUBLIC_YM_ID — без неё компонент
@@ -9,9 +11,12 @@ import Script from "next/script";
  * Настройки выбраны под наши документы (политика, п. 10):
  *  - webvisor ВЫКЛЮЧЕН: запись сессии снимала бы то, что человек печатает в
  *    формах (названия товаров, преимущества), — это лишние данные и лишний
- *    риск по 152-ФЗ. Карта кликов и скроллов остаётся;
- *  - trackHash: студия — SPA, переходы между разделами должны считаться;
- *  - fingerprint-технологии не используем (обещано в п. 10.2 политики).
+ *    риск по 152-ФЗ. Карта кликов остаётся;
+ *  - fingerprint-технологии не используем (обещано в п. 10.2 политики);
+ *  - ssr:true — сайт отдаётся с сервера, об этом Метрике надо сказать явно;
+ *  - переходы между разделами студии считаются вручную (см. RouteTracker):
+ *    в Next.js это client-side навигация без перезагрузки, сама Метрика её
+ *    не увидит и все действия приписала бы одной странице входа.
  */
 const YM_ID = process.env.NEXT_PUBLIC_YM_ID;
 
@@ -25,17 +30,20 @@ export function YandexMetrica() {
           m[i].l=1*new Date();
           for (var j = 0; j < document.scripts.length; j++) {if (document.scripts[j].src === r) { return; }}
           k=e.createElement(t),a=e.getElementsByTagName(t)[0],k.async=1,k.src=r,a.parentNode.insertBefore(k,a)})
-          (window, document, "script", "https://mc.yandex.ru/metrika/tag.js", "ym");
+          (window, document, "script", "https://mc.yandex.ru/metrika/tag.js?id=${YM_ID}", "ym");
 
           ym(${YM_ID}, "init", {
+            ssr: true,
             clickmap: true,
             trackLinks: true,
             accurateTrackBounce: true,
             webvisor: false,
-            trackHash: true
+            referrer: document.referrer,
+            url: location.href
           });
         `}
       </Script>
+      <RouteTracker />
       <noscript>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
@@ -46,6 +54,30 @@ export function YandexMetrica() {
       </noscript>
     </>
   );
+}
+
+/**
+ * Переходы внутри студии — отдельные просмотры. Первый хит уже отправил init,
+ * поэтому стартовый путь пропускаем.
+ */
+function RouteTracker() {
+  const pathname = usePathname();
+  const first = React.useRef(true);
+
+  React.useEffect(() => {
+    if (first.current) {
+      first.current = false;
+      return;
+    }
+    const ym = (window as unknown as { ym?: (...args: unknown[]) => void }).ym;
+    try {
+      ym?.(Number(YM_ID), "hit", window.location.href, { referer: document.referrer });
+    } catch {
+      // аналитика никогда не должна ломать навигацию
+    }
+  }, [pathname]);
+
+  return null;
 }
 
 /**
