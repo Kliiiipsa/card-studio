@@ -5,6 +5,7 @@ import { generateImageRequestSchema } from "@/core/ai/schemas";
 import { generateImageFromReference } from "@/core/ai/service";
 import { validateDataUrl } from "@/lib/image-validation";
 import { readFalBalance, settleFalCostInBackground, falJobsInFlight } from "@/core/ai/fal-cost";
+import { sanitizeImagePrompt } from "@/core/ai/improve-prompt";
 import { uid } from "@/lib/utils";
 
 export const runtime = "nodejs";
@@ -17,8 +18,11 @@ export async function POST(req: Request) {
     validateDataUrl(body.referenceImageDataUrl);
     const concurrentAtStart = falJobsInFlight();
     const falBalanceBefore = await readFalBalance();
+    // предохранитель: даже если клиент прислал советы вида «добавить плашку
+    // „Размеры S-XL“», до модели они не дойдут — она рисует их нечитаемой кашей
+    const safePrompt = sanitizeImagePrompt(body.prompt);
     const result = await generateImageFromReference({
-      prompt: body.prompt,
+      prompt: safePrompt,
       negativePrompt: body.negativePrompt,
       referenceImageDataUrl: body.referenceImageDataUrl,
       strength: body.strength,
@@ -36,7 +40,9 @@ export async function POST(req: Request) {
         kind: "generator",
         sourceUrl: img.url,
         payload: {
-          prompt: body.prompt.slice(0, 2000),
+          // в журнал пишем то, что реально ушло в модель
+          prompt: safePrompt.slice(0, 2000),
+          promptRaw: safePrompt === body.prompt ? undefined : body.prompt.slice(0, 2000),
           cardText: body.cardText,
           // для разбора жалоб в админке
           negativePrompt: body.negativePrompt?.slice(0, 500),
