@@ -108,6 +108,25 @@ export async function createJob(args: {
   );
 }
 
+/**
+ * Дописать в payload реальную стоимость у провайдера (jsonb-слияние, чтобы не
+ * перетереть остальные поля задачи).
+ */
+export async function setJobCost(
+  id: string,
+  usd: number | null,
+  exact: boolean,
+): Promise<void> {
+  if (usd === null) return;
+  await ensureSchema();
+  await getPool().query(
+    `update gen_jobs
+     set payload = coalesce(payload, '{}'::jsonb) || jsonb_build_object('falCostUsd', $2::numeric, 'falCostExact', $3::boolean)
+     where id = $1`,
+    [id, usd, exact],
+  );
+}
+
 /** Replace a job's payload (used by orchestrators to publish step progress). */
 export async function updateJobPayload(id: string, payload: unknown): Promise<void> {
   await ensureSchema();

@@ -6,6 +6,7 @@ import { ensureWatcherBoot, watchJob } from "@/core/jobs/watcher";
 import { uid } from "@/lib/utils";
 import { validateDataUrl } from "@/lib/image-validation";
 import { buildVideoPrompt, submitVideoJob } from "@/core/video/video-service";
+import { readFalBalance, falJobsInFlight } from "@/core/ai/fal-cost";
 
 export const runtime = "nodejs";
 // Submit-only: собрать промпт (быстрый Qwen-перевод) и поставить задачу в
@@ -32,6 +33,11 @@ export async function POST(req: Request) {
       productName: body.productName,
       category: body.category,
     });
+    // остаток на счёте fal ДО отправки: по разнице с остатком после завершения
+    // получим фактическую себестоимость этой генерации (видна в админке)
+    const concurrentAtStart = falJobsInFlight();
+    const falBalanceBefore = await readFalBalance();
+
     const job = await submitVideoJob({
       prompt,
       imageDataUrl: body.productImage,
@@ -65,6 +71,8 @@ export async function POST(req: Request) {
         falStatusUrl: job.statusUrl,
         falResponseUrl: job.responseUrl,
         kind: "video",
+        falBalanceBefore,
+        concurrentAtStart,
       });
     }
     return ok({ done: false, jobId, job });

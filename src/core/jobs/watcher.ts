@@ -1,6 +1,7 @@
 import { pollInfographicJob } from "@/core/infographics/infographic-service";
 import { pollVideoJob } from "@/core/video/video-service";
-import { completeJob, failJob, processingJobs, jobsEnabled, type GenJob } from "./jobs";
+import { completeJob, failJob, processingJobs, jobsEnabled, setJobCost, type GenJob } from "./jobs";
+import { settleFalCost, falJobStarted, falJobFinished } from "@/core/ai/fal-cost";
 import { persistImageToS3, s3Enabled } from "@/core/storage/s3";
 import { applyTx, billingEnabled } from "@/core/billing/billing";
 import { PRICES } from "@/core/billing/prices";
@@ -34,12 +35,20 @@ type WatchArgs = {
   falResponseUrl: string;
   /** default "infographic" — legacy call sites don't pass it */
   kind?: WatchKind;
+  /** остаток на счёте fal перед отправкой задачи — база для расчёта цены */
+  falBalanceBefore?: number | null;
+  /** сколько задач fal было в работе на старте (для отметки точности) */
+  concurrentAtStart?: number;
 };
 
 export function watchJob(args: WatchArgs): void {
   if (state.watching.has(args.id)) return;
   state.watching.add(args.id);
-  void run(args).finally(() => state.watching.delete(args.id));
+  falJobStarted();
+  void run(args).finally(() => {
+    state.watching.delete(args.id);
+    falJobFinished();
+  });
 }
 
 /** Poll one step of the underlying fal job; returns the result URL when done. */
@@ -88,6 +97,15 @@ async function run(args: WatchArgs): Promise<void> {
         }
         await chargeIfNeeded(args.email, args.falResponseUrl, kind);
         await completeJob(args.id, finalUrl, sizeBytes);
+        // фактическая себестоимость: сколько fal списал за эту задачу
+        try {
+          const cost = await settleFalCost(args.falBalanceBefore, {
+            concurrentAtStart: args.concurrentAtStart,
+          });
+          await setJobCost(args.id, cost.usd, cost.exact);
+        } catch (e) {
+          console.error("[jobs] cost measure failed:", e);
+        }
         return;
       }
     } catch (e) {

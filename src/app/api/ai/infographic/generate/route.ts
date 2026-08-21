@@ -12,6 +12,7 @@ import {
 } from "@/core/infographics/infographic-service";
 import type { InfographicBrief } from "@/core/infographics/types";
 import { validateDataUrl } from "@/lib/image-validation";
+import { readFalBalance, settleFalCostInBackground, falJobsInFlight } from "@/core/ai/fal-cost";
 
 export const runtime = "nodejs";
 // This route no longer waits for the (multi-minute) gpt-image generation: it only
@@ -51,15 +52,22 @@ export async function POST(req: Request) {
       variantSeed: body.variantSeed,
     };
 
+    // остаток fal до работы — по разнице после посчитаем реальную себестоимость
+    const concurrentAtStart = falJobsInFlight();
+    const falBalanceBefore = await readFalBalance();
+
     // Client asks for the Flux fallback after a queued gpt-image job failed.
     if (body.forceFallback) {
       const { baseImageUrl, textBaked } = await generateInfographicFallback(args);
+      const cardId = uid("card");
       const finalUrl = await persistGeneration({
+        id: cardId,
         email: bill.email,
         kind: "infographic",
         sourceUrl: baseImageUrl,
         payload: { brief, textBaked, ...debug, fallback: true },
       });
+      settleFalCostInBackground(cardId, falBalanceBefore, { concurrentAtStart });
       const balance = await chargeSparks(bill);
       return ok({
         done: true,
@@ -74,12 +82,15 @@ export async function POST(req: Request) {
     const result = await submitInfographicBase(args);
     if (result.kind === "done") {
       // fast provider (mock/Flux) finished inline
+      const cardId = uid("card");
       const finalUrl = await persistGeneration({
+        id: cardId,
         email: bill.email,
         kind: "infographic",
         sourceUrl: result.baseImageUrl,
         payload: { brief, textBaked: result.textBaked, ...debug },
       });
+      settleFalCostInBackground(cardId, falBalanceBefore, { concurrentAtStart });
       const balance = await chargeSparks(bill);
       return ok({
         done: true,
@@ -110,6 +121,8 @@ export async function POST(req: Request) {
         email: bill.email,
         falStatusUrl: result.job.statusUrl,
         falResponseUrl: result.job.responseUrl,
+        falBalanceBefore,
+        concurrentAtStart,
       });
     }
     return ok({

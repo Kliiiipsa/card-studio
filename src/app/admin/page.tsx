@@ -26,7 +26,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { toast } from "@/components/ui/toaster";
-import { ACTION_LABELS } from "@/core/billing/prices";
+import { ACTION_LABELS, PRICES } from "@/core/billing/prices";
 import type { SparkTransaction } from "@/core/billing/billing";
 import { cn } from "@/lib/utils";
 import { ALL_VIDEO_PRESETS } from "@/core/video/presets";
@@ -125,6 +125,23 @@ type Section = { title: string; fields: Field[] };
 
 const labelOf = (list: { id: string; label: string }[], id?: string) =>
   list.find((x) => x.id === id)?.label ?? id;
+
+/** курс для прикидки маржи — точность здесь не нужна */
+const RUB_PER_USD = 80;
+
+/** Сколько искр берём за этот тип генерации (для расчёта маржи). */
+const KIND_PRICE: Record<string, number> = {
+  infographic: PRICES.infographic,
+  generator: PRICES.generate,
+  video: PRICES.video,
+};
+
+/** Фактическая стоимость у fal: «$0.3500» или «≈ $0.35» при параллельных задачах. */
+function costLabel(g: Generation): string | null {
+  const usd = Number(g.payload?.falCostUsd);
+  if (!Number.isFinite(usd) || usd <= 0) return null;
+  return `${g.payload?.falCostExact === false ? "≈ " : ""}$${usd.toFixed(usd < 0.1 ? 4 : 3)}`;
+}
 
 /** Короткая подпись строки в таблице. */
 function genTitle(g: Generation): string {
@@ -698,6 +715,7 @@ export default function AdminPage() {
                           <th className="py-2 pr-4 font-medium">Клиент</th>
                           <th className="py-2 pr-4 font-medium">Тип</th>
                           <th className="py-2 pr-4 font-medium">Товар / запрос</th>
+                          <th className="py-2 pr-4 font-medium">Стоило нам</th>
                           <th className="py-2 pr-4 font-medium">Статус</th>
                           <th className="py-2 font-medium" />
                         </tr>
@@ -723,8 +741,11 @@ export default function AdminPage() {
                                 {KIND_LABEL[g.kind] ?? g.kind}
                               </Badge>
                             </td>
-                            <td className="max-w-[260px] truncate py-2 pr-4" title={genTitle(g)}>
+                            <td className="max-w-[240px] truncate py-2 pr-4" title={genTitle(g)}>
                               {genTitle(g)}
+                            </td>
+                            <td className="whitespace-nowrap py-2 pr-4 font-mono text-xs">
+                              {costLabel(g) ?? <span className="text-muted-foreground">—</span>}
                             </td>
                             <td className="py-2 pr-4 text-xs">
                               <span
@@ -842,6 +863,28 @@ export default function AdminPage() {
                         <p className="mt-1 text-muted-foreground">
                           За неудачные генерации искры не списываются.
                         </p>
+                      </div>
+                    )}
+                    {costLabel(openGen) && (
+                      <div className="rounded-lg border bg-muted/40 px-3 py-2.5 text-xs leading-5">
+                        <p className="font-medium text-foreground">Экономика генерации</p>
+                        {(() => {
+                          const usd = Number(openGen.payload?.falCostUsd);
+                          const rub = usd * RUB_PER_USD;
+                          const sparks = KIND_PRICE[openGen.kind];
+                          return (
+                            <p className="mt-0.5 text-muted-foreground">
+                              fal списал <span className="font-medium text-foreground">{costLabel(openGen)}</span>{" "}
+                              ≈ {rub.toFixed(1)} ₽
+                              {sparks
+                                ? ` · клиент заплатил ${sparks} ⚡ → маржа ${(sparks - rub).toFixed(1)} ₽`
+                                : ""}
+                              {openGen.payload?.falCostExact === false
+                                ? " · знак «≈»: в это время шли другие генерации, сумма может включать их"
+                                : ""}
+                            </p>
+                          );
+                        })()}
                       </div>
                     )}
                     {genSections(openGen).map((s) => {

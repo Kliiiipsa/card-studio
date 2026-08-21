@@ -13,10 +13,12 @@ export async function persistGeneration(args: {
   kind: "generator" | "infographic" | "improve" | "video";
   sourceUrl: string;
   payload: unknown;
+  /** можно задать снаружи, чтобы потом дописать в эту запись цену от fal */
+  id?: string;
 }): Promise<string> {
   let url = args.sourceUrl;
   let bytes: number | undefined;
-  const id = uid("card");
+  const id = args.id ?? uid("card");
   if (s3Enabled() && /^https?:\/\//.test(args.sourceUrl)) {
     try {
       const ext =
