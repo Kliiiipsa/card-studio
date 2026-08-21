@@ -43,6 +43,9 @@ const CONCERN_TEXT: Record<string, string | undefined> = {
 
 /** last report persists across F5 (single slot) */
 const SAVED_KEY = "last";
+
+/** Показывать ли «Улучшить карточку по советам ИИ» — выключено 2026-08-21. */
+const SHOW_IMPROVE = false;
 type SavedAnalysis = {
   report: AnalysisReport;
   image: string | null;
@@ -234,7 +237,13 @@ export default function AnalysisPage() {
                 Проанализировать · 5 ⚡
               </Button>
 
-              {report && (
+              {/* «Улучшить карточку по советам ИИ» СКРЫТА (решение пользователя
+                  2026-08-21): результат не оправдывал 7 ⚡ — модель меняла свет и
+                  фон, но карточку это не продвигало, а советы анализа почти
+                  всегда про текст и плашки, то есть про «Инфографику».
+                  Код (improve + фильтр промпта) сохранён: вернуть = показать
+                  кнопку снова. */}
+              {report && SHOW_IMPROVE && (
                 <Button onClick={improve} disabled={improving} variant="outline" className="w-full">
                   {improving ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
