@@ -25,6 +25,7 @@ import {
 import { InfographicExportPanel } from "@/components/infographics/infographic-export-panel";
 import { InfographicReferencePicker } from "@/components/infographics/infographic-reference-picker";
 import { api } from "@/lib/client-api";
+import { reachGoal, GOALS } from "@/components/analytics/yandex-metrica";
 import { toast } from "@/components/ui/toaster";
 import { EMPTY_PRODUCT, type ProductInfo } from "@/core/domain/types";
 import {
@@ -259,6 +260,7 @@ export default function InfographicsPage() {
       });
       variantSeedRef.current += 1; // next generate → next composition
       setBaseImageUrl(r.baseImageUrl);
+      reachGoal(GOALS.generation, { kind: "infographic" });
       setBrief(r.brief);
       setTextBaked(r.textBaked);
       toast.success("Изображение готово");

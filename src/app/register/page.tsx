@@ -3,6 +3,7 @@ import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Loader2, MailCheck, UserPlus } from "lucide-react";
+import { reachGoal, GOALS } from "@/components/analytics/yandex-metrica";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -64,6 +65,7 @@ export default function RegisterPage() {
       };
       // open mode: the account is created immediately, no email code
       if (data.registered) {
+        reachGoal(GOALS.register);
         router.replace("/dashboard");
         router.refresh();
         return;
@@ -89,6 +91,7 @@ export default function RegisterPage() {
     setBusy(true);
     try {
       await post("/api/auth/verify", { email: email.trim(), code: code.trim() });
+      reachGoal(GOALS.register);
       router.replace("/dashboard");
       router.refresh();
     } catch (err) {

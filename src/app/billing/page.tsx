@@ -10,6 +10,7 @@ import { toast } from "@/components/ui/toaster";
 import { useProfileStore } from "@/store/profile-store";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import { reachGoal, GOALS } from "@/components/analytics/yandex-metrica";
 import {
   TOPUP_PACKAGES,
   PRICES,
@@ -83,6 +84,7 @@ export default function BillingPage() {
       const data = (await res.json()) as { message?: string; balance?: number; error?: string };
       if (!res.ok) throw new Error(data.error ?? "Не удалось применить промокод");
       if (typeof data.balance === "number") useProfileStore.getState().setBalance(data.balance);
+      reachGoal(GOALS.promo, { code });
       toast.success(data.message ?? "Промокод применён");
       setPromo("");
       loadPerks();
@@ -125,6 +127,7 @@ export default function BillingPage() {
         if (res.ok && data.status === "succeeded") {
           sessionStorage.removeItem("yk_payment");
           if (typeof data.balance === "number") useProfileStore.getState().setBalance(data.balance);
+          reachGoal(GOALS.topupSuccess, { sparks: data.sparks });
           toast.success(`Оплата прошла — зачислено ${data.sparks ?? ""} искр`.replace("  ", " "));
           loadHistory();
           return;
@@ -169,6 +172,7 @@ export default function BillingPage() {
       if (!res.ok) throw new Error(data.error ?? "Оплата не прошла");
       if (data.confirmationUrl && data.paymentId) {
         // реальный платёж: запоминаем id и уходим на страницу оплаты ЮKassa
+        reachGoal(GOALS.topupStart, { amount: buying.priceRub });
         sessionStorage.setItem("yk_payment", data.paymentId);
         window.location.href = data.confirmationUrl;
         return; // не снимаем спиннер — идёт переход

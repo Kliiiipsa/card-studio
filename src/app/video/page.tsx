@@ -9,6 +9,7 @@ import { toast } from "@/components/ui/toaster";
 import { ImageUploader } from "@/components/media/image-uploader";
 import { EmptyState } from "@/components/project/empty-state";
 import { api } from "@/lib/client-api";
+import { reachGoal, GOALS } from "@/components/analytics/yandex-metrica";
 import { PRICES, SPARK } from "@/core/billing/prices";
 import { VIDEO_PRESETS, DEFAULT_VIDEO_PRESET_ID, VIDEO_DURATION_SEC } from "@/core/video/presets";
 
@@ -166,6 +167,7 @@ export default function VideoPage() {
         productImage: image,
       });
       setVideoUrl(videoUrl);
+      reachGoal(GOALS.generation, { kind: "video" });
       toast.success("Видео готово! Оно также сохранено в «Мои карточки».");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Не удалось сгенерировать видео.");
