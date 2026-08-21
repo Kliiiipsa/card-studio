@@ -10,6 +10,7 @@ import {
   Users,
   Clapperboard,
   Search,
+  Ticket,
   Activity,
   RefreshCw,
   CircleCheck,
@@ -30,6 +31,7 @@ import { ACTION_LABELS, PRICES } from "@/core/billing/prices";
 import type { SparkTransaction } from "@/core/billing/billing";
 import { cn } from "@/lib/utils";
 import { ALL_VIDEO_PRESETS } from "@/core/video/presets";
+import { PromoManager, type PromoRedemption } from "@/components/admin/promo-manager";
 import { INFOGRAPHIC_TYPES, INFOGRAPHIC_STYLES } from "@/core/infographics/types";
 
 type AdminUser = {
@@ -330,6 +332,42 @@ export default function AdminPage() {
       .catch(() => setTxs([]));
   }, []);
 
+  // применённые промокоды — показываем в строке пользователя
+  const [promoUses, setPromoUses] = React.useState<PromoRedemption[]>([]);
+
+  const loadPromoUses = React.useCallback(() => {
+    fetch("/api/admin/promo")
+      .then((r) => r.json())
+      .then((d: { redemptions?: PromoRedemption[] }) => setPromoUses(d.redemptions ?? []))
+      .catch(() => undefined);
+  }, []);
+
+  const revokePromo = async (r: PromoRedemption) => {
+    const clawback =
+      r.type === "sparks" && r.sparksGranted
+        ? window.confirm(
+            `Отменить промокод ${r.code} у ${r.email}?\n\nOK — списать обратно ${r.sparksGranted} ⚡\nОтмена — просто снять действие кода, искры оставить`,
+          )
+        : false;
+    try {
+      const res = await fetch("/api/admin/promo", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ redemptionId: r.id, clawback }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Не удалось отменить");
+      toast.success(
+        data.clawedBack ? `Промокод отменён, списано ${data.clawedBack} ⚡` : "Промокод отменён",
+      );
+      loadPromoUses();
+      loadUsers();
+      loadTxs();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Ошибка");
+    }
+  };
+
   const loadHealth = React.useCallback(() => {
     setHealthLoading(true);
     fetch("/api/admin/health")
@@ -357,13 +395,14 @@ export default function AdminPage() {
     loadUsers();
     loadTxs();
     loadHealth();
+    loadPromoUses();
     fetch("/api/admin/storage")
       .then((r) => r.json())
       .then((d: { count?: number; bytes?: number }) =>
         setStorage({ count: d.count ?? 0, bytes: d.bytes ?? 0 }),
       )
       .catch(() => undefined);
-  }, [loadUsers, loadTxs, loadHealth]);
+  }, [loadUsers, loadTxs, loadHealth, loadPromoUses]);
 
   // журнал генераций: перезапрос при смене фильтров (почта — с задержкой,
   // чтобы не дёргать сервер на каждую букву)
@@ -448,6 +487,9 @@ export default function AdminPage() {
             </TabsTrigger>
             <TabsTrigger value="generations" className="gap-1.5">
               <Clapperboard className="h-4 w-4" /> Генерации
+            </TabsTrigger>
+            <TabsTrigger value="promo" className="gap-1.5">
+              <Ticket className="h-4 w-4" /> Промокоды
             </TabsTrigger>
           </TabsList>
 
@@ -536,6 +578,7 @@ export default function AdminPage() {
                           <th className="py-2 pr-4 font-medium">Роль</th>
                           <th className="py-2 pr-4 font-medium">Баланс</th>
                           <th className="py-2 pr-4 font-medium">IP регистрации</th>
+                          <th className="py-2 pr-4 font-medium">Промокоды</th>
                           <th className="py-2 pr-4 font-medium">Создан</th>
                           <th className="py-2 font-medium" />
                         </tr>
@@ -582,6 +625,42 @@ export default function AdminPage() {
                               ) : (
                                 <span className="text-xs text-muted-foreground">—</span>
                               )}
+                            </td>
+                            <td className="py-2 pr-4">
+                              {(() => {
+                                const mine = promoUses.filter((r) => r.email === u.email);
+                                if (!mine.length)
+                                  return <span className="text-xs text-muted-foreground">—</span>;
+                                return (
+                                  <div className="flex flex-col gap-1">
+                                    {mine.map((r) => (
+                                      <div key={r.id} className="flex items-center gap-1.5">
+                                        <span
+                                          className={cn(
+                                            "font-mono text-xs",
+                                            r.revoked && "text-muted-foreground line-through",
+                                          )}
+                                          title={`${new Date(r.redeemedAt).toLocaleString("ru-RU")}${
+                                            r.sparksGranted ? ` · ${r.sparksGranted} ⚡` : ""
+                                          }`}
+                                        >
+                                          {r.code}
+                                        </span>
+                                        {!r.revoked && (
+                                          <button
+                                            type="button"
+                                            onClick={() => revokePromo(r)}
+                                            className="text-[11px] text-muted-foreground hover:text-destructive"
+                                            title="Отменить промокод"
+                                          >
+                                            отменить
+                                          </button>
+                                        )}
+                                      </div>
+                                    ))}
+                                  </div>
+                                );
+                              })()}
                             </td>
                             <td className="py-2 pr-4 text-muted-foreground">
                               {new Date(u.createdAt).toLocaleDateString("ru-RU")}
@@ -656,6 +735,11 @@ export default function AdminPage() {
                 )}
               </CardContent>
             </Card>
+          </TabsContent>
+
+          {/* PROMO */}
+          <TabsContent value="promo">
+            <PromoManager />
           </TabsContent>
 
           {/* GENERATIONS — разбор жалоб: что человек вводил и что получилось */}

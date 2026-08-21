@@ -4,7 +4,7 @@ import { completeJob, failJob, processingJobs, jobsEnabled, setJobCost, type Gen
 import { settleFalCost, falJobStarted, falJobFinished } from "@/core/ai/fal-cost";
 import { persistImageToS3, s3Enabled } from "@/core/storage/s3";
 import { applyTx, billingEnabled } from "@/core/billing/billing";
-import { PRICES } from "@/core/billing/prices";
+import { effectivePrice, consumePriceListUse } from "@/core/billing/promo";
 import { getUser } from "@/core/auth/store";
 
 /**
@@ -123,13 +123,17 @@ async function chargeIfNeeded(email: string, reference: string, kind: WatchKind)
   try {
     const user = await getUser(email);
     if (user?.role === "admin") return;
-    await applyTx({
+    // цена та же, что проверялась на старте: спец-прайс промокода или общий
+    const { price, viaPromo } = await effectivePrice(email, kind);
+    const { applied } = await applyTx({
       email,
-      amount: -PRICES[kind],
+      amount: -price,
       type: "charge",
       action: kind,
       reference,
+      comment: viaPromo ? `Спец-цена по промокоду ${viaPromo}` : undefined,
     });
+    if (applied && viaPromo) await consumePriceListUse(email, viaPromo);
   } catch (e) {
     console.error("[jobs] charge failed:", e);
   }

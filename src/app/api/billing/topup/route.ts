@@ -5,6 +5,7 @@ import { sessionFromRequest } from "@/core/auth/session";
 import { billingEnabled, applyTx } from "@/core/billing/billing";
 import { TOPUP_PACKAGES, CUSTOM_TOPUP, customTopup } from "@/core/billing/prices";
 import { yookassaConfigured, createPayment } from "@/core/billing/yookassa";
+import { consumeTopupBonus, releaseTopupBonus } from "@/core/billing/promo";
 import { uid } from "@/lib/utils";
 
 export const runtime = "nodejs";
@@ -47,20 +48,32 @@ export async function POST(req: Request) {
       const origin = process.env.CANONICAL_HOST
         ? `https://${process.env.CANONICAL_HOST}`
         : new URL(req.url).origin;
-      const { id, confirmationUrl } = await createPayment({
-        amountRub: pack.priceRub,
-        description: `Kartogen: ${pack.sparks} искр${pack.bonus ? ` + ${pack.bonus} бонус` : ""}`,
-        // paymentId кладёт в sessionStorage клиент перед редиректом —
-        // на возврате страница /billing сама проверит и зачислит платёж
-        returnUrl: `${origin}/billing`,
-        metadata: {
-          email: session.email,
-          packageId: pack.id,
-          sparks: String(pack.sparks),
-          bonus: String(pack.bonus),
-        },
-      });
-      return ok({ paymentId: id, confirmationUrl });
+      // ожидающий промокод на бонус: забираем его сейчас, чтобы он попал в
+      // metadata платежа и зачислился вместе с оплатой
+      const promo = await consumeTopupBonus(session.email);
+      const promoBonus = promo ? Math.round((pack.sparks * promo.percent) / 100) : 0;
+      const bonus = pack.bonus + promoBonus;
+      try {
+        const { id, confirmationUrl } = await createPayment({
+          amountRub: pack.priceRub,
+          description: `Kartogen: ${pack.sparks} искр${bonus ? ` + ${bonus} бонус` : ""}`,
+          // paymentId кладёт в sessionStorage клиент перед редиректом —
+          // на возврате страница /billing сама проверит и зачислит платёж
+          returnUrl: `${origin}/billing`,
+          metadata: {
+            email: session.email,
+            packageId: pack.id,
+            sparks: String(pack.sparks),
+            bonus: String(bonus),
+            ...(promo ? { promoCode: promo.code, promoBonus: String(promoBonus) } : {}),
+          },
+        });
+        return ok({ paymentId: id, confirmationUrl, promoBonus: promoBonus || undefined });
+      } catch (e) {
+        // платёж не создался — возвращаем промокод пользователю
+        if (promo) await releaseTopupBonus(session.email, promo.code);
+        throw e;
+      }
     }
 
     // Demo crediting: только когда ЮKassa не настроена (локальные тесты).

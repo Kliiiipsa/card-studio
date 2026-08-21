@@ -1,7 +1,7 @@
 "use client";
 import * as React from "react";
 import * as Dialog from "@radix-ui/react-dialog";
-import { Zap, Loader2, CreditCard, X, Gift, ShoppingCart, ShieldCheck } from "lucide-react";
+import { Zap, Loader2, CreditCard, X, Gift, ShoppingCart, ShieldCheck, Ticket } from "lucide-react";
 import { AppShell } from "@/components/layout/app-shell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -43,6 +43,16 @@ export default function BillingPage() {
   const [buying, setBuying] = React.useState<TopupPackage | null>(null);
   const [paying, setPaying] = React.useState(false);
   const [customAmount, setCustomAmount] = React.useState("");
+  // промокоды: поле ввода + то, что уже действует у пользователя
+  const [promo, setPromo] = React.useState("");
+  const [redeeming, setRedeeming] = React.useState(false);
+  const [perks, setPerks] = React.useState<{
+    pendingBonusPercent: number | null;
+    pendingBonusCode: string | null;
+    prices: Record<string, number> | null;
+    priceListCode: string | null;
+    usesLeft: number | null;
+  } | null>(null);
   const customPack = customTopup(Number(customAmount));
   const [history, setHistory] = React.useState<SparkTransaction[] | null>(null);
 
@@ -53,10 +63,42 @@ export default function BillingPage() {
       .catch(() => setHistory([]));
   }, []);
 
+  const loadPerks = React.useCallback(() => {
+    fetch("/api/billing/promo")
+      .then((r) => r.json())
+      .then((d) => setPerks(d.perks ?? null))
+      .catch(() => undefined);
+  }, []);
+
+  const redeemPromo = async () => {
+    const code = promo.trim();
+    if (!code) return;
+    setRedeeming(true);
+    try {
+      const res = await fetch("/api/billing/promo", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code }),
+      });
+      const data = (await res.json()) as { message?: string; balance?: number; error?: string };
+      if (!res.ok) throw new Error(data.error ?? "Не удалось применить промокод");
+      if (typeof data.balance === "number") useProfileStore.getState().setBalance(data.balance);
+      toast.success(data.message ?? "Промокод применён");
+      setPromo("");
+      loadPerks();
+      loadHistory();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Не удалось применить промокод");
+    } finally {
+      setRedeeming(false);
+    }
+  };
+
   React.useEffect(() => {
     void fetchMe();
     loadHistory();
-  }, [fetchMe, loadHistory]);
+    loadPerks();
+  }, [fetchMe, loadHistory, loadPerks]);
 
   // Возврат со страницы оплаты ЮKassa: paymentId лежит в sessionStorage,
   // проверяем статус (сервер перепроверит у ЮKassa и зачислит идемпотентно).
@@ -233,6 +275,51 @@ export default function BillingPage() {
             Своя сумма — от {CUSTOM_TOPUP.minRub} до {CUSTOM_TOPUP.maxRub.toLocaleString("ru-RU")} ₽,
             1 ₽ = 1 искра, без бонуса.
           </p>
+
+          {/* Промокод */}
+          <div className="mt-4 rounded-xl border bg-card p-4">
+            <div className="flex flex-wrap items-center gap-2">
+              <Ticket className="h-4 w-4 text-primary" />
+              <p className="text-sm font-medium">Промокод</p>
+            </div>
+            <div className="mt-2.5 flex flex-wrap gap-2">
+              <Input
+                value={promo}
+                onChange={(e) => setPromo(e.target.value.toUpperCase())}
+                onKeyDown={(e) => e.key === "Enter" && redeemPromo()}
+                placeholder="Например, KARTOGEN10"
+                maxLength={40}
+                className="h-10 max-w-xs font-mono uppercase"
+                aria-label="Промокод"
+                disabled={redeeming}
+              />
+              <Button variant="outline" onClick={redeemPromo} disabled={redeeming || !promo.trim()}>
+                {redeeming ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                Применить
+              </Button>
+            </div>
+
+            {perks?.pendingBonusPercent ? (
+              <p className="mt-2.5 flex items-start gap-1.5 text-xs leading-5 text-emerald-600 dark:text-emerald-400">
+                <Gift className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                Промокод {perks.pendingBonusCode} активен: при следующем пополнении вы получите
+                на {perks.pendingBonusPercent}% больше искр.
+              </p>
+            ) : null}
+            {perks?.priceListCode ? (
+              <p className="mt-2.5 flex items-start gap-1.5 text-xs leading-5 text-emerald-600 dark:text-emerald-400">
+                <Gift className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                Для вашего аккаунта действуют специальные цены по промокоду {perks.priceListCode}
+                {perks.usesLeft !== null ? ` — осталось ${perks.usesLeft} генераций` : ""}.
+              </p>
+            ) : null}
+            {!perks?.pendingBonusPercent && !perks?.priceListCode && (
+              <p className="mt-2.5 text-xs text-muted-foreground">
+                Промокод даёт искры в подарок, бонус к пополнению или специальные цены.
+                Один промокод применяется один раз.
+              </p>
+            )}
+          </div>
           {role === "admin" && (
             <p className="mt-2 text-xs text-muted-foreground">
               Администратор пользуется студией без списаний — пополнение не требуется.
@@ -249,15 +336,29 @@ export default function BillingPage() {
             <div className="grid gap-1.5 text-sm sm:grid-cols-2">
               {(Object.keys(PRICES) as (keyof typeof PRICES)[])
                 .filter((a) => PRICES[a] > 0 && a !== "turnkey") // turnkey скрыт на доработке
-                .map((a) => (
-                  <div key={a} className="flex items-center justify-between rounded-lg border px-3 py-2">
-                    <span className="text-muted-foreground">{ACTION_LABELS[a]}</span>
-                    <span className="flex items-center gap-1 font-semibold">
-                      <Zap className="h-3.5 w-3.5 text-amber-500" />
-                      {PRICES[a]}
-                    </span>
-                  </div>
-                ))}
+                .map((a) => {
+                  // цена по промокоду-прайсу, если он действует
+                  const special = perks?.prices?.[a];
+                  const hasSpecial = typeof special === "number" && special !== PRICES[a];
+                  return (
+                    <div key={a} className="flex items-center justify-between rounded-lg border px-3 py-2">
+                      <span className="text-muted-foreground">{ACTION_LABELS[a]}</span>
+                      <span className="flex items-center gap-1 font-semibold">
+                        <Zap className="h-3.5 w-3.5 text-amber-500" />
+                        {hasSpecial ? (
+                          <>
+                            <span className="text-xs font-normal text-muted-foreground line-through">
+                              {PRICES[a]}
+                            </span>
+                            <span className="text-emerald-600 dark:text-emerald-400">{special}</span>
+                          </>
+                        ) : (
+                          PRICES[a]
+                        )}
+                      </span>
+                    </div>
+                  );
+                })}
             </div>
             <p className="mt-2 text-xs text-muted-foreground">
               Все текстовые действия — идеи, промпты, брифы, анализ фото для заполнения формы —
