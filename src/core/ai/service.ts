@@ -49,6 +49,10 @@ export async function analyzeProductCard(
     task: "analyze",
     json: true,
     vision: true,
+    // Температура 0: без неё одно и то же фото получало разные баллы (50 и 43
+    // на повторном запуске — жалоба пользователя 2026-08-21). Оценка карточки
+    // должна быть воспроизводимой, иначе сервис выглядит гадающим.
+    temperature: 0,
     context: { product },
     messages: [
       { role: "system", content: SYSTEM_ANALYST },
