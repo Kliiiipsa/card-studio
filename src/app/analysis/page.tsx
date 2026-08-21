@@ -24,6 +24,7 @@ import { toast } from "@/components/ui/toaster";
 import { uid } from "@/lib/utils";
 import { analysisTable } from "@/core/storage/db";
 import { reportToMarkdown } from "@/lib/report-markdown";
+import { splitAdvice, buildImprovePrompt } from "@/core/ai/improve-prompt";
 import type { AnalysisReport } from "@/core/domain/types";
 import type { GeneratedVariant } from "@/store/generator-store";
 
@@ -120,16 +121,22 @@ export default function AnalysisPage() {
     if (!image || !report) return;
     setImproving(true);
     try {
-      // build a Russian improvement instruction from the AI's own advice
-      const advice = [...report.problems.map((p) => p.fix), ...report.visualTips]
-        .filter(Boolean)
-        .slice(0, 6)
-        .join("; ");
-      const prompt = `Улучши эту карточку товара для Wildberries, сохранив сам товар без искажений. ${advice}. Премиальный чистый фон, мягкий студийный свет, аккуратная композиция, место под заголовок.`;
+      // Советы делим: свет/фон/композицию отдаём модели, а плашки и тексты —
+      // нет, она их рисует нечитаемой кашей (разбор 2026-08-21).
+      const split = splitAdvice([
+        ...report.problems.map((p) => p.fix),
+        ...report.visualTips,
+      ]);
+      const prompt = buildImprovePrompt(split);
       const cardText =
         (report.headlineIdeas[0] || report.newCardIdeas[0]?.headline || name || "")
           .trim()
           .slice(0, 60) || undefined;
+      if (split.textual.length) {
+        toast.info(
+          `Советы про текст и плашки (${split.textual.length}) сюда не пойдут — их сделает «Инфографика»`,
+        );
+      }
 
       const result = await api.generateImage({
         prompt,
