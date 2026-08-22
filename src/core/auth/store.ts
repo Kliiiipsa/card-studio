@@ -19,3 +19,4 @@ export const confirmRegistration = impl.confirmRegistration;
 export const checkLogin = impl.checkLogin;
 export const listUsers = impl.listUsers;
 export const changePassword = impl.changePassword;
+export const deleteUser = impl.deleteUser;

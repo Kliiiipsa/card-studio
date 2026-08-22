@@ -20,14 +20,31 @@ export function isSmtpConfigured(): boolean {
   );
 }
 
-const CODE_SUBJECT = (code: string) => `${code} — код подтверждения Kartogen`;
-const CODE_TEXT = (code: string) =>
-  `Ваш код подтверждения: ${code}\r\n\r\n` +
-  `Код действует 15 минут. Если вы не регистрировались в Kartogen, просто проигнорируйте это письмо.\r\n`;
-const CODE_HTML = (code: string) =>
-  `<p style="font:16px/1.5 -apple-system,Segoe UI,Roboto,sans-serif;color:#1d1c19">Ваш код подтверждения:</p>` +
-  `<p style="font:700 32px/1.2 -apple-system,Segoe UI,Roboto,sans-serif;letter-spacing:6px;color:#1d1c19">${code}</p>` +
-  `<p style="font:14px/1.5 -apple-system,Segoe UI,Roboto,sans-serif;color:#6e6a61">Код действует 15 минут. Если вы не регистрировались в Kartogen, просто проигнорируйте это письмо.</p>`;
+type MailContent = { subject: string; text: string; html: string };
+
+const codeMail = (code: string): MailContent => ({
+  subject: `${code} — код подтверждения Kartogen`,
+  text:
+    `Ваш код подтверждения: ${code}\r\n\r\n` +
+    `Код действует 15 минут. Если вы не регистрировались в Kartogen, просто проигнорируйте это письмо.\r\n`,
+  html:
+    `<p style="font:16px/1.5 -apple-system,Segoe UI,Roboto,sans-serif;color:#1d1c19">Ваш код подтверждения:</p>` +
+    `<p style="font:700 32px/1.2 -apple-system,Segoe UI,Roboto,sans-serif;letter-spacing:6px;color:#1d1c19">${code}</p>` +
+    `<p style="font:14px/1.5 -apple-system,Segoe UI,Roboto,sans-serif;color:#6e6a61">Код действует 15 минут. Если вы не регистрировались в Kartogen, просто проигнорируйте это письмо.</p>`,
+});
+
+const deletionMail = (code: string): MailContent => ({
+  subject: `${code} — код удаления аккаунта Kartogen`,
+  text:
+    `Вы запросили удаление аккаунта Kartogen. Код подтверждения: ${code}\r\n\r\n` +
+    `Внимание: удаление необратимо — сгенерированные карточки, история и остаток баланса будут удалены без возможности восстановления.\r\n\r\n` +
+    `Код действует 15 минут. Если вы не запрашивали удаление, просто проигнорируйте это письмо и смените пароль.\r\n`,
+  html:
+    `<p style="font:16px/1.5 -apple-system,Segoe UI,Roboto,sans-serif;color:#1d1c19">Вы запросили удаление аккаунта Kartogen. Код подтверждения:</p>` +
+    `<p style="font:700 32px/1.2 -apple-system,Segoe UI,Roboto,sans-serif;letter-spacing:6px;color:#1d1c19">${code}</p>` +
+    `<p style="font:14px/1.5 -apple-system,Segoe UI,Roboto,sans-serif;color:#b3261e">Удаление необратимо: карточки, история и остаток баланса будут удалены без возможности восстановления.</p>` +
+    `<p style="font:14px/1.5 -apple-system,Segoe UI,Roboto,sans-serif;color:#6e6a61">Код действует 15 минут. Если вы не запрашивали удаление, просто проигнорируйте это письмо и смените пароль.</p>`,
+});
 
 /* ------------------------------ NotiSend API ------------------------------ */
 
@@ -38,16 +55,16 @@ const NOTISEND_HOSTS = ["https://api.notisend.ru/v1", "https://api-reserve.msndr
  * (their docs: use it when the primary is blocked/limited). Honors 429 with a
  * bounded wait — a rate-limited code must be delivered, not silently dropped.
  */
-async function sendViaNotiSend(to: string, code: string): Promise<void> {
+async function sendViaNotiSend(to: string, mail: MailContent): Promise<void> {
   const key = process.env.NOTISEND_API_KEY!;
   const from = process.env.MAIL_FROM || "admin@kartogen.ru";
   const body = JSON.stringify({
     from_email: from,
     from_name: "Kartogen",
     to,
-    subject: CODE_SUBJECT(code),
-    text: CODE_TEXT(code),
-    html: CODE_HTML(code),
+    subject: mail.subject,
+    text: mail.text,
+    html: mail.html,
   });
   let lastErr: unknown = null;
   for (const host of NOTISEND_HOSTS) {
@@ -188,10 +205,10 @@ async function connect(host: string, port: number, implicitTls: boolean): Promis
   });
 }
 
-export async function sendVerificationEmail(to: string, code: string): Promise<void> {
+async function sendMail(to: string, mail: MailContent): Promise<void> {
   if (process.env.NOTISEND_API_KEY) {
     try {
-      await sendViaNotiSend(to, code);
+      await sendViaNotiSend(to, mail);
       return;
     } catch (err) {
       // eslint-disable-next-line no-console
@@ -199,12 +216,20 @@ export async function sendVerificationEmail(to: string, code: string): Promise<v
       throw new AppError("Не удалось отправить письмо с кодом. Попробуйте позже.", 502);
     }
   }
-  return sendViaSmtp(to, code);
+  return sendViaSmtp(to, mail);
+}
+
+export function sendVerificationEmail(to: string, code: string): Promise<void> {
+  return sendMail(to, codeMail(code));
+}
+
+export function sendDeletionEmail(to: string, code: string): Promise<void> {
+  return sendMail(to, deletionMail(code));
 }
 
 /* --------------------------------- SMTP ---------------------------------- */
 
-async function sendViaSmtp(to: string, code: string): Promise<void> {
+async function sendViaSmtp(to: string, mail: MailContent): Promise<void> {
   const host = process.env.SMTP_HOST!;
   const port = Number(process.env.SMTP_PORT ?? 465);
   const startTls = (process.env.SMTP_SECURE ?? "tls").toLowerCase() === "starttls";
@@ -212,8 +237,8 @@ async function sendViaSmtp(to: string, code: string): Promise<void> {
   const pass = process.env.SMTP_PASS!;
   const from = process.env.MAIL_FROM || user;
 
-  const subject = `=?UTF-8?B?${b64(CODE_SUBJECT(code))}?=`;
-  const body = b64(CODE_TEXT(code));
+  const subject = `=?UTF-8?B?${b64(mail.subject)}?=`;
+  const body = b64(mail.text);
   const message =
     `From: Kartogen <${from}>\r\n` +
     `To: <${to}>\r\n` +

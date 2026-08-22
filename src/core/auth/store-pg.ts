@@ -251,6 +251,16 @@ export async function changePassword(
   return "ok";
 }
 
+/** Полное удаление учётной записи (аккаунт админа из env не трогаем). */
+export async function deleteUser(emailRaw: string): Promise<void> {
+  await ensureSchema();
+  const email = normalizeEmail(emailRaw);
+  const db = getPool();
+  await db.query("delete from auth_users where email = $1 and role <> 'admin'", [email]);
+  await db.query("delete from auth_pending where email = $1", [email]);
+  await db.query("delete from auth_throttle where email = $1", [email]);
+}
+
 export async function listUsers(): Promise<UserRecord[]> {
   await ensureSchema();
   await ensureAdmin();

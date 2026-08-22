@@ -17,8 +17,13 @@ export function s3Enabled(): boolean {
 const sha256 = (data: Buffer | string) => createHash("sha256").update(data).digest("hex");
 const hmac = (key: Buffer | string, data: string) => createHmac("sha256", key).update(data).digest();
 
-/** Upload a buffer; returns the public object URL. */
-export async function s3Put(key: string, body: Buffer, contentType: string): Promise<string> {
+/** Signed S3 request (Sig V4, path-style). Returns the full object URL. */
+async function s3Request(
+  method: "PUT" | "DELETE",
+  key: string,
+  body: Buffer | null,
+  contentType?: string,
+): Promise<string> {
   const endpoint = process.env.S3_ENDPOINT!.replace(/\/$/, "");
   const bucket = process.env.S3_BUCKET!;
   const accessKey = process.env.S3_ACCESS_KEY!;
@@ -30,20 +35,20 @@ export async function s3Put(key: string, body: Buffer, contentType: string): Pro
   const now = new Date();
   const amzDate = now.toISOString().replace(/[-:]/g, "").slice(0, 15) + "Z";
   const dateStamp = amzDate.slice(0, 8);
-  const payloadHash = sha256(body);
+  const payloadHash = sha256(body ?? "");
 
   const headers: Record<string, string> = {
     host,
-    "content-type": contentType,
     "x-amz-content-sha256": payloadHash,
     "x-amz-date": amzDate,
   };
+  if (contentType) headers["content-type"] = contentType;
   const signedHeaders = Object.keys(headers).sort().join(";");
   const canonicalHeaders = Object.keys(headers)
     .sort()
     .map((h) => `${h}:${headers[h]}\n`)
     .join("");
-  const canonicalRequest = ["PUT", path, "", canonicalHeaders, signedHeaders, payloadHash].join("\n");
+  const canonicalRequest = [method, path, "", canonicalHeaders, signedHeaders, payloadHash].join("\n");
 
   const scope = `${dateStamp}/${region}/s3/aws4_request`;
   const stringToSign = ["AWS4-HMAC-SHA256", amzDate, scope, sha256(canonicalRequest)].join("\n");
@@ -54,20 +59,42 @@ export async function s3Put(key: string, body: Buffer, contentType: string): Pro
   const signature = createHmac("sha256", kSigning).update(stringToSign).digest("hex");
 
   const res = await fetch(`${endpoint}${path}`, {
-    method: "PUT",
+    method,
     headers: {
-      "Content-Type": contentType,
+      ...(contentType ? { "Content-Type": contentType } : {}),
       "x-amz-content-sha256": payloadHash,
       "x-amz-date": amzDate,
       Authorization: `AWS4-HMAC-SHA256 Credential=${accessKey}/${scope}, SignedHeaders=${signedHeaders}, Signature=${signature}`,
     },
-    body: new Uint8Array(body),
+    body: body ? new Uint8Array(body) : undefined,
   });
-  if (!res.ok) {
+  // DELETE of a missing key answers 204/404 — both mean "gone", which is fine
+  if (!res.ok && !(method === "DELETE" && res.status === 404)) {
     const text = await res.text().catch(() => "");
-    throw new Error(`S3 PUT failed: ${res.status} ${text.slice(0, 300)}`);
+    throw new Error(`S3 ${method} failed: ${res.status} ${text.slice(0, 300)}`);
   }
   return `${endpoint}${path}`;
+}
+
+/** Upload a buffer; returns the public object URL. */
+export async function s3Put(key: string, body: Buffer, contentType: string): Promise<string> {
+  return s3Request("PUT", key, body, contentType);
+}
+
+/** Remove an object (idempotent — a missing key is not an error). */
+export async function s3Delete(key: string): Promise<void> {
+  await s3Request("DELETE", key, null);
+}
+
+/**
+ * Extract the object key from a public URL of OUR bucket. Returns null for
+ * foreign URLs (e.g. a temporary fal link stored when S3 was unavailable).
+ */
+export function s3KeyFromUrl(url: string): string | null {
+  if (!s3Enabled()) return null;
+  const endpoint = process.env.S3_ENDPOINT!.replace(/\/$/, "");
+  const prefix = `${endpoint}/${process.env.S3_BUCKET!}/`;
+  return url.startsWith(prefix) ? url.slice(prefix.length) : null;
 }
 
 /** Download a remote image (e.g. a temporary fal URL) and persist it to S3. */

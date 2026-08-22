@@ -197,6 +197,16 @@ export function changePassword(
   });
 }
 
+/** Полное удаление учётной записи (аккаунт админа из env не трогаем). */
+export function deleteUser(emailRaw: string): Promise<void> {
+  const email = normalizeEmail(emailRaw);
+  return locked((data) => {
+    if (data.users[email]?.role !== "admin") delete data.users[email];
+    delete data.pending[email];
+    delete data.throttle[email];
+  });
+}
+
 export function listUsers(): Promise<UserRecord[]> {
   return locked(async (data) => {
     await ensureAdmin(data);

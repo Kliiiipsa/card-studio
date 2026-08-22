@@ -1,6 +1,6 @@
 "use client";
 import * as React from "react";
-import { KeyRound, Loader2, Moon, Sun, UserRound } from "lucide-react";
+import { KeyRound, Loader2, Moon, Sun, Trash2, UserRound } from "lucide-react";
 import { AppShell } from "@/components/layout/app-shell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -19,6 +19,11 @@ export default function SettingsPage() {
   const [newPassword, setNewPassword] = React.useState("");
   const [newPassword2, setNewPassword2] = React.useState("");
   const [saving, setSaving] = React.useState(false);
+
+  // удаление аккаунта: idle → код отправлен (ввод) → удаление
+  const [deleteStep, setDeleteStep] = React.useState<"idle" | "code">("idle");
+  const [deleteCode, setDeleteCode] = React.useState("");
+  const [deleteBusy, setDeleteBusy] = React.useState(false);
 
   React.useEffect(() => {
     void fetchMe();
@@ -53,6 +58,43 @@ export default function SettingsPage() {
       toast.error(err instanceof Error ? err.message : "Не удалось сменить пароль");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const requestDeletion = async () => {
+    if (deleteBusy) return;
+    setDeleteBusy(true);
+    try {
+      const res = await fetch("/api/auth/delete-account", { method: "POST" });
+      const data = (await res.json().catch(() => ({}))) as { error?: string; devCode?: string };
+      if (!res.ok) throw new Error(data.error ?? "Не удалось отправить код");
+      setDeleteStep("code");
+      if (data.devCode) setDeleteCode(data.devCode); // локальная разработка без почты
+      toast.success("Код подтверждения отправлен на вашу почту");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Не удалось отправить код");
+    } finally {
+      setDeleteBusy(false);
+    }
+  };
+
+  const confirmDeletion = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (deleteBusy) return;
+    setDeleteBusy(true);
+    try {
+      const res = await fetch("/api/auth/delete-account/confirm", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code: deleteCode.trim() }),
+      });
+      const data = (await res.json().catch(() => ({}))) as { error?: string };
+      if (!res.ok) throw new Error(data.error ?? "Не удалось удалить аккаунт");
+      toast.success("Аккаунт удалён");
+      window.location.href = "/";
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Не удалось удалить аккаунт");
+      setDeleteBusy(false);
     }
   };
 
@@ -136,6 +178,68 @@ export default function SettingsPage() {
             </form>
           </CardContent>
         </Card>
+
+        {role !== "admin" && (
+          <Card className="border-destructive/40">
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-sm text-destructive">
+                <Trash2 className="h-4 w-4" />
+                Удаление аккаунта
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <ul className="list-disc space-y-1 pl-5 text-xs text-muted-foreground">
+                <li>Все сгенерированные карточки и видео будут удалены безвозвратно.</li>
+                <li>Остаток баланса сгорает и не возвращается.</li>
+                <li>Персональные данные удаляются из базы (записи о платежах обезличиваются — этого требует налоговый учёт).</li>
+                <li>При повторной регистрации на эту почту приветственный бонус не начисляется.</li>
+              </ul>
+              {deleteStep === "idle" ? (
+                <Button type="button" variant="destructive" disabled={deleteBusy} onClick={requestDeletion}>
+                  {deleteBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                  Удалить аккаунт…
+                </Button>
+              ) : (
+                <form onSubmit={confirmDeletion} className="space-y-3">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="delcode">Код из письма</Label>
+                    <Input
+                      id="delcode"
+                      inputMode="numeric"
+                      maxLength={6}
+                      placeholder="6 цифр"
+                      value={deleteCode}
+                      onChange={(e) => setDeleteCode(e.target.value.replace(/\D/g, ""))}
+                      className="max-w-[160px]"
+                      autoComplete="one-time-code"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Мы отправили код подтверждения на {email ?? "вашу почту"}. Это последний шаг —
+                      после ввода кода аккаунт будет удалён навсегда.
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <Button type="submit" variant="destructive" disabled={deleteBusy || deleteCode.length !== 6}>
+                      {deleteBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                      Удалить навсегда
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      disabled={deleteBusy}
+                      onClick={() => {
+                        setDeleteStep("idle");
+                        setDeleteCode("");
+                      }}
+                    >
+                      Отмена
+                    </Button>
+                  </div>
+                </form>
+              )}
+            </CardContent>
+          </Card>
+        )}
       </div>
     </AppShell>
   );
