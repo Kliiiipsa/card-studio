@@ -26,6 +26,7 @@ import { ImagePreview } from "@/components/media/image-preview";
 import { useGeneratorStore, type StyleMode } from "@/store/generator-store";
 import { useCardGeneration } from "@/hooks/use-card-generation";
 import { PHOTO_SCENARIOS, PHOTO_SCENARIO_MAP, type PhotoScenarioId } from "@/core/domain/photo-scenarios";
+import { ASPECT_RATIOS, type AspectRatioId } from "@/core/domain/export-presets";
 import { INFOGRAPHICS_PREFILL_KEY } from "@/components/ai/analysis-report";
 import { uid } from "@/lib/utils";
 
@@ -51,6 +52,11 @@ function GeneratorInner() {
   }, []);
 
   const busy = s.status === "generating" || s.status === "scoring";
+  // Tailwind needs the literal class names — a computed aspect-[…] won't compile
+  const placeholderAspect =
+    { "3:4": "aspect-[3/4]", "4:5": "aspect-[4/5]", "1:1": "aspect-square", "9:16": "aspect-[9/16]" }[
+      s.aspectRatio
+    ] ?? "aspect-[3/4]";
   const selected = s.variants.find((v) => v.id === s.selectedVariantId);
   const latestScore = s.lastScore;
 
@@ -199,6 +205,24 @@ function GeneratorInner() {
                 </SelectContent>
               </Select>
             </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Размер фото</Label>
+              <Select
+                value={s.aspectRatio}
+                onValueChange={(v) => s.setField("aspectRatio", v as AspectRatioId)}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {ASPECT_RATIOS.map((r) => (
+                    <SelectItem key={r.id} value={r.id}>
+                      {r.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
           <p className="text-[11px] leading-4 text-muted-foreground">
             Этот раздел делает чистое фото без надписей. Нужна карточка с текстом и плашками —{" "}
@@ -292,7 +316,7 @@ function GeneratorInner() {
             ) : selected ? (
               <ImagePreview src={selected.url} className="mx-auto max-w-sm" />
             ) : (
-              <div className="flex aspect-[3/4] max-w-sm mx-auto items-center justify-center rounded-xl border border-dashed text-center text-sm text-muted-foreground">
+              <div className={`flex ${placeholderAspect} max-w-sm mx-auto items-center justify-center rounded-xl border border-dashed text-center text-sm text-muted-foreground`}>
                 <span className="flex flex-col items-center gap-2 px-6">
                   <ImagePlus className="h-6 w-6 opacity-60" />
                   Здесь появится фото
