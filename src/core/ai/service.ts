@@ -490,11 +490,26 @@ export type SeoTexts = { title: string; description: string; keywords: string[] 
  * description and a keyword list. Never throws — falls back to a
  * deterministic draft so a batch (turnkey) step can't die on it.
  */
+const AUDIENCE_LABEL: Record<string, string> = {
+  women: "женщины",
+  men: "мужчины",
+  kids: "дети",
+  unisex: "унисекс",
+};
+
 export async function generateSeoTexts(input: {
   productName: string;
   category?: string;
   benefits: string[];
   materials?: string[];
+  /** women | men | kids | unisex */
+  audience?: string;
+  season?: string;
+  brand?: string;
+  /** ключи, собранные самим продавцом — используются обязательно */
+  ownKeywords?: string[];
+  /** живые подсказки поиска WB (см. wb-suggest.ts), по убыванию популярности */
+  wbSuggestions?: string[];
 }): Promise<SeoTexts> {
   const fallback: SeoTexts = {
     title: input.productName,
@@ -511,24 +526,44 @@ export async function generateSeoTexts(input: {
         {
           role: "system",
           content:
-            "Ты — SEO-специалист по Wildberries. Пишешь тексты, по которым карточку находят в поиске WB. Отвечай строго JSON на русском, без markdown.",
+            "Ты — SEO-специалист по Wildberries. Пишешь тексты, по которым карточку находят в поиске WB. " +
+            "Запрещены формулировки, за которые модерация WB снимает карточку: превосходные степени без подтверждения («лучший», «№1», «самый»), " +
+            "медицинские и лечебные обещания («лечит», «избавляет от боли», «оздоравливает»), упоминание чужих брендов и торговых марок, " +
+            "обещания результата («гарантия похудения»). Отвечай строго JSON на русском, без markdown.",
         },
         {
           role: "user",
           content: `Товар: ${input.productName}
 Категория: ${input.category ?? "не указана"}
+Целевая аудитория: ${AUDIENCE_LABEL[input.audience ?? ""] ?? "не указана"}
+Сезон/повод: ${input.season || "не указан"}
+Бренд продавца: ${input.brand || "не указан — бренд в название не вставляй"}
 Преимущества: ${input.benefits.join(", ") || "не указаны"}
 Состав: ${(input.materials ?? []).join(", ") || "не указан"}
-
+${
+  input.wbSuggestions?.length
+    ? `\nРЕАЛЬНЫЕ подсказки поиска WB по этому товару, по убыванию популярности (это настоящий спрос — выбирай ключи В ПЕРВУЮ ОЧЕРЕДЬ отсюда, отбрасывая нерелевантные товару):\n${input.wbSuggestions.join("; ")}\n`
+    : ""
+}${
+  input.ownKeywords?.length
+    ? `\nКлючевые фразы продавца — включи КАЖДУЮ в keywords, а самые важные вплети в название и описание:\n${input.ownKeywords.join("; ")}\n`
+    : ""
+}
 Верни JSON: {
-"title": SEO-название карточки до 100 символов — главные поисковые ключи в начале, без спама и КАПСА,
+"title": SEO-название СТРОГО до 60 символов (жёсткий лимит WB) — начинается с самого частотного ключа${input.brand ? " или бренда" : ""}, без спама и КАПСА,
 "description": продающее описание 800–1200 знаков — естественный текст с вплетёнными ключевыми запросами, абзацами, без списков и без выдуманных характеристик,
-"keywords": массив из 12–15 реальных поисковых запросов покупателей WB, от частотных к нишевым
+"keywords": массив из 12–15 поисковых запросов, от частотных к нишевым${input.wbSuggestions?.length ? " — опирайся на реальные подсказки WB выше" : ""}
 }`,
         },
       ],
     });
-    return parse(result.text, seoTextsSchema, "SEO-тексты") as SeoTexts;
+    const seo = parse(result.text, seoTextsSchema, "SEO-тексты") as SeoTexts;
+    // Жёсткая страховка лимита WB: название длиннее 60 обрезаем по слову —
+    // красивое название на 80 символов WB оборвёт на полуслове сам.
+    if (seo.title.length > 60) {
+      seo.title = seo.title.slice(0, 60).replace(/\s+\S*$/u, "").replace(/[,;:\s]+$/u, "");
+    }
+    return seo;
   } catch {
     return fallback;
   }
