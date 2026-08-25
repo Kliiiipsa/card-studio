@@ -32,7 +32,31 @@ type HintResponse = {
   bl?: { t?: string; el?: { txt?: string; in?: string }[] }[];
 };
 
+/**
+ * Кеш подсказок в памяти процесса: одинаковые товары спрашивают одно и то же,
+ * а спрос меняется медленно. Экономит запросы к WB (меньше поводов для их
+ * WAF нас замечать) и убирает 1–4 с задержки на повторах.
+ */
+const CACHE_TTL_MS = 12 * 60 * 60 * 1000;
+const CACHE_MAX = 500;
+const cache = new Map<string, { at: number; list: string[] }>();
+
 async function fetchOne(query: string): Promise<string[]> {
+  const key = query.toLowerCase();
+  const hit = cache.get(key);
+  if (hit && Date.now() - hit.at < CACHE_TTL_MS) return hit.list;
+  const list = await fetchOneUncached(query);
+  if (list.length) {
+    if (cache.size >= CACHE_MAX) {
+      const oldest = cache.keys().next().value;
+      if (oldest !== undefined) cache.delete(oldest);
+    }
+    cache.set(key, { at: Date.now(), list });
+  }
+  return list;
+}
+
+async function fetchOneUncached(query: string): Promise<string[]> {
   try {
     const url =
       "https://search.wb.ru/suggests/api/v9/hint" +
