@@ -312,6 +312,7 @@ export default function VideoPage() {
               {presetId === CUSTOM_SCENARIO_ID && (
                 <div className="space-y-1.5">
                   <Textarea
+                    autoFocus
                     value={scenario}
                     onChange={(e) => setScenario(e.target.value)}
                     placeholder="Например: девушка медленно поворачивается, юбка слегка развевается, камера плавно приближается"
