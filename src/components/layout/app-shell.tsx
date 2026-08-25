@@ -28,7 +28,9 @@ export function AppShell({ title, children }: { title?: string; children: React.
             <a href="mailto:admin@kartogen.ru" className="hover:text-foreground">
               admin@kartogen.ru
             </a>
-            <span className="ml-auto">Самозанятый Плотников А. И., ИНН 220452891248</span>
+            {/* реквизиты самозанятого убраны из футера по решению пользователя
+                2026-08-25 — они остаются в Публичной оферте (п. 1.2 и §18),
+                доступной отсюда в один клик, этого достаточно для ЮKassa */}
           </nav>
         </footer>
       </div>

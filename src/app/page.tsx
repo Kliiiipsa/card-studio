@@ -252,8 +252,7 @@ export default async function LandingPage() {
           </a>
         </nav>
         <p className="text-xs">
-          Самозанятый Плотников А. И., ИНН 220452891248. Сервис не аффилирован с Wildberries, Ozon и
-          иными маркетплейсами.
+          Сервис не аффилирован с Wildberries, Ozon и иными маркетплейсами.
         </p>
       </footer>
     </div>
