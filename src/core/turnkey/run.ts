@@ -15,8 +15,8 @@ import { getUser } from "@/core/auth/store";
  * published into the parent gen_job's payload; every finished image is
  * persisted through the regular pipeline, so items also land in «Мои карточки».
  *
- * Billing: affordability for the WHOLE pack is checked at start (49 ⚡);
- * each SUCCESSFUL item charges TURNKEY_ITEM_PRICE (7 ⚡) with a deduped
+ * Billing: affordability for the WHOLE pack is checked at start (49 🧬);
+ * each SUCCESSFUL item charges TURNKEY_ITEM_PRICE (7 🧬) with a deduped
  * reference — a failed step simply isn't paid for.
  */
 export type TurnkeyStepKey =

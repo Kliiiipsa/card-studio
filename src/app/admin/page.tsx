@@ -4,7 +4,7 @@ import * as Dialog from "@radix-ui/react-dialog";
 import {
   Loader2,
   ShieldCheck,
-  Zap,
+  Dna,
   X,
   ListOrdered,
   Users,
@@ -131,7 +131,7 @@ const labelOf = (list: { id: string; label: string }[], id?: string) =>
 /** курс для прикидки маржи — точность здесь не нужна */
 const RUB_PER_USD = 80;
 
-/** Сколько искр берём за этот тип генерации (для расчёта маржи). */
+/** Сколько генов берём за этот тип генерации (для расчёта маржи). */
 const KIND_PRICE: Record<string, number> = {
   infographic: PRICES.infographic,
   generator: PRICES.generate,
@@ -346,7 +346,7 @@ export default function AdminPage() {
     const clawback =
       r.type === "sparks" && r.sparksGranted
         ? window.confirm(
-            `Отменить промокод ${r.code} у ${r.email}?\n\nOK — списать обратно ${r.sparksGranted} ⚡\nОтмена — просто снять действие кода, искры оставить`,
+            `Отменить промокод ${r.code} у ${r.email}?\n\nOK — списать обратно ${r.sparksGranted} 🧬\nОтмена — просто снять действие кода, гены оставить`,
           )
         : false;
     try {
@@ -358,7 +358,7 @@ export default function AdminPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Не удалось отменить");
       toast.success(
-        data.clawedBack ? `Промокод отменён, списано ${data.clawedBack} ⚡` : "Промокод отменён",
+        data.clawedBack ? `Промокод отменён, списано ${data.clawedBack} 🧬` : "Промокод отменён",
       );
       loadPromoUses();
       loadUsers();
@@ -427,7 +427,7 @@ export default function AdminPage() {
       const data = (await res.json().catch(() => ({}))) as { error?: string; balance?: number };
       if (!res.ok) throw new Error(data.error ?? "Не удалось изменить баланс");
       toast.success(
-        `${value > 0 ? "Начислено" : "Списано"} ${Math.abs(value)} ⚡ — баланс ${data.balance}`,
+        `${value > 0 ? "Начислено" : "Списано"} ${Math.abs(value)} 🧬 — баланс ${data.balance}`,
       );
       setTarget(null);
       setAmount("");
@@ -545,7 +545,7 @@ export default function AdminPage() {
                 <p className="mt-3 text-xs leading-5 text-muted-foreground">
                   Проверка выполняется при открытии вкладки и по кнопке. Пополнение fal.ai —
                   в личном кабинете fal.ai, Timeweb — в панели Timeweb Cloud. Если баланс кончится,
-                  клиенты увидят понятное сообщение и искры за неудачные попытки списаны не будут.
+                  клиенты увидят понятное сообщение и гены за неудачные попытки списаны не будут.
                 </p>
               </CardContent>
             </Card>
@@ -601,7 +601,7 @@ export default function AdminPage() {
                                 "—"
                               ) : (
                                 <span className="flex items-center gap-1 font-medium">
-                                  <Zap className="h-3.5 w-3.5 text-amber-500" />
+                                  <Dna className="h-3.5 w-3.5 text-primary" />
                                   {u.balance}
                                 </span>
                               )}
@@ -641,7 +641,7 @@ export default function AdminPage() {
                                             r.revoked && "text-muted-foreground line-through",
                                           )}
                                           title={`${new Date(r.redeemedAt).toLocaleString("ru-RU")}${
-                                            r.sparksGranted ? ` · ${r.sparksGranted} ⚡` : ""
+                                            r.sparksGranted ? ` · ${r.sparksGranted} 🧬` : ""
                                           }`}
                                         >
                                           {r.code}
@@ -668,8 +668,8 @@ export default function AdminPage() {
                             <td className="py-2 text-right">
                               {u.role !== "admin" && (
                                 <Button variant="outline" size="sm" onClick={() => setTarget(u)}>
-                                  <Zap className="h-3.5 w-3.5" />
-                                  Искры
+                                  <Dna className="h-3.5 w-3.5" />
+                                  Гены
                                 </Button>
                               )}
                             </td>
@@ -725,7 +725,7 @@ export default function AdminPage() {
                                 t.amount > 0 ? "text-emerald-600 dark:text-emerald-400" : ""
                               }`}
                             >
-                              {t.amount > 0 ? `+${t.amount}` : t.amount} ⚡
+                              {t.amount > 0 ? `+${t.amount}` : t.amount} 🧬
                             </td>
                           </tr>
                         ))}
@@ -945,7 +945,7 @@ export default function AdminPage() {
                           {openGen.error ?? "без описания"}
                         </p>
                         <p className="mt-1 text-muted-foreground">
-                          За неудачные генерации искры не списываются.
+                          За неудачные генерации гены не списываются.
                         </p>
                       </div>
                     )}
@@ -961,7 +961,7 @@ export default function AdminPage() {
                               fal списал <span className="font-medium text-foreground">{costLabel(openGen)}</span>{" "}
                               ≈ {rub.toFixed(1)} ₽
                               {sparks
-                                ? ` · клиент заплатил ${sparks} ⚡ → маржа ${(sparks - rub).toFixed(1)} ₽`
+                                ? ` · клиент заплатил ${sparks} 🧬 → маржа ${(sparks - rub).toFixed(1)} ₽`
                                 : ""}
                               {openGen.payload?.falCostExact === false
                                 ? " · знак «≈»: в это время шли другие генерации, сумма может включать их"
@@ -1017,8 +1017,8 @@ export default function AdminPage() {
           >
             <div className="flex items-start justify-between">
               <Dialog.Title className="flex items-center gap-2 text-base font-semibold">
-                <Zap className="h-5 w-5 text-amber-500" />
-                Искры: {target?.email}
+                <Dna className="h-5 w-5 text-primary" />
+                Гены: {target?.email}
               </Dialog.Title>
               <Dialog.Close asChild>
                 <Button variant="ghost" size="icon" aria-label="Закрыть" disabled={applying}>
@@ -1048,7 +1048,7 @@ export default function AdminPage() {
                 />
               </div>
               <Button variant="gradient" className="w-full" onClick={applySparks} disabled={applying}>
-                {applying ? <Loader2 className="h-4 w-4 animate-spin" /> : <Zap className="h-4 w-4" />}
+                {applying ? <Loader2 className="h-4 w-4 animate-spin" /> : <Dna className="h-4 w-4" />}
                 Применить
               </Button>
             </div>

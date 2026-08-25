@@ -7,7 +7,7 @@
  */
 export const SUPPORT_EMAIL = "admin@kartogen.ru";
 
-const NOT_CHARGED = "Искры за неудачную попытку не списаны.";
+const NOT_CHARGED = "Гены за неудачную попытку не списаны.";
 
 export const USER_ERRORS = {
   /** провайдер лежит / кончился баланс / отвечает 5xx — повторять бесполезно */

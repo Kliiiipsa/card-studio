@@ -27,7 +27,7 @@ export async function POST(req: Request) {
     const { payment, sparksTotal } = await verifyAndCredit(paymentId);
 
     // Баланс отдаём для текущего пользователя (платёж мог быть оплачен
-    // с другого аккаунта — искры в любом случае ушли на email из платежа).
+    // с другого аккаунта — гены в любом случае ушли на email из платежа).
     const balance = await getBalance(session.email);
     return ok({
       status: payment.status,

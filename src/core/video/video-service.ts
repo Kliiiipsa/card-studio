@@ -164,7 +164,7 @@ export async function submitVideoJob(args: {
   return { provider: "fal-video", statusUrl, responseUrl };
 }
 
-/** Один опрос очереди. Модерация/сбой модели → failed (без списания искр). */
+/** Один опрос очереди. Модерация/сбой модели → failed (без списания генов). */
 export async function pollVideoJob(handle: VideoJobHandle): Promise<VideoJobStatus> {
   if (handle.provider === "mock-video" || isMock()) {
     // имитируем ~10 с генерации по метке времени в responseUrl

@@ -13,7 +13,7 @@ import {
   Sparkles,
   ArrowRight,
   Gem,
-  Zap,
+  Dna,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -143,8 +143,8 @@ export default async function LandingPage() {
         </div>
         {!authed && (
           <p className="mt-3 flex items-center gap-1.5 text-sm text-muted-foreground">
-            <Zap className="h-4 w-4 text-amber-500" />
-            20 искр в подарок при регистрации — хватит на первые карточки
+            <Dna className="h-4 w-4 text-primary" />
+            20 генов в подарок при регистрации — хватит на первые карточки
           </p>
         )}
 
@@ -220,7 +220,7 @@ export default async function LandingPage() {
             Готовы делать карточки, которые продают?
           </h2>
           <p className="mx-auto mt-3 max-w-xl text-white/85">
-            Регистрация за минуту, 20 искр в подарок. Тексты, идеи и анализ фото — бесплатно,
+            Регистрация за минуту, 20 генов в подарок. Тексты, идеи и анализ фото — бесплатно,
             платите только за готовые изображения.
           </p>
           <Button asChild size="lg" variant="secondary" className="mt-8">

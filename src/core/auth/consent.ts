@@ -6,7 +6,7 @@ import { getPool } from "./store-pg";
  * documents in content/legal at the moment of acceptance. If a dispute ever
  * asks "did this user agree, and to which text?" — this table answers.
  */
-export const LEGAL_VERSION = "2026-08-22";
+export const LEGAL_VERSION = "2026-08-25";
 
 let ready: Promise<void> | null = null;
 function ensure(): Promise<void> {

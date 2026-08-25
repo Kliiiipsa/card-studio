@@ -1,7 +1,7 @@
 "use client";
 import * as React from "react";
 import * as Dialog from "@radix-ui/react-dialog";
-import { Zap, Loader2, CreditCard, X, Gift, ShoppingCart, ShieldCheck, Ticket } from "lucide-react";
+import { Dna, Loader2, CreditCard, X, Gift, ShoppingCart, ShieldCheck, Ticket } from "lucide-react";
 import { AppShell } from "@/components/layout/app-shell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -17,6 +17,8 @@ import {
   ACTION_LABELS,
   CUSTOM_TOPUP,
   customTopup,
+  gens,
+  genWord,
   type TopupPackage,
 } from "@/core/billing/prices";
 import type { SparkTransaction } from "@/core/billing/billing";
@@ -128,7 +130,11 @@ export default function BillingPage() {
           sessionStorage.removeItem("yk_payment");
           if (typeof data.balance === "number") useProfileStore.getState().setBalance(data.balance);
           reachGoal(GOALS.topupSuccess, { sparks: data.sparks });
-          toast.success(`Оплата прошла — зачислено ${data.sparks ?? ""} искр`.replace("  ", " "));
+          toast.success(
+            typeof data.sparks === "number"
+              ? `Оплата прошла — зачислено ${gens(data.sparks)}`
+              : "Оплата прошла — гены зачислены",
+          );
           loadHistory();
           return;
         }
@@ -178,7 +184,7 @@ export default function BillingPage() {
         return; // не снимаем спиннер — идёт переход
       }
       if (typeof data.balance === "number") useProfileStore.getState().setBalance(data.balance);
-      toast.success(`Зачислено ${buying.sparks + buying.bonus} искр`);
+      toast.success(`Зачислено ${gens(buying.sparks + buying.bonus)}`);
       setBuying(null);
       loadHistory();
     } catch (e) {
@@ -194,18 +200,20 @@ export default function BillingPage() {
         {/* Balance */}
         <Card>
           <CardContent className="flex flex-wrap items-center gap-4 p-5">
-            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-500/10">
-              <Zap className="h-7 w-7 text-amber-500" />
+            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10">
+              <Dna className="h-7 w-7 text-primary" />
             </div>
             <div className="min-w-0">
               <p className="text-sm text-muted-foreground">Ваш баланс</p>
               <p className="text-2xl font-bold">
                 {role === "admin" ? "∞" : (balance ?? "…")}{" "}
-                <span className="text-base font-medium text-muted-foreground">искр</span>
+                <span className="text-base font-medium text-muted-foreground">
+                  {typeof balance === "number" && role !== "admin" ? genWord(balance) : "генов"}
+                </span>
               </p>
             </div>
             <p className="ml-auto max-w-xs text-xs text-muted-foreground">
-              1 искра = 1 ₽. Искры списываются только за успешный результат — за ошибки сервиса вы
+              1 ген = 1 ₽. Гены списываются только за успешный результат — за ошибки сервиса вы
               не платите.
             </p>
           </CardContent>
@@ -224,7 +232,7 @@ export default function BillingPage() {
                 )}
                 <CardContent className="flex flex-col items-start gap-3 p-5">
                   <p className="flex items-center gap-1.5 text-2xl font-bold">
-                    <Zap className="h-5 w-5 text-amber-500" />
+                    <Dna className="h-5 w-5 text-primary" />
                     {p.sparks}
                   </p>
                   <p className="text-sm text-muted-foreground">{p.priceRub} ₽</p>
@@ -244,7 +252,7 @@ export default function BillingPage() {
             <Card className="relative overflow-hidden">
               <CardContent className="flex flex-col items-start gap-3 p-5">
                 <p className="flex items-center gap-1.5 text-2xl font-bold">
-                  <Zap className="h-5 w-5 text-amber-500" />
+                  <Dna className="h-5 w-5 text-primary" />
                   {customPack ? customPack.sparks : "Своя"}
                 </p>
                 <div className="flex w-full items-center gap-2">
@@ -277,7 +285,7 @@ export default function BillingPage() {
           </div>
           <p className="mt-2 text-xs text-muted-foreground">
             Своя сумма — от {CUSTOM_TOPUP.minRub} до {CUSTOM_TOPUP.maxRub.toLocaleString("ru-RU")} ₽,
-            1 ₽ = 1 искра, без бонуса.
+            1 ₽ = 1 ген, без бонуса.
           </p>
 
           {/* Промокод */}
@@ -307,7 +315,7 @@ export default function BillingPage() {
               <p className="mt-2.5 flex items-start gap-1.5 text-xs leading-5 text-emerald-600 dark:text-emerald-400">
                 <Gift className="mt-0.5 h-3.5 w-3.5 shrink-0" />
                 Промокод {perks.pendingBonusCode} активен: при следующем пополнении вы получите
-                на {perks.pendingBonusPercent}% больше искр.
+                на {perks.pendingBonusPercent}% больше генов.
               </p>
             ) : null}
             {perks?.priceListCode ? (
@@ -321,7 +329,7 @@ export default function BillingPage() {
                 отдельных партнёров, а не публичная опция */}
             {!perks?.pendingBonusPercent && !perks?.priceListCode && (
               <p className="mt-2.5 text-xs text-muted-foreground">
-                Промокод даёт искры в подарок или бонус к пополнению.
+                Промокод даёт гены в подарок или бонус к пополнению.
                 Один промокод применяется один раз.
               </p>
             )}
@@ -350,7 +358,7 @@ export default function BillingPage() {
                     <div key={a} className="flex items-center justify-between rounded-lg border px-3 py-2">
                       <span className="text-muted-foreground">{ACTION_LABELS[a]}</span>
                       <span className="flex items-center gap-1 font-semibold">
-                        <Zap className="h-3.5 w-3.5 text-amber-500" />
+                        <Dna className="h-3.5 w-3.5 text-primary" />
                         {hasSpecial ? (
                           <>
                             <span className="text-xs font-normal text-muted-foreground line-through">
@@ -400,7 +408,7 @@ export default function BillingPage() {
                     </div>
                     <div className="shrink-0 text-right">
                       <p className={t.amount > 0 ? "font-semibold text-emerald-600 dark:text-emerald-400" : "font-semibold text-foreground"}>
-                        {t.amount > 0 ? `+${t.amount}` : t.amount} ⚡
+                        {t.amount > 0 ? `+${t.amount}` : t.amount} 🧬
                       </p>
                       <p className="text-[11px] text-muted-foreground">
                         {new Date(t.createdAt).toLocaleString("ru-RU")}
@@ -439,7 +447,7 @@ export default function BillingPage() {
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Пакет</span>
                     <span className="font-medium">
-                      {buying.sparks} искр{buying.bonus ? ` + ${buying.bonus} бонус` : ""}
+                      {gens(buying.sparks)}{buying.bonus ? ` + ${buying.bonus} бонусом` : ""}
                     </span>
                   </div>
                   <div className="mt-1.5 flex justify-between">
@@ -451,7 +459,7 @@ export default function BillingPage() {
                   <p className="font-medium text-foreground">Безопасная оплата через ЮKassa</p>
                   <p className="mt-1">
                     После нажатия вы перейдёте на защищённую страницу ЮKassa — банковская карта,
-                    СБП и другие способы. Искры зачислятся автоматически сразу после оплаты.
+                    СБП и другие способы. Гены зачислятся автоматически сразу после оплаты.
                     Вопросы —{" "}
                     <a href="mailto:admin@kartogen.ru" className="text-primary hover:underline">
                       admin@kartogen.ru

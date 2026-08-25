@@ -8,7 +8,7 @@ import { randomUUID } from "node:crypto";
  * Схема оплаты (одностадийная, capture: true):
  *  1. POST /v3/payments → { id, confirmation.confirmation_url } — редиректим
  *     пользователя на страницу оплаты ЮKassa.
- *  2. Зачисление искр — в двух местах, оба идемпотентны через
+ *  2. Зачисление генов — в двух местах, оба идемпотентны через
  *     applyTx(reference = "yk-<paymentId>"):
  *       а) вебхук payment.succeeded (/api/billing/yookassa/webhook);
  *       б) проверка при возврате пользователя на /billing (status endpoint).

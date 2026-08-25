@@ -308,7 +308,7 @@ function GeneratorInner() {
               className="w-full"
             >
               {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />}
-              Сгенерировать фото · 7 ⚡
+              Сгенерировать фото · 7 🧬
             </Button>
 
             {busy ? (
@@ -348,7 +348,7 @@ function GeneratorInner() {
                 />
                 <Button variant="outline" className="w-full" onClick={toInfographic}>
                   <LayoutGrid className="h-4 w-4" />
-                  Сделать инфографику из этого фото · 10 ⚡
+                  Сделать инфографику из этого фото · 10 🧬
                 </Button>
                 {latestScore && (
                   <p className="text-center text-xs text-muted-foreground">
@@ -370,7 +370,7 @@ function GeneratorInner() {
           className="w-full"
         >
           {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />}
-          Сгенерировать фото · 7 ⚡
+          Сгенерировать фото · 7 🧬
         </Button>
       </div>
     </div>

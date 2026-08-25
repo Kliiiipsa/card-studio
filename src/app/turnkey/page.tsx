@@ -1,7 +1,7 @@
 "use client";
 import * as React from "react";
 import Link from "next/link";
-import { CheckCircle2, Circle, Download, Loader2, Package, XCircle, Zap } from "lucide-react";
+import { CheckCircle2, Circle, Download, Loader2, Package, XCircle, Dna } from "lucide-react";
 import { AppShell } from "@/components/layout/app-shell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -191,9 +191,9 @@ export default function TurnkeyPage() {
               {starting || (!!jobId && !finished) ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
-                <Zap className="h-4 w-4" />
+                <Dna className="h-4 w-4" />
               )}
-              Собрать комплект · {PRICES.turnkey} ⚡ (7 изображений + SEO)
+              Собрать комплект · {PRICES.turnkey} 🧬 (7 изображений + SEO)
             </Button>
           </CardContent>
         </Card>

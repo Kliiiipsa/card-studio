@@ -30,7 +30,7 @@ export function toErrorResponse(err: unknown): { status: number; body: { error: 
   return {
     status: 500,
     // текст из общего каталога: клиент не должен видеть «что-то пошло не так»
-    // без объяснения, целы ли его искры и нужно ли повторять
+    // без объяснения, целы ли его гены и нужно ли повторять
     body: { error: USER_ERRORS.unexpected },
   };
 }

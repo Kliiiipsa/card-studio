@@ -1,17 +1,18 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Gem, Zap } from "lucide-react";
+import { Gem, Dna } from "lucide-react";
 import {
   PRICES,
   TOPUP_PACKAGES,
   WELCOME_SPARKS,
   ACTION_LABELS,
   CUSTOM_TOPUP,
+  gens,
 } from "@/core/billing/prices";
 
 export const metadata: Metadata = {
   title: "Тарифы — Kartogen",
-  description: "Стоимость услуг сервиса Kartogen: пакеты искр и цены на генерации.",
+  description: "Стоимость услуг сервиса Kartogen: пакеты генов и цены на генерации.",
 };
 
 /**
@@ -64,24 +65,24 @@ export default function PricingPage() {
             Тарифы
           </h1>
           <p className="text-[15px] leading-7 text-muted-foreground">
-            Расчёты в сервисе ведутся в искрах: <strong className="text-foreground">1 искра = 1 ₽</strong>.
-            Вы пополняете баланс пакетом, а затем оплачиваете искрами отдельные операции. Подписок и
-            автоматических списаний нет. Искры не сгорают. Списание происходит только за успешно
-            выполненную операцию — за ошибки сервиса или отклонение модерацией искры не списываются.
+            Расчёты в сервисе ведутся в генах: <strong className="text-foreground">1 ген = 1 ₽</strong>.
+            Вы пополняете баланс пакетом, а затем оплачиваете генами отдельные операции. Подписок и
+            автоматических списаний нет. Гены не сгорают. Списание происходит только за успешно
+            выполненную операцию — за ошибки сервиса или отклонение модерацией гены не списываются.
           </p>
         </section>
 
         <section className="space-y-4">
-          <h2 className="text-lg font-semibold">Пакеты искр</h2>
+          <h2 className="text-lg font-semibold">Пакеты генов</h2>
           <div className="grid gap-3 sm:grid-cols-3">
             {TOPUP_PACKAGES.map((p) => (
               <div key={p.id} className="rounded-xl border bg-card p-5">
                 <div className="flex items-center gap-1.5 text-2xl font-bold">
-                  <Zap className="h-5 w-5 text-amber-500" />
+                  <Dna className="h-5 w-5 text-primary" />
                   {p.sparks + p.bonus}
                 </div>
                 <div className="mt-1 text-sm text-muted-foreground">
-                  {p.sparks} искр{p.bonus > 0 ? ` + ${p.bonus} бонусом` : ""}
+                  {gens(p.sparks)}{p.bonus > 0 ? ` + ${p.bonus} бонусом` : ""}
                 </div>
                 <div className="mt-3 text-lg font-semibold">{p.priceRub} ₽</div>
               </div>
@@ -89,11 +90,11 @@ export default function PricingPage() {
           </div>
           <p className="text-sm text-muted-foreground">
             Также можно пополнить баланс на произвольную сумму от {CUSTOM_TOPUP.minRub} до{" "}
-            {CUSTOM_TOPUP.maxRub.toLocaleString("ru-RU")} ₽ по курсу 1 ₽ = 1 искра (без бонуса).
+            {CUSTOM_TOPUP.maxRub.toLocaleString("ru-RU")} ₽ по курсу 1 ₽ = 1 ген (без бонуса).
           </p>
           <p className="text-sm text-muted-foreground">
-            Новым пользователям при регистрации начисляется {WELCOME_SPARKS} приветственных искр.
-            Бонусные искры используются на тех же условиях, что и купленные, но не подлежат возврату
+            Новым пользователям при регистрации начисляется {WELCOME_SPARKS} приветственных генов.
+            Бонусные гены используются на тех же условиях, что и купленные, но не подлежат возврату
             деньгами.
           </p>
         </section>
@@ -115,7 +116,7 @@ export default function PricingPage() {
                     <td className="whitespace-nowrap px-4 py-3 font-medium">{ACTION_LABELS[row.key]}</td>
                     <td className="px-4 py-3 text-muted-foreground">{row.what}</td>
                     <td className="whitespace-nowrap px-4 py-3 text-right font-semibold [font-variant-numeric:tabular-nums]">
-                      {PRICES[row.key]} ⚡ = {PRICES[row.key]} ₽
+                      {PRICES[row.key]} 🧬 = {PRICES[row.key]} ₽
                     </td>
                   </tr>
                 ))}
@@ -131,7 +132,7 @@ export default function PricingPage() {
         <section className="space-y-3">
           <h2 className="text-lg font-semibold">Бесплатно</h2>
           <p className="text-sm text-muted-foreground">
-            Все текстовые помощники сервиса не расходуют искры:
+            Все текстовые помощники сервиса не расходуют гены:
           </p>
           <ul className="grid gap-1.5 text-sm sm:grid-cols-2">
             {FREE.map((k) => (
@@ -146,7 +147,7 @@ export default function PricingPage() {
         <section className="space-y-2 rounded-xl border bg-muted/30 p-5 text-sm text-muted-foreground">
           <p>
             Оплата — банковской картой или через СБП с выдачей электронного чека. Неизрасходованные
-            купленные искры можно вернуть по заявлению на{" "}
+            купленные гены можно вернуть по заявлению на{" "}
             <a href="mailto:admin@kartogen.ru" className="text-primary hover:underline">
               admin@kartogen.ru
             </a>{" "}
@@ -157,7 +158,7 @@ export default function PricingPage() {
             .
           </p>
           <p>
-            Исполнитель вправе изменять тарифы; изменения не затрагивают уже зачисленные искры.
+            Исполнитель вправе изменять тарифы; изменения не затрагивают уже зачисленные гены.
             Актуальная редакция тарифов всегда доступна на этой странице.
           </p>
         </section>

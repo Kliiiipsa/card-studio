@@ -253,7 +253,7 @@ async function checkGenerations(): Promise<HealthCheck> {
       hint: stuck
         ? `${stuck} задач зависли дольше 15 минут — проверьте журнал`
         : recent.length
-          ? `доля неудач ${pct.toFixed(0)}% (за неудачные искры не списываются)`
+          ? `доля неудач ${pct.toFixed(0)}% (за неудачные гены не списываются)`
           : "за сутки генераций не было",
     };
   } catch (e) {

@@ -1,11 +1,11 @@
 import { Pool } from "pg";
 import { applyTx, getBalance } from "./billing";
-import { PRICES, type SparkAction } from "./prices";
+import { PRICES, gens, type SparkAction } from "./prices";
 
 /**
  * Промокоды. Три разные механики под одним словом:
  *
- *  1. `sparks` — разовый подарок: ввёл код → искры на балансе сразу.
+ *  1. `sparks` — разовый подарок: ввёл код → гены на балансе сразу.
  *  2. `topup_bonus` — сам по себе ничего не даёт, «висит» на аккаунте и
  *     срабатывает при СЛЕДУЮЩЕЙ оплате: +N % сверх пакета. Сгорает после
  *     первого успешного пополнения.
@@ -264,7 +264,7 @@ export async function listRedemptions(opts: {
 }
 
 /**
- * Отменить применение кода. Действие кода снимается сразу; подаренные искры
+ * Отменить применение кода. Действие кода снимается сразу; подаренные гены
  * забираем обратно только если владелец попросил (clawback) и они ещё на месте.
  */
 export async function revokeRedemption(
@@ -358,7 +358,7 @@ export async function redeemPromo(args: {
     );
     if (mine.rows[0]) throw new PromoError("Вы уже применяли этот промокод.");
 
-    // защита от ферм: код на искры не даём аккаунту, который ещё не платил
+    // защита от ферм: код на гены не даём аккаунту, который ещё не платил
     if (c.requireTopup) {
       const paid = await client.query(
         `select 1 from billing_tx where email = $1 and type = 'topup' limit 1`,
@@ -404,11 +404,11 @@ export async function redeemPromo(args: {
 
     if (c.type === "sparks") {
       granted = { sparks: c.sparks ?? 0, code };
-      result = { type: c.type, message: `Начислено ${c.sparks} искр по промокоду ${code}.` };
+      result = { type: c.type, message: `Начислено ${gens(c.sparks ?? 0)} по промокоду ${code}.` };
     } else if (c.type === "topup_bonus") {
       result = {
         type: c.type,
-        message: `Промокод принят: при следующем пополнении получите +${c.bonusPercent}% искр.`,
+        message: `Промокод принят: при следующем пополнении получите +${c.bonusPercent}% генов.`,
       };
     } else {
       result = {
@@ -493,7 +493,7 @@ export async function effectivePrice(
   return { price: base, viaPromo: null };
 }
 
-/** Списать одну генерацию из лимита спец-прайса (после успешного списания искр). */
+/** Списать одну генерацию из лимита спец-прайса (после успешного списания генов). */
 export async function consumePriceListUse(email: string, code: string): Promise<void> {
   if (!promoEnabled()) return;
   try {
@@ -553,7 +553,7 @@ export async function releaseTopupBonus(email: string, code: string): Promise<vo
   }
 }
 
-/** Сводка по коду для админки: сколько применено и сколько искр роздано. */
+/** Сводка по коду для админки: сколько применено и сколько генов роздано. */
 export async function codeStats(code: string): Promise<{ redeemed: number; sparks: number }> {
   await ensureSchema();
   const { rows } = await getPool().query<{ redeemed: string; sparks: string | null }>(

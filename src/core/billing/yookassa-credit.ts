@@ -2,7 +2,7 @@ import { applyTx } from "@/core/billing/billing";
 import { getPayment, type YooPayment } from "@/core/billing/yookassa";
 
 /**
- * Проверить платёж у ЮKassa и зачислить искры. Идемпотентно: reference
+ * Проверить платёж у ЮKassa и зачислить гены. Идемпотентно: reference
  * "yk-<paymentId>" уникален в billing_tx, поэтому вебхук и проверка при
  * возврате могут сработать оба — зачисление произойдёт ровно один раз.
  */

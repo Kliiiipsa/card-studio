@@ -61,7 +61,7 @@ export async function POST(req: Request) {
     const body = await parseBody(req, createSchema);
 
     if (body.type === "sparks" && !body.sparks) {
-      throw new AppError("Укажите, сколько искр начислять.");
+      throw new AppError("Укажите, сколько генов начислять.");
     }
     if (body.type === "topup_bonus" && !body.bonusPercent) {
       throw new AppError("Укажите процент бонуса к пополнению.");

@@ -8,7 +8,7 @@ import { wasDeleted } from "@/core/auth/deletion";
  *
  * Удалённый и заново созданный аккаунт бонус не получает: схема
  * «зарегистрировался → потратил бонус → удалился → зарегистрировался» не
- * должна давать бесплатные искры по кругу.
+ * должна давать бесплатные гены по кругу.
  */
 export async function grantWelcomeBonus(email: string): Promise<number | null> {
   if (!billingEnabled()) return null;

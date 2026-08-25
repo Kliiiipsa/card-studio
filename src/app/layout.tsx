@@ -11,7 +11,7 @@ const SITE_URL = process.env.SITE_URL || "https://kliiiipsa-card-studio-30da.twc
 // которым нас ищут селлеры. В интерфейсе везде — нейтральное «маркетплейсы».
 const TITLE = "Kartogen — AI-карточки и инфографика для маркетплейсов (Wildberries, Ozon)";
 const DESCRIPTION =
-  "Фото товара, готовая инфографика с русским текстом, видео и анализ карточек — за минуты. 20 искр в подарок при регистрации.";
+  "Фото товара, готовая инфографика с русским текстом, видео и анализ карточек — за минуты. 20 генов в подарок при регистрации.";
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),

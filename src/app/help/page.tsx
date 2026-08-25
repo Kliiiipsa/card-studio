@@ -6,7 +6,7 @@ import {
   Wand2,
   ScanSearch,
   FileText,
-  Zap,
+  Dna,
   Images,
   Sparkles,
   ArrowRight,
@@ -52,7 +52,7 @@ const SCENARIOS: Scenario[] = [
     lead: "Загружаете фото товара — получаете готовую карточку для маркетплейса: крупный заголовок, плашки с преимуществами, товар в сцене. Русский текст рисует сама модель, поэтому он часть картинки, а не наклейка.",
     href: "/infographics",
     cta: "Открыть «Инфографику»",
-    price: `${PRICES.infographic} ⚡ за карточку`,
+    price: `${PRICES.infographic} 🧬 за карточку`,
     screenshot: { src: "/help/infographics.jpg", alt: "Раздел «Инфографика»: фото и данные слева, настройки и стили в центре, результат справа" },
     steps: [
       { title: "Загрузите фото товара", text: "Лучше всего — чёткое фото на нейтральном фоне. Нажмите «Заполнить по фото» — ИИ распознает товар и предложит название и преимущества (это бесплатно)." },
@@ -67,7 +67,7 @@ const SCENARIOS: Scenario[] = [
       { src: "/examples/suitcase.jpg", alt: "Пример: чемодан, стиль «Солнечный промо»" },
       { src: "/examples/humidifier.jpg", alt: "Пример: увлажнитель, стиль «Бирюзовый фреш»" },
     ],
-    tip: "Списание — только за успешную генерацию. Если модерация отклонила фото или сервис ошибся, искры не списываются.",
+    tip: "Списание — только за успешную генерацию. Если модерация отклонила фото или сервис ошибся, гены не списываются.",
   },
   {
     id: "reference",
@@ -77,7 +77,7 @@ const SCENARIOS: Scenario[] = [
     lead: "Увидели удачную карточку — сохраните её и загрузите как референс. Студия возьмёт стиль (палитру, типографику, композицию, настроение), но товар останется вашим, а тексты — вашими. Похоже, но не копия.",
     href: "/infographics",
     cta: "Попробовать со своим референсом",
-    price: `${PRICES.infographic} ⚡ за карточку, извлечение стиля — бесплатно`,
+    price: `${PRICES.infographic} 🧬 за карточку, извлечение стиля — бесплатно`,
     screenshot: { src: "/help/infographics.jpg", alt: "Вкладка «Свой референс» в разделе «Инфографика»" },
     steps: [
       { title: "Загрузите фото своего товара", text: "Обязательный шаг для точного переноса: тогда модель понимает, что менять (стиль), а что сохранить (ваш товар)." },
@@ -99,7 +99,7 @@ const SCENARIOS: Scenario[] = [
     lead: "Новый фон, свет и подача для вашего снимка — или фото по описанию, если снимка нет. Здесь текст не рисуется намеренно: чистое фото потом можно превратить в карточку в «Инфографике» одной кнопкой.",
     href: "/generator",
     cta: "Открыть «Фото товара»",
-    price: `${PRICES.generate} ⚡ за фото`,
+    price: `${PRICES.generate} 🧬 за фото`,
     screenshot: { src: "/help/generator.jpg", alt: "Раздел «Фото товара»: данные, промпт и результат" },
     steps: [
       { title: "Загрузите снимок (или опишите товар)", text: "Со снимком модель бережно сохранит товар и заменит окружение. Без снимка — нарисует по описанию." },
@@ -116,7 +116,7 @@ const SCENARIOS: Scenario[] = [
     lead: "Загрузите текущую карточку — получите оценку по критериям, слабые места и конкретные рекомендации. А из отчёта одним нажатием можно собрать улучшенную инфографику.",
     href: "/analysis",
     cta: "Открыть «Анализ и улучшение»",
-    price: `${PRICES.analyze} ⚡ за анализ`,
+    price: `${PRICES.analyze} 🧬 за анализ`,
     screenshot: { src: "/help/analysis.jpg", alt: "Раздел «Анализ и улучшение»" },
     steps: [
       { title: "Загрузите карточку и укажите товар", text: "Скриншот с маркетплейса или файл карточки." },
@@ -132,7 +132,7 @@ const SCENARIOS: Scenario[] = [
     lead: "Название с главными ключами в начале, продающее описание на 800–1200 знаков и 12–15 реальных поисковых запросов покупателей — с кнопками «Копировать».",
     href: "/seo",
     cta: "Открыть «SEO-тексты»",
-    price: `${PRICES.seo} ⚡ за комплект`,
+    price: `${PRICES.seo} 🧬 за комплект`,
     screenshot: { src: "/help/seo.jpg", alt: "Раздел «SEO-тексты»" },
     steps: [
       { title: "Заполните название, категорию, преимущества", text: "Чем конкретнее данные (состав, размеры, назначение), тем точнее ключи." },
@@ -161,7 +161,7 @@ const FAQ: { q: string; a: string }[] = [
   },
   {
     q: "Генерация не удалась — я заплатил?",
-    a: "Нет. Искры списываются только за успешно созданное изображение или текст. За ошибки сервиса, провайдера или отклонение модерацией — не списываются. Если списание всё же произошло ошибочно, напишите на admin@kartogen.ru — вернём.",
+    a: "Нет. Гены списываются только за успешно созданное изображение или текст. За ошибки сервиса, провайдера или отклонение модерацией — не списываются. Если списание всё же произошло ошибочно, напишите на admin@kartogen.ru — вернём.",
   },
   {
     q: "Почему модерация отклонила моё фото?",
@@ -176,8 +176,8 @@ const FAQ: { q: string; a: string }[] = [
     a: "Так и должно быть: у студии пул композиций, и каждая следующая попытка берёт другую — чтобы вы могли выбрать лучшую, а не получать одно и то же. Стиль при этом сохраняется.",
   },
   {
-    q: "Что такое искры и как пополнить?",
-    a: `1 искра = 1 ₽. При регистрации начисляется ${WELCOME_SPARKS} искр. Пополнение — пакетами (${TOPUP_PACKAGES.map((p) => p.sparks + (p.bonus ? `+${p.bonus}` : "")).join(", ")}) или на произвольную сумму от ${CUSTOM_TOPUP.minRub} ₽ в разделе «Баланс». Искры не сгорают.`,
+    q: "Что такое гены и как пополнить?",
+    a: `1 ген = 1 ₽. При регистрации начисляется ${WELCOME_SPARKS} генов. Пополнение — пакетами (${TOPUP_PACKAGES.map((p) => p.sparks + (p.bonus ? `+${p.bonus}` : "")).join(", ")}) или на произвольную сумму от ${CUSTOM_TOPUP.minRub} ₽ в разделе «Баланс». Гены не сгорают.`,
   },
   {
     q: "Кому принадлежат сгенерированные изображения?",
@@ -220,7 +220,7 @@ export default function HelpPage() {
               ))}
               <li>
                 <a href="#sparks" className="flex items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-accent">
-                  <Zap className="h-4 w-4 text-amber-500" /> Искры и цены
+                  <Dna className="h-4 w-4 text-primary" /> Гены и цены
                 </a>
               </li>
               <li>
@@ -282,7 +282,7 @@ export default function HelpPage() {
                     {s.cta} <ArrowRight className="h-4 w-4" />
                   </Link>
                   <span className="inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs text-muted-foreground">
-                    <Zap className="h-3.5 w-3.5 text-amber-500" /> {s.price}
+                    <Dna className="h-3.5 w-3.5 text-primary" /> {s.price}
                   </span>
                 </div>
               </div>
@@ -332,22 +332,22 @@ export default function HelpPage() {
         <section id="sparks" className="scroll-mt-20 space-y-5">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-500/10 text-amber-500">
-              <Zap className="h-5 w-5" />
+              <Dna className="h-5 w-5" />
             </div>
-            <h2 className="text-xl font-bold tracking-tight">Искры и цены</h2>
+            <h2 className="text-xl font-bold tracking-tight">Гены и цены</h2>
           </div>
           <div className="grid gap-4 lg:grid-cols-[1fr_1fr]">
             <div className="rounded-2xl border bg-card p-5 text-sm leading-6">
               <p>
-                <strong>1 искра = 1 ₽.</strong> При регистрации — {WELCOME_SPARKS} искр в подарок.
-                Пополняете баланс пакетом или своей суммой, платите искрами за готовые изображения и SEO.
-                Подписок нет, искры не сгорают.
+                <strong>1 ген = 1 ₽.</strong> При регистрации — {WELCOME_SPARKS} генов в подарок.
+                Пополняете баланс пакетом или своей суммой, платите генами за готовые изображения и SEO.
+                Подписок нет, гены не сгорают.
               </p>
               <ul className="mt-3 space-y-1.5">
-                <li className="flex justify-between"><span>Инфографика</span><strong>{PRICES.infographic} ⚡</strong></li>
-                <li className="flex justify-between"><span>Фото товара</span><strong>{PRICES.generate} ⚡</strong></li>
-                <li className="flex justify-between"><span>Анализ карточки</span><strong>{PRICES.analyze} ⚡</strong></li>
-                <li className="flex justify-between"><span>SEO-тексты</span><strong>{PRICES.seo} ⚡</strong></li>
+                <li className="flex justify-between"><span>Инфографика</span><strong>{PRICES.infographic} 🧬</strong></li>
+                <li className="flex justify-between"><span>Фото товара</span><strong>{PRICES.generate} 🧬</strong></li>
+                <li className="flex justify-between"><span>Анализ карточки</span><strong>{PRICES.analyze} 🧬</strong></li>
+                <li className="flex justify-between"><span>SEO-тексты</span><strong>{PRICES.seo} 🧬</strong></li>
               </ul>
               <p className="mt-3 text-muted-foreground">
                 Списание — только за успешный результат. Полный прайс —{" "}

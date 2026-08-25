@@ -3,7 +3,7 @@ import { parseBody, ok, fail } from "@/lib/api";
 import { AppError } from "@/lib/errors";
 import { sessionFromRequest } from "@/core/auth/session";
 import { billingEnabled, applyTx } from "@/core/billing/billing";
-import { TOPUP_PACKAGES, CUSTOM_TOPUP, customTopup } from "@/core/billing/prices";
+import { TOPUP_PACKAGES, CUSTOM_TOPUP, customTopup, gens } from "@/core/billing/prices";
 import { yookassaConfigured, createPayment } from "@/core/billing/yookassa";
 import { consumeTopupBonus, releaseTopupBonus } from "@/core/billing/promo";
 import { uid } from "@/lib/utils";
@@ -19,7 +19,7 @@ const schema = z.object({
 /**
  * Top-up entry point.
  *  - ЮKassa настроена (YOOKASSA_SHOP_ID + YOOKASSA_SECRET_KEY): создаёт платёж
- *    и возвращает confirmationUrl — клиент уходит на страницу оплаты. Искры
+ *    и возвращает confirmationUrl — клиент уходит на страницу оплаты. Гены
  *    зачисляет вебхук или проверка при возврате (см. yookassa-credit.ts).
  *  - Иначе, BILLING_DEMO_TOPUP=true (локальная разработка): мгновенное
  *    демо-зачисление без денег.
@@ -56,7 +56,7 @@ export async function POST(req: Request) {
       try {
         const { id, confirmationUrl } = await createPayment({
           amountRub: pack.priceRub,
-          description: `Kartogen: ${pack.sparks} искр${bonus ? ` + ${bonus} бонус` : ""}`,
+          description: `Kartogen: ${gens(pack.sparks)}${bonus ? ` + ${bonus} бонусом` : ""}`,
           // paymentId кладёт в sessionStorage клиент перед редиректом —
           // на возврате страница /billing сама проверит и зачислит платёж
           returnUrl: `${origin}/billing`,

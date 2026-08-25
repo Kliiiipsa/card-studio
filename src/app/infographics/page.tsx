@@ -449,7 +449,7 @@ export default function InfographicsPage() {
                   ) : (
                     <Wand2 className="h-4 w-4" />
                   )}
-                  Сгенерировать изображение · 10 ⚡
+                  Сгенерировать изображение · 10 🧬
                 </Button>
               </>
             ) : (

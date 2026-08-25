@@ -2,7 +2,8 @@
 import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { LogOut, Settings, ShieldCheck, Wallet, Zap } from "lucide-react";
+import { LogOut, Settings, ShieldCheck, Wallet, Dna } from "lucide-react";
+import { genWord } from "@/core/billing/prices";
 import { Button } from "@/components/ui/button";
 import { useProfileStore } from "@/store/profile-store";
 import { cn } from "@/lib/utils";
@@ -42,9 +43,9 @@ export function ProfileMenu() {
         <Link
           href="/billing"
           className="hidden items-center gap-1 rounded-full border bg-card/60 px-2.5 py-1 text-xs font-semibold text-foreground transition-colors hover:border-primary/40 sm:flex"
-          title="Баланс искр — пополнить"
+          title="Баланс генов — пополнить"
         >
-          <Zap className="h-3.5 w-3.5 text-amber-500" />
+          <Dna className="h-3.5 w-3.5 text-primary" />
           {balance}
         </Link>
       )}
@@ -67,8 +68,8 @@ export function ProfileMenu() {
             </p>
             {balance !== null && (
               <p className="mt-1.5 flex items-center gap-1 text-sm font-semibold">
-                <Zap className="h-4 w-4 text-amber-500" />
-                {balance} искр
+                <Dna className="h-4 w-4 text-primary" />
+                {balance} {genWord(balance)}
               </p>
             )}
           </div>

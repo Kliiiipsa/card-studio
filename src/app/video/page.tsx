@@ -1,6 +1,6 @@
 "use client";
 import * as React from "react";
-import { Clapperboard, Download, Loader2, Sparkles, TriangleAlert, Zap } from "lucide-react";
+import { Clapperboard, Download, Loader2, Sparkles, TriangleAlert, Dna } from "lucide-react";
 import { AppShell } from "@/components/layout/app-shell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -115,7 +115,7 @@ export default function VideoPage() {
             setVideoUrl(done.resultUrl);
             toast.success("Видео готово!");
           } else if (done.status === "failed") {
-            toast.error(done.error ?? "Видео не получилось. Искры не списаны.");
+            toast.error(done.error ?? "Видео не получилось. Гены не списаны.");
           }
         } catch {
           /* поллинг оборвался — пользователь может сгенерировать заново */
@@ -259,12 +259,12 @@ export default function VideoPage() {
                 {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
                 {PRESET.label}
                 <span className="ml-1 inline-flex items-center gap-0.5 text-xs opacity-90">
-                  · {PRICES.video} <Zap className="h-3 w-3" />
+                  · {PRICES.video} <Dna className="h-3 w-3" />
                 </span>
               </Button>
               <p className="text-xs leading-5 text-muted-foreground">
                 Ролик {VIDEO_DURATION_SEC} секунд, 1080p; формат кадра повторяет формат вашего фото
-                (для карточки маркетплейса — 3:4). Генерация занимает 1–3 минуты. {SPARK} Искры списываются
+                (для карточки маркетплейса — 3:4). Генерация занимает 1–3 минуты. {SPARK} Гены списываются
                 только за готовое видео — за ошибки вы не платите.
               </p>
               <div className="rounded-lg border bg-muted/40 px-3 py-2.5 text-xs leading-5 text-muted-foreground">

@@ -28,7 +28,7 @@ export async function requireSparks(req: Request, action: SparkAction): Promise<
     const balance = await getBalance(ctx.email);
     if (balance < ctx.price) {
       throw new AppError(
-        `Недостаточно искр: нужно ${ctx.price} ${SPARK}, на балансе ${balance} ${SPARK}. Пополните баланс в профиле.`,
+        `Недостаточно генов: нужно ${ctx.price} ${SPARK}, на балансе ${balance} ${SPARK}. Пополните баланс в профиле.`,
         402,
       );
     }

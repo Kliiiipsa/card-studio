@@ -46,7 +46,7 @@ export type PromoRedemption = {
 };
 
 const TYPE_LABEL: Record<PromoType, string> = {
-  sparks: "Искры в подарок",
+  sparks: "Гены в подарок",
   topup_bonus: "Бонус к пополнению",
   price_list: "Свои цены на услуги",
 };
@@ -64,7 +64,7 @@ const COST_RUB: Partial<Record<SparkAction, number>> = {
   infographic: 4.58,
   video: 29.62,
 };
-/** выручка с искры в худшем случае (пакет 1000 после комиссии и налога) */
+/** выручка с гена в худшем случае (пакет 1000 после комиссии и налога) */
 const RUB_PER_SPARK = 0.832;
 
 function randomCode(prefix: string): string {
@@ -210,7 +210,7 @@ function CreateForm({
     if (!n) return null;
     if (type === "sparks") {
       const s = Number(sparks) || 0;
-      // худший случай — искры уходят на видео: 40 ⚡ = 29,62 ₽ себестоимости
+      // худший случай — гены уходят на видео: 40 🧬 = 29,62 ₽ себестоимости
       return Math.round((s / PRICES.video) * (COST_RUB.video ?? 0) * n);
     }
     return null;
@@ -267,7 +267,7 @@ function CreateForm({
 
           {type === "sparks" && (
             <div className="space-y-1.5">
-              <Label htmlFor={`sparks-${group}`}>Сколько искр</Label>
+              <Label htmlFor={`sparks-${group}`}>Сколько генов</Label>
               <Input
                 id={`sparks-${group}`}
                 inputMode="numeric"
@@ -348,7 +348,7 @@ function CreateForm({
                   <div key={a} className="flex items-center gap-2">
                     <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground">
                       {ACTION_LABELS[a]}
-                      <span className="ml-1 text-[11px]">(обычно {PRICES[a]} ⚡)</span>
+                      <span className="ml-1 text-[11px]">(обычно {PRICES[a]} 🧬)</span>
                     </span>
                     <Input
                       inputMode="numeric"
@@ -389,7 +389,7 @@ function CreateForm({
         {worstCost !== null && (
           <p className="text-xs text-muted-foreground">
             Максимальная стоимость акции: около <strong className="text-foreground">{worstCost} ₽</strong>{" "}
-            — если все применившие потратят искры на видео (самая дорогая для нас услуга).
+            — если все применившие потратят гены на видео (самая дорогая для нас услуга).
           </p>
         )}
 
@@ -459,14 +459,14 @@ function CodeList({
                     </td>
                     <td className="px-4 py-2.5 text-xs">{TYPE_LABEL[c.type]}</td>
                     <td className="px-4 py-2.5 text-xs">
-                      {c.type === "sparks" && `${c.sparks} ⚡`}
+                      {c.type === "sparks" && `${c.sparks} 🧬`}
                       {c.type === "topup_bonus" && `+${c.bonusPercent}% к пополнению`}
                       {c.type === "price_list" && c.prices && (
                         <span>
                           {Object.entries(c.prices)
                             .map(
                               ([a, v]) =>
-                                `${ACTION_LABELS[a as SparkAction] ?? a} ${v} ⚡`,
+                                `${ACTION_LABELS[a as SparkAction] ?? a} ${v} 🧬`,
                             )
                             .join(" · ")}
                           {c.usesLimit ? ` · лимит ${c.usesLimit} генераций` : ""}
