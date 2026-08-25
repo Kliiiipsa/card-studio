@@ -12,25 +12,33 @@ import { AppError } from "@/lib/errors";
  */
 const BASE = "https://ai.api.cloud.yandex.net/v1";
 
+/** Тот же аккаунт Yandex AI Studio, что и у Qwen-провайдера (llm/yandex.ts). */
+function creds(): { key: string; folder: string } | null {
+  const key = process.env.YANDEX_API_KEY;
+  const folder = process.env.YANDEX_FOLDER_ID;
+  return key && folder ? { key, folder } : null;
+}
+
 export function yandexArtConfigured(): boolean {
-  return Boolean(process.env.YANDEX_CLOUD_API_KEY && process.env.YANDEX_CLOUD_FOLDER);
+  return Boolean(creds());
 }
 
 export async function generateYandexArt(prompt: string): Promise<string> {
-  if (!yandexArtConfigured()) {
+  const c = creds();
+  if (!c) {
     throw new AppError(
-      "Yandex AI Studio не настроен: добавьте YANDEX_CLOUD_API_KEY и YANDEX_CLOUD_FOLDER в .env.",
+      "Yandex AI Studio не настроен: нужны YANDEX_API_KEY и YANDEX_FOLDER_ID (те же, что у Qwen).",
       503,
     );
   }
-  const folder = process.env.YANDEX_CLOUD_FOLDER!;
+  const { key, folder } = c;
   const model = process.env.YANDEX_CLOUD_MODEL ?? "aliceai-image-art-3.0/latest";
 
   const res = await fetch(`${BASE}/images/generations`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${process.env.YANDEX_CLOUD_API_KEY}`,
+      Authorization: `Bearer ${key}`,
       // так openai-клиент передаёт project из примера Яндекса
       "OpenAI-Project": folder,
     },
