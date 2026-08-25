@@ -112,3 +112,13 @@
 .animate-scanline {
   animation: scanline 3.2s ease-in-out infinite;
 }
+
+/* Видео в плитках галереи обрезается под 3:4 (object-cover), но в
+   полноэкранном режиме то же правило растягивало и резало ролик на весь
+   монитор (баг 2026-08-25). Во весь экран — всегда вписывать целиком. */
+video:fullscreen {
+  object-fit: contain;
+}
+video:-webkit-full-screen {
+  object-fit: contain;
+}
