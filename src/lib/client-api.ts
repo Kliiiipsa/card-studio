@@ -268,6 +268,19 @@ export const api = {
   analyze: (imageDataUrl: string, product?: Partial<ProductInfo>, concern?: string) =>
     post<AnalysisReport>("/api/ai/analyze", { imageDataUrl, product, concern }),
 
+  compare: (
+    mineDataUrl: string,
+    competitorDataUrl: string,
+    product?: Partial<ProductInfo>,
+    concern?: string,
+  ) =>
+    post<import("@/core/ai/schemas").ComparisonReport>("/api/ai/compare", {
+      mineDataUrl,
+      competitorDataUrl,
+      product,
+      concern,
+    }),
+
   ideas: (product: ProductInfo) => post<{ ideas: CardIdea[] }>("/api/ai/ideas", { product }),
 
   improvePrompt: (prompt: string, cardType?: string, style?: string) =>

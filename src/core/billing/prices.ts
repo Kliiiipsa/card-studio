@@ -25,6 +25,7 @@ export function gens(n: number): string {
 /** every paid action in the app */
 export type SparkAction =
   | "analyze"
+  | "compare"
   | "generate"
   | "infographic"
   | "video"
@@ -40,7 +41,10 @@ export type SparkAction =
 
 /** price 0 = free (text-only Qwen actions cost us kopecks — user decision 2026-08-04) */
 export const PRICES: Record<SparkAction, number> = {
-  analyze: 5,
+  /** 5 → 3 (2026-08-25): анализ стал входной точкой, глубокий вердикт — в «Сравнении» */
+  analyze: 3,
+  /** «Сравнение карточек»: моя vs конкурент, вердикт кто выигрывает и почему */
+  compare: 5,
   generate: 7,
   infographic: 10,
   /**
@@ -69,6 +73,7 @@ export const TURNKEY_SEO_PRICE = 6;
 
 export const ACTION_LABELS: Record<SparkAction, string> = {
   analyze: "Анализ карточки",
+  compare: "Сравнение карточек",
   generate: "Фото товара",
   infographic: "Инфографика",
   video: "Видео товара",

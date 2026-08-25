@@ -109,6 +109,41 @@ export const analyzeRequestSchema = z.object({
   concern: z.string().max(300).optional(),
 });
 
+export const compareRequestSchema = z.object({
+  /** карточка продавца */
+  mineDataUrl: z.string().min(1),
+  /** карточка конкурента */
+  competitorDataUrl: z.string().min(1),
+  product: looseProductSchema.optional(),
+  /** что важно продавцу в этом сравнении */
+  concern: z.string().max(300).optional(),
+});
+
+/** «Сравнение карточек»: обе оцениваются одной рубрикой + вердикт и план. */
+export const comparisonReportSchema = z.object({
+  /** заземление: что модель реально видит на каждой карточке */
+  observed: z
+    .object({ mine: z.string().default(""), competitor: z.string().default("") })
+    .default({ mine: "", competitor: "" }),
+  verdict: z.enum(["mine", "competitor", "tie"]),
+  /** 2–3 предложения: кто выигрывает и почему, человеческим языком */
+  verdictText: z.string(),
+  scoreMine: cardScoreSchema,
+  scoreCompetitor: cardScoreSchema,
+  /** по одному короткому сравнению на ось рубрики */
+  axisComments: z.record(z.string()).default({}),
+  /** в чём моя карточка уже сильнее */
+  advantages: z.array(z.string()).default([]),
+  /** где конкурент выигрывает */
+  weaknesses: z.array(z.string()).default([]),
+  /** что перенять у конкурента — конкретные шаги */
+  adopt: z.array(z.string()).default([]),
+  /** кто заметнее в миниатюре ~200px и почему */
+  thumbnailVerdict: z.string().default(""),
+});
+
+export type ComparisonReport = z.infer<typeof comparisonReportSchema>;
+
 export const ideasRequestSchema = z.object({
   product: productInfoSchema,
 });

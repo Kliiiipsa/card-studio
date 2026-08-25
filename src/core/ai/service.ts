@@ -5,6 +5,7 @@ import type { ImageResult } from "./providers/types";
 import { ProviderError } from "@/lib/errors";
 import {
   SYSTEM_ANALYST,
+  SYSTEM_COMPARATOR,
   SYSTEM_IDEATOR,
   SYSTEM_PROMPT_ENGINEER,
   SYSTEM_PROMPT_IMPROVER,
@@ -15,7 +16,9 @@ import {
   analysisReportSchema,
   cardIdeaSchema,
   cardScoreSchema,
+  comparisonReportSchema,
   structuredPromptSchema,
+  type ComparisonReport,
 } from "./schemas";
 import { renderStructuredPrompt } from "./prompt-builder";
 import {
@@ -66,6 +69,36 @@ export async function analyzeProductCard(
   // zod `.default([])` marks keys optional in the inferred type, but at runtime
   // they are always present — the cast reconciles that with the domain model.
   return parse(result.text, analysisReportSchema, "анализ карточки") as AnalysisReport;
+}
+
+/** «Сравнение карточек»: моя vs конкурента, одна рубрика, честный вердикт. */
+export async function compareCards(
+  mineDataUrl: string,
+  competitorDataUrl: string,
+  product?: Partial<ProductInfo>,
+  concern?: string,
+): Promise<ComparisonReport> {
+  const llm = getLLMProvider();
+  const [mine, competitor] = await Promise.all([
+    ensureDataUrl(mineDataUrl),
+    ensureDataUrl(competitorDataUrl),
+  ]);
+  const result = await llm.complete({
+    task: "compare",
+    json: true,
+    vision: true,
+    // как и в анализе: вердикт обязан быть воспроизводимым
+    temperature: 0,
+    context: { product },
+    messages: [
+      { role: "system", content: SYSTEM_COMPARATOR },
+      { role: "user", content: "Карточка А — карточка продавца:", imageDataUrl: mine },
+      { role: "user", content: "Карточка Б — карточка конкурента:", imageDataUrl: competitor },
+      { role: "user", content: comparisonUserPrompt(product, concern) },
+    ],
+  });
+  // как и в analyze: ключи с zod-`.default()` в рантайме всегда присутствуют
+  return parse(result.text, comparisonReportSchema, "сравнение карточек") as ComparisonReport;
 }
 
 export async function generateCardIdeas(product: Partial<ProductInfo>): Promise<CardIdea[]> {
@@ -316,6 +349,22 @@ riskFlags (рискованные для модерации WB формулир�
 newCardIdeas (массив объектов {cardType, title, angle, headline, keyPoints[]}),
 scores ({cover, infographics, text, composition, trust, sellingPower, total} 0-100 по рубрике),
 scoreReasons ({cover, infographics, text, composition, trust, sellingPower} — по одному короткому предложению-обоснованию).`;
+}
+
+function comparisonUserPrompt(p?: Partial<ProductInfo>, concern?: string): string {
+  return `Сравни карточку А (продавца) и карточку Б (конкурента). Данные о товаре:
+${productBlock(p)}
+${concern ? `\nЧто важно продавцу: ${concern}. Сфокусируй сравнение на этом.\n` : ""}
+Верни JSON со строго такими полями:
+observed ({mine — что видишь на карточке А, competitor — что видишь на карточке Б; по одному предложению с перечислением надписей}),
+verdict ("mine" | "competitor" | "tie" — по правилу разницы total из рубрики),
+verdictText (2–3 предложения: кто выигрывает и почему, простым языком),
+scoreMine и scoreCompetitor ({cover, infographics, text, composition, trust, sellingPower, total} 0–100 по рубрике, кратно 5),
+axisComments ({cover, infographics, text, composition, trust, sellingPower} — по одному предложению-сравнению на ось),
+advantages (в чём карточка А уже сильнее конкурента, массив),
+weaknesses (где конкурент выигрывает, массив),
+adopt (что перенять у конкурента: конкретные шаги для карточки А, каждый начинается с глагола, массив 3–5 пунктов),
+thumbnailVerdict (кто заметнее в миниатюре ~200px и почему, одно предложение).`;
 }
 
 function ideasUserPrompt(p: Partial<ProductInfo>): string {

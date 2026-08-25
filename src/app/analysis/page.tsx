@@ -1,6 +1,8 @@
 "use client";
 import * as React from "react";
+import Link from "next/link";
 import { ScanSearch, Loader2, Wand2, RefreshCw, Copy } from "lucide-react";
+import { PRICES, SPARK } from "@/core/billing/prices";
 import { AppShell } from "@/components/layout/app-shell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -234,8 +236,15 @@ export default function AnalysisPage() {
                 ) : (
                   <ScanSearch className="h-4 w-4" />
                 )}
-                Проанализировать · 5 🧬
+                Проанализировать · {PRICES.analyze} {SPARK}
               </Button>
+              <p className="text-[11px] leading-4 text-muted-foreground">
+                Хотите узнать, чья карточка сильнее — ваша или конкурента?{" "}
+                <Link href="/compare" className="font-medium text-primary hover:underline">
+                  Сравнение карточек
+                </Link>{" "}
+                за {PRICES.compare} {SPARK}.
+              </p>
 
               {/* «Улучшить карточку по советам ИИ» СКРЫТА (решение пользователя
                   2026-08-21): результат не оправдывал 7 🧬 — модель меняла свет и

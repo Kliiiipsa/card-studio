@@ -22,6 +22,7 @@ export interface LLMRequest {
    */
   task?:
     | "analyze"
+    | "compare"
     | "ideas"
     | "improve-prompt"
     | "build-prompt"

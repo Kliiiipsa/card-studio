@@ -1,7 +1,7 @@
 "use client";
 import * as React from "react";
 import Link from "next/link";
-import { Wand2, ScanSearch, LayoutTemplate, FileText, Images, ArrowRight, Clapperboard } from "lucide-react";
+import { Wand2, ScanSearch, LayoutTemplate, FileText, Images, ArrowRight, Clapperboard, Scale } from "lucide-react";
 import { AppShell } from "@/components/layout/app-shell";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -38,6 +38,12 @@ const QUICK = [
     icon: ScanSearch,
     title: "Анализ и улучшение",
     desc: "Аудит карточки + улучшение ИИ",
+  },
+  {
+    href: "/compare",
+    icon: Scale,
+    title: "Сравнение карточек",
+    desc: "Ваша карточка против конкурента: кто выигрывает и почему",
   },
 ];
 

@@ -18,6 +18,8 @@ export class MockLLMProvider implements LLMProvider {
     switch (req.task) {
       case "analyze":
         return json(this.analyze(ctx));
+      case "compare":
+        return json(this.compare(ctx));
       case "ideas":
         return json(this.ideas(ctx));
       case "improve-prompt":
@@ -102,6 +104,44 @@ export class MockLLMProvider implements LLMProvider {
         trust: "Нет ни одного элемента доверия.",
         sellingPower: "Карточка не отвечает на вопрос «почему этот товар».",
       },
+    };
+  }
+
+  private compare(ctx: Record<string, unknown>) {
+    const name = this.productName(ctx);
+    const mine = this.fallbackScore(ctx);
+    const competitor = {
+      cover: 70, infographics: 65, text: 60, composition: 65, trust: 55, sellingPower: 65,
+      total: 63,
+      comment: "Конкурент делает ставку на плашки и заголовок — карточка считывается быстрее.",
+    };
+    return {
+      observed: {
+        mine: `Карточка «${name}»: товар по центру, надписей нет.`,
+        competitor: "Карточка конкурента: крупный заголовок, три плашки преимуществ, бейдж гарантии.",
+      },
+      verdict: "competitor",
+      verdictText:
+        "Пока выигрывает конкурент: его карточка отвечает на вопрос «почему купить» прямо в выдаче — заголовок и плашки, а ваша полагается только на фото. Разрыв закрывается за одну итерацию инфографики.",
+      scoreMine: mine,
+      scoreCompetitor: competitor,
+      axisComments: {
+        cover: "Фото сопоставимы, у вас даже чище фон.",
+        infographics: "У конкурента три плашки, у вас — ни одной.",
+        text: "Конкурент выносит выгоду в заголовок, у вас текст отсутствует.",
+        composition: "Обе аккуратные; у конкурента иерархия ведёт взгляд.",
+        trust: "Бейдж гарантии есть только у конкурента.",
+        sellingPower: "Конкурент продаёт выгоду, вы — просто показываете товар.",
+      },
+      advantages: ["Чище и качественнее само фото товара.", "Нет визуального шума."],
+      weaknesses: ["Нет заголовка-выгоды.", "Нет плашек преимуществ.", "Нет сигналов доверия."],
+      adopt: [
+        "Добавьте заголовок-выгоду до 5 слов в верхнюю треть.",
+        "Вынесите три ключевых преимущества в плашки.",
+        "Добавьте бейдж гарантии или состава в нижнюю треть.",
+      ],
+      thumbnailVerdict:
+        "В миниатюре 200px заметнее конкурент: крупный заголовок читается, ваша карточка сливается с выдачей.",
     };
   }
 
