@@ -21,8 +21,9 @@ export async function POST(req: Request) {
     validateDataUrl(body.competitorDataUrl);
 
     const hash = analysisHash({
-      // "cmp:" отделяет ключи сравнения от ключей обычного анализа
-      imageDataUrl: `cmp:${body.mineDataUrl}|${body.competitorDataUrl}`,
+      // "cmp2:" отделяет ключи сравнения от ключей обычного анализа; цифра —
+      // версия промпта: меняем формулировки → старый кеш не должен отдаваться
+      imageDataUrl: `cmp2:${body.mineDataUrl}|${body.competitorDataUrl}`,
       product: body.product,
       concern: body.concern,
     });

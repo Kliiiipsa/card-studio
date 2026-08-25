@@ -210,7 +210,7 @@ export default function ComparePage() {
                 <Card>
                   <CardHeader className="pb-3">
                     <CardTitle className="text-sm text-red-600 dark:text-red-400">
-                      Где выигрывает конкурент
+                      Что у конкурента сделано лучше
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
