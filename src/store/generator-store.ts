@@ -32,8 +32,14 @@ export type GenStatus =
 /** Compact, user-friendly style modes (replace the long style list in the UI). */
 export type StyleMode = "auto" | "minimal" | "premium" | "bold" | "lifestyle";
 
+/** «Фото товара» работает в двух режимах: карточка для маркетплейса или
+ * свободная генерация по промпту (запрос пользователя 2026-08-25 — сервисом
+ * интересуются не только селлеры). */
+export type GenMode = "market" | "free";
+
 interface GeneratorState {
   product: ProductInfo;
+  genMode: GenMode;
   cardType: PhotoScenarioId;
   style: StyleId;
   styleMode: StyleMode;
@@ -69,6 +75,7 @@ export const DEFAULT_NEGATIVE =
 
 export const useGeneratorStore = create<GeneratorState>((set) => ({
   product: { ...EMPTY_PRODUCT },
+  genMode: "market",
   cardType: "studio",
   style: "premium-minimal",
   styleMode: "auto",

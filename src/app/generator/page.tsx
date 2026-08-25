@@ -23,7 +23,7 @@ import { LoadingGenerationState } from "@/components/generator/loading-generatio
 import { ExportPanel } from "@/components/generator/export-panel";
 import { ImageUploader } from "@/components/media/image-uploader";
 import { ImagePreview } from "@/components/media/image-preview";
-import { useGeneratorStore, type StyleMode } from "@/store/generator-store";
+import { useGeneratorStore, type StyleMode, type GenMode } from "@/store/generator-store";
 import { useCardGeneration } from "@/hooks/use-card-generation";
 import { PHOTO_SCENARIOS, PHOTO_SCENARIO_MAP, type PhotoScenarioId } from "@/core/domain/photo-scenarios";
 import { ASPECT_RATIOS, type AspectRatioId } from "@/core/domain/export-presets";
@@ -52,6 +52,7 @@ function GeneratorInner() {
   }, []);
 
   const busy = s.status === "generating" || s.status === "scoring";
+  const freeMode = s.genMode === "free";
   // Tailwind needs the literal class names — a computed aspect-[…] won't compile
   const placeholderAspect =
     { "3:4": "aspect-[3/4]", "4:5": "aspect-[4/5]", "1:1": "aspect-square", "9:16": "aspect-[9/16]" }[
@@ -89,11 +90,47 @@ function GeneratorInner() {
   };
 
   return (
-    <div className="mx-auto grid max-w-6xl gap-5 pb-20 md:pb-0 lg:grid-cols-[1fr_1fr]">
-      {/* BLOCK 1 — Product data */}
+    <div className="mx-auto max-w-6xl space-y-4 pb-20 md:pb-0">
+      {/* Режим раздела: карточка для маркетплейса или свободная генерация */}
+      <div className="grid gap-2 sm:grid-cols-2">
+        {(
+          [
+            {
+              id: "market",
+              title: "Для маркетплейса",
+              desc: "Продающее фото товара: сценарии, стили, оценка карточки",
+            },
+            {
+              id: "free",
+              title: "Обычное фото",
+              desc: "Свободная генерация по вашему описанию — без привязки к товару",
+            },
+          ] as { id: GenMode; title: string; desc: string }[]
+        ).map((m) => (
+          <button
+            key={m.id}
+            type="button"
+            onClick={() => s.setField("genMode", m.id)}
+            className={
+              "rounded-xl border px-4 py-3 text-left transition-colors " +
+              (s.genMode === m.id
+                ? "border-primary bg-primary/5"
+                : "bg-card/60 hover:border-primary/40")
+            }
+          >
+            <p className="text-sm font-medium">{m.title}</p>
+            <p className="mt-0.5 text-xs leading-4 text-muted-foreground">{m.desc}</p>
+          </button>
+        ))}
+      </div>
+
+      <div className="grid gap-5 lg:grid-cols-[1fr_1fr]">
+      {/* BLOCK 1 — Product data / reference */}
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-sm">1. Данные товара</CardTitle>
+          <CardTitle className="text-sm">
+            {freeMode ? "1. Референс и размер" : "1. Данные товара"}
+          </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <ImageUploader
@@ -101,11 +138,15 @@ function GeneratorInner() {
             onChange={(dataUrl) =>
               s.setReference(dataUrl ? { id: uid("ref"), dataUrl, createdAt: Date.now() } : null)
             }
-            label="Загрузите фото товара"
-            hint="Необязательно. С фото ИИ напишет промпт точнее (image-to-image)"
+            label={freeMode ? "Фото-референс" : "Загрузите фото товара"}
+            hint={
+              freeMode
+                ? "Необязательно. Результат будет опираться на это фото (image-to-image)"
+                : "Необязательно. С фото ИИ напишет промпт точнее (image-to-image)"
+            }
           />
 
-          <div className="space-y-1.5">
+          <div className="space-y-1.5" hidden={freeMode}>
             <Label htmlFor="name">Название товара</Label>
             <Input
               id="name"
@@ -115,6 +156,7 @@ function GeneratorInner() {
             />
           </div>
 
+          {!freeMode && (
           <ListField
             id="benefits"
             label="Преимущества (по одному на строку)"
@@ -122,8 +164,10 @@ function GeneratorInner() {
             value={s.product.benefits}
             onChange={(benefits) => s.setProduct({ benefits })}
           />
+          )}
 
           {/* Secondary fields only nudge the AI prompt — hidden by default. */}
+          {!freeMode && (
           <details className="group rounded-lg border border-border/60 bg-muted/30 px-3 py-2">
             <summary className="cursor-pointer list-none text-xs font-medium text-muted-foreground transition-colors hover:text-foreground">
               Дополнительно (необязательно)
@@ -156,8 +200,9 @@ function GeneratorInner() {
               />
             </div>
           </details>
+          )}
 
-          <div className="space-y-1.5">
+          <div className="space-y-1.5" hidden={freeMode}>
             <Label htmlFor="note">Дополнительное пожелание</Label>
             <Textarea
               id="note"
@@ -169,7 +214,7 @@ function GeneratorInner() {
           </div>
 
           <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
+            <div className="space-y-1.5" hidden={freeMode}>
               <Label className="text-xs">Сценарий фото</Label>
               <Select
                 value={s.cardType}
@@ -187,7 +232,7 @@ function GeneratorInner() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-1.5">
+            <div className="space-y-1.5" hidden={freeMode}>
               <Label className="text-xs">Стиль</Label>
               <Select
                 value={s.styleMode}
@@ -224,6 +269,7 @@ function GeneratorInner() {
               </Select>
             </div>
           </div>
+          {!freeMode && (
           <p className="text-[11px] leading-4 text-muted-foreground">
             Этот раздел делает чистое фото без надписей. Нужна карточка с текстом и плашками —{" "}
             <Link href="/infographics" className="font-medium text-primary hover:underline">
@@ -231,6 +277,7 @@ function GeneratorInner() {
             </Link>
             .
           </p>
+          )}
         </CardContent>
       </Card>
 
@@ -238,9 +285,10 @@ function GeneratorInner() {
       <div className="space-y-5">
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm">2. Промпт</CardTitle>
+            <CardTitle className="text-sm">{freeMode ? "2. Что нарисовать?" : "2. Промпт"}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
+            {!freeMode && (
             <Button
               onClick={handleWrite}
               disabled={writing || busy}
@@ -254,15 +302,21 @@ function GeneratorInner() {
               )}
               Написать промпт
             </Button>
+            )}
 
             <Textarea
               value={s.userPrompt}
               onChange={(e) => s.setField("userPrompt", e.target.value)}
-              placeholder="Нажмите «Написать промпт» — ИИ опишет карточку по фото и данным товара. Текст можно отредактировать."
+              placeholder={
+                freeMode
+                  ? "Опишите картинку своими словами, по-русски. Например: уютная кухня в скандинавском стиле, утренний свет, на столе чашка кофе"
+                  : "Нажмите «Написать промпт» — ИИ опишет карточку по фото и данным товара. Текст можно отредактировать."
+              }
               className="min-h-[160px]"
             />
 
             <div className="flex gap-2">
+              {!freeMode && (
               <Button
                 onClick={handleImprove}
                 disabled={improving || busy || !s.userPrompt.trim()}
@@ -276,6 +330,7 @@ function GeneratorInner() {
                 )}
                 Переписать
               </Button>
+              )}
               <Button
                 onClick={() => s.setField("userPrompt", "")}
                 disabled={!s.userPrompt.trim()}
@@ -359,6 +414,7 @@ function GeneratorInner() {
             )}
           </CardContent>
         </Card>
+      </div>
       </div>
 
       {/* Mobile: the generate CTA is always in reach at the bottom of the screen */}

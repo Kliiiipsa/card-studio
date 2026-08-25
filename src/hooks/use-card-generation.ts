@@ -57,8 +57,11 @@ export function useCardGeneration() {
 
         // The type/style selects must matter even when the prompt was written
         // earlier (or by hand): their guidance is appended at generation time.
-        const scenario = PHOTO_SCENARIO_MAP[s.cardType];
-        const styleGuidance = s.styleMode !== "auto" ? styleModeGuidance(s.styleMode) : null;
+        // «Обычное фото»: без маркетплейсовых сценария и стиля — промпт как есть.
+        const freeMode = s.genMode === "free";
+        const scenario = freeMode ? null : PHOTO_SCENARIO_MAP[s.cardType];
+        const styleGuidance =
+          !freeMode && s.styleMode !== "auto" ? styleModeGuidance(s.styleMode) : null;
         const suffix = [
           scenario && `Сценарий фото: ${scenario.title}. Composition: ${scenario.promptHint}`,
           styleGuidance && `Стиль: ${styleGuidance}`,
@@ -108,17 +111,22 @@ export function useCardGeneration() {
         }));
         gen.setVariants(variants);
 
-        // Score the variant (best-effort; non-fatal)
-        gen.setField("status", "scoring");
-        try {
-          const score = await api.score({
-            imageDataUrl: variants[0].url,
-            product: s.product,
-            cardType: s.cardType,
-          });
-          gen.setField("lastScore", score);
-        } catch {
-          // scoring is non-critical
+        // Score the variant (best-effort; non-fatal). Оценка меряет карточку
+        // маркетплейса — обычному фото она не нужна и только путает.
+        if (!freeMode) {
+          gen.setField("status", "scoring");
+          try {
+            const score = await api.score({
+              imageDataUrl: variants[0].url,
+              product: s.product,
+              cardType: s.cardType,
+            });
+            gen.setField("lastScore", score);
+          } catch {
+            // scoring is non-critical
+            gen.setField("lastScore", null);
+          }
+        } else {
           gen.setField("lastScore", null);
         }
 
