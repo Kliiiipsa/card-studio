@@ -221,6 +221,8 @@ type VideoGenerateArgs = {
   presetId: string;
   productImage: string;
   aspectRatio?: "3:4" | "9:16" | "1:1";
+  /** свой сценарий на русском — сервер переведёт и подставит вместо шаблона */
+  userScenario?: string;
   /** админский тест: промпт как есть (сервер пустит только админа) */
   customPrompt?: string;
   /** админский тест: полный id модели fal */

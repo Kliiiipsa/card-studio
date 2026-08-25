@@ -14,10 +14,12 @@ import { EmptyState } from "@/components/project/empty-state";
 import { api } from "@/lib/client-api";
 import { reachGoal, GOALS } from "@/components/analytics/yandex-metrica";
 import { PRICES, SPARK } from "@/core/billing/prices";
-import { VIDEO_PRESETS, DEFAULT_VIDEO_PRESET_ID, VIDEO_DURATION_SEC } from "@/core/video/presets";
-
-/** Пользователю доступен один проверенный сценарий — «Оживить фото». */
-const PRESET = VIDEO_PRESETS[0];
+import {
+  VIDEO_PRESETS,
+  DEFAULT_VIDEO_PRESET_ID,
+  VIDEO_DURATION_SEC,
+  CUSTOM_SCENARIO_ID,
+} from "@/core/video/presets";
 
 /** Этапы «съёмки» — по прошедшему времени (сек). Реального прогресса fal не
  * отдаёт, поэтому бар — честная асимптота к ~93%, добивается при завершении. */
@@ -102,6 +104,9 @@ export default function VideoPage() {
   const [busy, setBusy] = React.useState(false);
   const [videoUrl, setVideoUrl] = React.useState<string | null>(null);
   const [downloading, setDownloading] = React.useState(false);
+  // выбранный сценарий движения; CUSTOM_SCENARIO_ID = «пишу сам»
+  const [presetId, setPresetId] = React.useState(DEFAULT_VIDEO_PRESET_ID);
+  const [scenario, setScenario] = React.useState("");
   // админский тест новых моделей/промптов; обычным клиентам блок не показывается
   const role = useProfileStore((s) => s.role);
   const [customPrompt, setCustomPrompt] = React.useState("");
@@ -165,13 +170,19 @@ export default function VideoPage() {
       toast.error("Укажите название товара — оно помогает модели понять, что двигать.");
       return;
     }
+    if (presetId === CUSTOM_SCENARIO_ID && !scenario.trim()) {
+      toast.error("Опишите своими словами, что должно происходить в ролике.");
+      return;
+    }
     setBusy(true);
     setVideoUrl(null);
     try {
+      const custom = presetId === CUSTOM_SCENARIO_ID;
       const { videoUrl } = await api.video.generate({
         productName: productName.trim(),
-        presetId: DEFAULT_VIDEO_PRESET_ID,
+        presetId: custom ? CUSTOM_SCENARIO_ID : presetId,
         productImage: image,
+        userScenario: custom ? scenario.trim() : undefined,
         customPrompt: role === "admin" ? customPrompt.trim() || undefined : undefined,
         falModel: role === "admin" ? falModel.trim() || undefined : undefined,
       });
@@ -259,10 +270,61 @@ export default function VideoPage() {
 
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-sm">2. Оживление</CardTitle>
+              <CardTitle className="text-sm">2. Сценарий ролика</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <p className="text-xs leading-5 text-muted-foreground">{PRESET.description}.</p>
+              <div className="grid gap-2 sm:grid-cols-2">
+                {VIDEO_PRESETS.map((p) => (
+                  <button
+                    key={p.id}
+                    type="button"
+                    onClick={() => setPresetId(p.id)}
+                    className={
+                      "rounded-lg border px-3 py-2 text-left transition-colors " +
+                      (presetId === p.id
+                        ? "border-primary bg-primary/5"
+                        : "bg-card/60 hover:border-primary/40")
+                    }
+                  >
+                    <p className="text-xs font-medium">{p.label}</p>
+                    <p className="mt-0.5 text-[11px] leading-4 text-muted-foreground">
+                      {p.description}
+                    </p>
+                  </button>
+                ))}
+                <button
+                  type="button"
+                  onClick={() => setPresetId(CUSTOM_SCENARIO_ID)}
+                  className={
+                    "rounded-lg border px-3 py-2 text-left transition-colors " +
+                    (presetId === CUSTOM_SCENARIO_ID
+                      ? "border-primary bg-primary/5"
+                      : "bg-card/60 hover:border-primary/40")
+                  }
+                >
+                  <p className="text-xs font-medium">Свой сценарий</p>
+                  <p className="mt-0.5 text-[11px] leading-4 text-muted-foreground">
+                    Опишите движение своими словами — по-русски
+                  </p>
+                </button>
+              </div>
+
+              {presetId === CUSTOM_SCENARIO_ID && (
+                <div className="space-y-1.5">
+                  <Textarea
+                    value={scenario}
+                    onChange={(e) => setScenario(e.target.value)}
+                    placeholder="Например: девушка медленно поворачивается, юбка слегка развевается, камера плавно приближается"
+                    className="min-h-[80px]"
+                    maxLength={600}
+                    aria-label="Свой сценарий ролика"
+                  />
+                  <p className="text-[11px] leading-4 text-muted-foreground">
+                    Пишите, что ДОЛЖНО происходить (движение камеры, товара, ткани, света).
+                    Товар и фон мы сохраняем как на фото автоматически.
+                  </p>
+                </div>
+              )}
 
               {role === "admin" && (
                 <details className="rounded-lg border border-amber-500/40 bg-amber-500/5 px-3 py-2">
@@ -307,7 +369,7 @@ export default function VideoPage() {
 
               <Button variant="gradient" className="w-full" onClick={generate} disabled={busy}>
                 {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-                {PRESET.label}
+                Сгенерировать видео
                 <span className="ml-1 inline-flex items-center gap-0.5 text-xs opacity-90">
                   · {PRICES.video} <Dna className="h-3 w-3" />
                 </span>

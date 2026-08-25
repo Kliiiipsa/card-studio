@@ -89,12 +89,52 @@ async function englishDescriptor(productName: string, category?: string): Promis
   }
 }
 
-/** Собрать финальный (английский) промпт движения из пресета. */
+/**
+ * Русский сценарий пользователя → английское описание движения. Урок боевого
+ * теста 2026-08-20: «запрещающие» фразы i2v-модель читает как приглашение,
+ * поэтому переводчику велено ОПУСКАТЬ запреты, а не переводить их — само
+ * нежелательное режет негативный промпт Kling.
+ */
+async function translateScenario(scenario: string): Promise<string> {
+  try {
+    const llm = getLLMProvider();
+    const res = await llm.complete({
+      task: "translate",
+      temperature: 0.2,
+      maxTokens: 220,
+      messages: [
+        {
+          role: "system",
+          content:
+            "Translate the user's Russian description of desired motion into a concise English image-to-video prompt (1-3 sentences). " +
+            "Describe ONLY what moves and how, in positive terms. " +
+            "If the user forbids something ('без надписей', 'не менять фон'), DO NOT translate the prohibition — either omit it or rephrase as a positive anchor ('the background stays exactly as in the source image'). " +
+            "Never mention undesired concepts by name. Reply with the English prompt ONLY - no quotes, no notes.",
+        },
+        { role: "user", content: scenario.slice(0, 600) },
+      ],
+    });
+    const text = res.text.trim().replace(/^["'«]+|["'»]+$/g, "").replace(/[.\s]+$/, "");
+    if (text && /[a-zA-Z]/.test(text)) return text;
+  } catch (e) {
+    console.error("[video] scenario translate failed:", e);
+  }
+  // фолбэк: Kling неплохо понимает и русский — лучше так, чем уронить генерацию
+  return scenario.slice(0, 600);
+}
+
+/** Собрать финальный (английский) промпт движения из пресета или сценария. */
 export async function buildVideoPrompt(args: {
   presetId: string;
   productName: string;
   category?: string;
+  /** русское описание движения от пользователя — вместо шаблона пресета */
+  userScenario?: string;
 }): Promise<{ prompt: string; cameraFixed: boolean }> {
+  if (args.userScenario?.trim()) {
+    const motion = await translateScenario(args.userScenario.trim());
+    return { prompt: `${motion}. ${VIDEO_GUARDRAILS}`, cameraFixed: false };
+  }
   const preset = getVideoPreset(args.presetId);
   if (!preset) throw new ProviderError(USER_ERRORS.unexpected, `preset ${args.presetId}`);
   const descriptor = await englishDescriptor(args.productName, args.category);

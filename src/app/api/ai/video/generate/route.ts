@@ -21,6 +21,8 @@ const schema = z.object({
   presetId: z.string().min(1).max(40),
   productImage: z.string().min(1),
   aspectRatio: z.enum(["3:4", "9:16", "1:1"]).optional(),
+  /** свой сценарий пользователя на русском (переводится на сервере) */
+  userScenario: z.string().trim().max(600).optional(),
   /** админский тест: промпт как есть, без пресета и guardrails */
   customPrompt: z.string().trim().max(2500).optional(),
   /** админский тест: полный id модели fal вместо настроенной */
@@ -49,6 +51,7 @@ export async function POST(req: Request) {
           presetId: body.presetId,
           productName: body.productName,
           category: body.category,
+          userScenario: body.userScenario,
         });
     // остаток на счёте fal ДО отправки: по разнице с остатком после завершения
     // получим фактическую себестоимость этой генерации (видна в админке)
@@ -78,6 +81,7 @@ export async function POST(req: Request) {
           presetId: body.presetId,
           // для отладки качества: что реально ушло в модель
           videoPrompt: prompt,
+          userScenario: body.userScenario || undefined,
           customPrompt: Boolean(body.customPrompt),
           model:
             body.falModel ??

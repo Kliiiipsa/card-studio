@@ -26,11 +26,10 @@ export type VideoPreset = {
  * ВСЕ сценарии, включая скрытые: нужны серверу (getVideoPreset по id старых
  * задач) и админке (подписи в журнале генераций).
  *
- * Решение пользователя 2026-08-20: клиенту показываем ОДИН сценарий —
- * «Оживить фото» (бывший «Облёт камерой»), единственный проверенный на Kling
- * 2.5 Turbo Pro (2 чистых ролика в A/B на сложных фото с людьми). Остальные
- * скрыты, а не удалены: вернуть можно флагом, когда появится бюджет на
- * сравнительный тест (методика — в памяти проекта).
+ * История: 2026-08-20 пользователь оставил клиентам один сценарий («Оживить
+ * фото»), остальные скрыли до теста. 2026-08-25 после успешных ручных
+ * промптов на Kling 2.5 Turbo Pro пользователь решил открыть шаблоны и дать
+ * клиентам свой сценарий (по-русски, с переводом на сервере).
  */
 export const ALL_VIDEO_PRESETS: VideoPreset[] = [
   {
@@ -48,6 +47,7 @@ export const ALL_VIDEO_PRESETS: VideoPreset[] = [
     description: "Камера едва заметно приближается к товару — мягкий кинематографичный кадр",
     template:
       "Very gentle, subtle cinematic camera push-in toward {product}, moving only slightly closer over the whole clip",
+    visible: true,
   },
   {
     id: "turntable",
@@ -56,6 +56,7 @@ export const ALL_VIDEO_PRESETS: VideoPreset[] = [
     template:
       "{product} slowly turns a small angle in place as if on a display turntable; the camera stays perfectly still",
     cameraFixed: true,
+    visible: true,
   },
   {
     id: "breeze",
@@ -64,6 +65,7 @@ export const ALL_VIDEO_PRESETS: VideoPreset[] = [
     template:
       "Gentle natural micro-motion: the soft parts of {product} sway very slightly as if touched by a light breeze; the camera stays still",
     cameraFixed: true,
+    visible: true,
   },
   {
     id: "showcase",
@@ -72,8 +74,12 @@ export const ALL_VIDEO_PRESETS: VideoPreset[] = [
     template:
       "{product} stays completely steady and tack-sharp in the foreground while only the background gains subtle life — softly drifting light and gently moving shadows; the camera stays still",
     cameraFixed: true,
+    visible: true,
   },
 ];
+
+/** id «сценария», означающего «пользователь описал движение сам». */
+export const CUSTOM_SCENARIO_ID = "custom";
 
 /** Сценарии, доступные пользователю (сейчас — один). */
 export const VIDEO_PRESETS: VideoPreset[] = ALL_VIDEO_PRESETS.filter((p) => p.visible);
