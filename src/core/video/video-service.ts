@@ -111,6 +111,8 @@ export async function submitVideoJob(args: {
   imageDataUrl: string;
   aspectRatio?: VideoAspect;
   cameraFixed?: boolean;
+  /** админский тест другой модели: полный id fal вместо env/дефолта */
+  modelOverride?: string;
 }): Promise<VideoJobHandle> {
   if (isMock()) {
     return {
@@ -125,7 +127,7 @@ export async function submitVideoJob(args: {
       "missing FAL_KEY",
     );
   }
-  const model = process.env.FAL_VIDEO_MODEL ?? DEFAULT_MODEL;
+  const model = args.modelOverride ?? process.env.FAL_VIDEO_MODEL ?? DEFAULT_MODEL;
   const input: Record<string, unknown> = model.includes("kling")
     ? {
         // Kling: формат ролика повторяет формат исходного фото

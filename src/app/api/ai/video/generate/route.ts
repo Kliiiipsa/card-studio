@@ -6,6 +6,8 @@ import { ensureWatcherBoot, watchJob } from "@/core/jobs/watcher";
 import { uid } from "@/lib/utils";
 import { validateDataUrl } from "@/lib/image-validation";
 import { buildVideoPrompt, submitVideoJob } from "@/core/video/video-service";
+import { sessionFromRequest } from "@/core/auth/session";
+import { AppError } from "@/lib/errors";
 import { readFalBalance, falJobsInFlight } from "@/core/ai/fal-cost";
 
 export const runtime = "nodejs";
@@ -19,6 +21,10 @@ const schema = z.object({
   presetId: z.string().min(1).max(40),
   productImage: z.string().min(1),
   aspectRatio: z.enum(["3:4", "9:16", "1:1"]).optional(),
+  /** админский тест: промпт как есть, без пресета и guardrails */
+  customPrompt: z.string().trim().max(2500).optional(),
+  /** админский тест: полный id модели fal вместо настроенной */
+  falModel: z.string().trim().max(120).optional(),
 });
 
 export async function POST(req: Request) {
@@ -28,11 +34,22 @@ export async function POST(req: Request) {
     const body = await parseBody(req, schema);
     if (body.productImage.startsWith("data:")) validateDataUrl(body.productImage);
 
-    const { prompt, cameraFixed } = await buildVideoPrompt({
-      presetId: body.presetId,
-      productName: body.productName,
-      category: body.category,
-    });
+    // тестовые рычаги доступны только админу: клиент со своим промптом легко
+    // получает непредсказуемый ролик за 40 генов (уроки A/B 2026-08-20)
+    if (body.customPrompt || body.falModel) {
+      const session = await sessionFromRequest(req);
+      if (session?.role !== "admin") {
+        throw new AppError("Свой промпт и выбор модели доступны только администратору.", 403);
+      }
+    }
+
+    const { prompt, cameraFixed } = body.customPrompt
+      ? { prompt: body.customPrompt, cameraFixed: false }
+      : await buildVideoPrompt({
+          presetId: body.presetId,
+          productName: body.productName,
+          category: body.category,
+        });
     // остаток на счёте fal ДО отправки: по разнице с остатком после завершения
     // получим фактическую себестоимость этой генерации (видна в админке)
     const concurrentAtStart = falJobsInFlight();
@@ -43,6 +60,7 @@ export async function POST(req: Request) {
       imageDataUrl: body.productImage,
       aspectRatio: body.aspectRatio ?? "3:4",
       cameraFixed,
+      modelOverride: body.falModel,
     });
 
     // server-tracked job: доживёт до конца, даже если вкладку закрыли
@@ -60,7 +78,11 @@ export async function POST(req: Request) {
           presetId: body.presetId,
           // для отладки качества: что реально ушло в модель
           videoPrompt: prompt,
-          model: process.env.FAL_VIDEO_MODEL ?? "fal-ai/kling-video/v2.5-turbo/pro/image-to-video",
+          customPrompt: Boolean(body.customPrompt),
+          model:
+            body.falModel ??
+            process.env.FAL_VIDEO_MODEL ??
+            "fal-ai/kling-video/v2.5-turbo/pro/image-to-video",
         },
         falStatusUrl: job.statusUrl,
         falResponseUrl: job.responseUrl,

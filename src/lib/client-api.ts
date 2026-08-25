@@ -221,6 +221,10 @@ type VideoGenerateArgs = {
   presetId: string;
   productImage: string;
   aspectRatio?: "3:4" | "9:16" | "1:1";
+  /** админский тест: промпт как есть (сервер пустит только админа) */
+  customPrompt?: string;
+  /** админский тест: полный id модели fal */
+  falModel?: string;
 };
 
 type VideoStart = {

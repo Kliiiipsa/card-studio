@@ -6,6 +6,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "@/components/ui/toaster";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { useProfileStore } from "@/store/profile-store";
 import { ImageUploader } from "@/components/media/image-uploader";
 import { EmptyState } from "@/components/project/empty-state";
 import { api } from "@/lib/client-api";
@@ -99,6 +102,10 @@ export default function VideoPage() {
   const [busy, setBusy] = React.useState(false);
   const [videoUrl, setVideoUrl] = React.useState<string | null>(null);
   const [downloading, setDownloading] = React.useState(false);
+  // админский тест новых моделей/промптов; обычным клиентам блок не показывается
+  const role = useProfileStore((s) => s.role);
+  const [customPrompt, setCustomPrompt] = React.useState("");
+  const [falModel, setFalModel] = React.useState("");
 
   // Вкладку закрывали во время генерации? Подхватываем незавершённую задачу.
   React.useEffect(() => {
@@ -165,6 +172,8 @@ export default function VideoPage() {
         productName: productName.trim(),
         presetId: DEFAULT_VIDEO_PRESET_ID,
         productImage: image,
+        customPrompt: role === "admin" ? customPrompt.trim() || undefined : undefined,
+        falModel: role === "admin" ? falModel.trim() || undefined : undefined,
       });
       setVideoUrl(videoUrl);
       reachGoal(GOALS.generation, { kind: "video" });
@@ -254,6 +263,47 @@ export default function VideoPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               <p className="text-xs leading-5 text-muted-foreground">{PRESET.description}.</p>
+
+              {role === "admin" && (
+                <details className="rounded-lg border border-amber-500/40 bg-amber-500/5 px-3 py-2">
+                  <summary className="cursor-pointer list-none text-xs font-medium text-amber-600 dark:text-amber-400">
+                    Тест моделей и промптов (видно только администратору)
+                  </summary>
+                  <div className="mt-3 space-y-3">
+                    <div className="space-y-1.5">
+                      <Label htmlFor="vprompt" className="text-xs">
+                        Свой промпт (английский, уйдёт в модель как есть — без пресета и guardrails)
+                      </Label>
+                      <Textarea
+                        id="vprompt"
+                        value={customPrompt}
+                        onChange={(e) => setCustomPrompt(e.target.value)}
+                        placeholder="Например: slow cinematic dolly-in, the jacket sways gently…"
+                        className="min-h-[80px] font-mono text-xs"
+                        maxLength={2500}
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="vmodel" className="text-xs">
+                        Модель fal (пусто — текущая Kling 2.5 Turbo Pro)
+                      </Label>
+                      <Input
+                        id="vmodel"
+                        value={falModel}
+                        onChange={(e) => setFalModel(e.target.value)}
+                        placeholder="fal-ai/kling-video/v2.5-turbo/pro/image-to-video"
+                        className="font-mono text-xs"
+                        maxLength={120}
+                      />
+                    </div>
+                    <p className="text-[11px] leading-4 text-muted-foreground">
+                      Незнакомая модель пойдёт по общей схеме входа (prompt + image_url + duration) —
+                      экзотические параметры могут не подойти, смотрите ошибку в журнале генераций.
+                      Промпт и модель сохраняются в админском журнале.
+                    </p>
+                  </div>
+                </details>
+              )}
 
               <Button variant="gradient" className="w-full" onClick={generate} disabled={busy}>
                 {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
