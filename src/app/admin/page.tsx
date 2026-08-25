@@ -302,6 +302,50 @@ export default function AdminPage() {
   } | null>(null);
   const [healthLoading, setHealthLoading] = React.useState(false);
 
+  // Рубильники разделов: экстренное «на техработах» без деплоя
+  const [flags, setFlags] = React.useState<{ action: string; disabled: boolean }[] | null>(null);
+  const [flagBusy, setFlagBusy] = React.useState<string | null>(null);
+  const FLAG_LABELS: Record<string, string> = {
+    generate: "Фото товара",
+    infographic: "Инфографика",
+    video: "Видео товара",
+    seo: "SEO-тексты",
+    analyze: "Анализ карточки",
+    compare: "Сравнение карточек",
+    turnkey: "Карточка под ключ",
+  };
+  const loadFlags = React.useCallback(() => {
+    fetch("/api/admin/flags")
+      .then((r) => r.json())
+      .then((d: { flags?: { action: string; disabled: boolean }[] }) => setFlags(d.flags ?? []))
+      .catch(() => setFlags([]));
+  }, []);
+  const toggleFlag = async (action: string, disabled: boolean) => {
+    if (
+      disabled &&
+      !window.confirm(
+        `Закрыть раздел «${FLAG_LABELS[action] ?? action}» на техработы?\n\nНовые генерации будут отклоняться с понятным сообщением (гены не списываются). Идущие генерации доедут. Вас рубильник не ограничивает.`,
+      )
+    )
+      return;
+    setFlagBusy(action);
+    try {
+      const res = await fetch("/api/admin/flags", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action, disabled }),
+      });
+      const d = (await res.json()) as { flags?: { action: string; disabled: boolean }[] };
+      if (!res.ok) throw new Error();
+      setFlags(d.flags ?? []);
+    } catch {
+      window.alert("Не удалось переключить — попробуйте ещё раз.");
+    } finally {
+      setFlagBusy(null);
+    }
+  };
+  React.useEffect(loadFlags, [loadFlags]);
+
   // «Генерации»: журнал для разбора жалоб
   const [gens, setGens] = React.useState<Generation[] | null>(null);
   const [genEmail, setGenEmail] = React.useState("");
@@ -547,6 +591,59 @@ export default function AdminPage() {
                   в личном кабинете fal.ai, Timeweb — в панели Timeweb Cloud. Если баланс кончится,
                   клиенты увидят понятное сообщение и гены за неудачные попытки списаны не будут.
                 </p>
+
+                {/* Экстренные рубильники: закрыть раздел на техработы без деплоя */}
+                <div className="mt-5 border-t pt-4">
+                  <p className="text-sm font-medium">Рубильники разделов</p>
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    Выключенный раздел отклоняет новые генерации с сообщением о техработах
+                    (мгновенно, для всех открытых вкладок; гены не списываются). Идущие
+                    генерации доезжают. На вас рубильники не действуют.
+                  </p>
+                  {flags === null ? (
+                    <div className="mt-3 flex items-center gap-2 text-sm text-muted-foreground">
+                      <Loader2 className="h-4 w-4 animate-spin" /> Загрузка…
+                    </div>
+                  ) : (
+                    <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                      {flags.map((f) => (
+                        <div
+                          key={f.action}
+                          className={
+                            "flex items-center justify-between gap-2 rounded-lg border px-3 py-2 " +
+                            (f.disabled ? "border-destructive/50 bg-destructive/5" : "bg-card/60")
+                          }
+                        >
+                          <div className="min-w-0">
+                            <p className="truncate text-sm">{FLAG_LABELS[f.action] ?? f.action}</p>
+                            <p
+                              className={
+                                "text-[11px] " +
+                                (f.disabled ? "font-medium text-destructive" : "text-muted-foreground")
+                              }
+                            >
+                              {f.disabled ? "ЗАКРЫТ — техработы" : "работает"}
+                            </p>
+                          </div>
+                          <Button
+                            variant={f.disabled ? "default" : "outline"}
+                            size="sm"
+                            disabled={flagBusy === f.action}
+                            onClick={() => toggleFlag(f.action, !f.disabled)}
+                          >
+                            {flagBusy === f.action ? (
+                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            ) : f.disabled ? (
+                              "Открыть"
+                            ) : (
+                              "Закрыть"
+                            )}
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </CardContent>
             </Card>
           </TabsContent>

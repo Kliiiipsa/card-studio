@@ -3,6 +3,7 @@ import { sessionFromRequest } from "@/core/auth/session";
 import { billingEnabled, getBalance, applyTx } from "./billing";
 import { PRICES, SPARK, type SparkAction } from "./prices";
 import { effectivePrice, consumePriceListUse } from "./promo";
+import { disabledSections } from "@/core/ops/section-flags";
 import { uid } from "@/lib/utils";
 
 /**
@@ -14,6 +15,7 @@ import { uid } from "@/lib/utils";
 export type BillingCtx = {
   email: string;
   action: SparkAction;
+  role: "admin" | "user";
   free: boolean;
   /** цена с учётом промокода-прайса; равна PRICES[action], если промокода нет */
   price: number;
@@ -24,6 +26,15 @@ export type BillingCtx = {
 /** Resolve the session; throw 402 when the user can't afford the action. */
 export async function requireSparks(req: Request, action: SparkAction): Promise<BillingCtx> {
   const ctx = await billingCtx(req, action);
+  // Экстренный рубильник раздела (админка → «Состояние»): блокируем только
+  // ВХОД в новые генерации — идущие задачи доезжают и списываются штатно.
+  // Админ проходит всегда: чинит и проверяет раздел, пока клиенты ждут.
+  if (ctx.role !== "admin" && (await disabledSections()).has(action)) {
+    throw new AppError(
+      "Раздел временно закрыт на технические работы — мы уже чиним. Гены не списаны, загляните чуть позже.",
+      503,
+    );
+  }
   if (!ctx.free) {
     const balance = await getBalance(ctx.email);
     if (balance < ctx.price) {
@@ -45,7 +56,7 @@ export async function billingCtx(req: Request, action: SparkAction): Promise<Bil
   const { price, viaPromo } = free
     ? { price: PRICES[action], viaPromo: null }
     : await effectivePrice(session.email, action);
-  return { email: session.email, action, free, price, promoCode: viaPromo };
+  return { email: session.email, action, role: session.role, free, price, promoCode: viaPromo };
 }
 
 /**
