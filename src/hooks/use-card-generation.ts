@@ -68,7 +68,10 @@ export function useCardGeneration() {
         const finalPrompt = suffix ? `${basePrompt}\n\n${suffix}.` : basePrompt;
         gen.setField("finalPrompt", finalPrompt);
 
-        // Russian headline kept for the text overlay (not rendered by the model)
+        // Русский заголовок живёт ТОЛЬКО в оверлее экспорта (канвас). В модель
+        // его не передаём вовсе: даже «зарезервируй место под заголовок о …»
+        // работал как приглашение НАРИСОВАТЬ текст (жалоба 2026-08-25, щётка
+        // с плашкой «Идеальная чистота авто») — а раздел обещает чистое фото.
         const cardText =
           (s.overlayHeadline || s.product.benefits[0] || s.product.name || "")
             .trim()
@@ -83,14 +86,12 @@ export function useCardGeneration() {
               strength: s.referenceStrength,
               aspectRatio: s.aspectRatio,
               count: 1,
-              cardText,
             })
           : await api.generateText({
               prompt: finalPrompt,
               negativePrompt: s.negativePrompt,
               aspectRatio: s.aspectRatio,
               count: 1,
-              cardText,
             });
 
         const nowIso = new Date().toISOString();

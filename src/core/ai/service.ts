@@ -282,11 +282,13 @@ async function buildModelPrompt(prompt: string, cardText?: string): Promise<stri
   const en = await translateToEnglish(prompt);
   const text = cardText?.trim();
   if (!text) return en;
-  const meaning = await translateToEnglish(text);
+  // Урок «запрет = приглашение» (2026-08-25): прежняя формулировка «headline
+  // about "<смысл>" … Do NOT render any text» заставляла Seedream РИСОВАТЬ
+  // плашку с заголовком. Только позитив, смысл заголовка не называем.
   return (
-    `${en}. Reserve a clean, empty typography area for a short headline about "${meaning}". ` +
-    `Do NOT render any text, letters, words or logos inside the image — keep that area clear so ` +
-    `text can be overlaid later. Balanced premium layout with the product as the focal point.`
+    `${en}. Composition leaves a generous area of plain, uncluttered background as clean ` +
+    `negative space. Pure product photography: every surface stays exactly as plain as it is ` +
+    `in reality. Balanced premium layout with the product as the focal point.`
   );
 }
 
