@@ -50,6 +50,7 @@ export async function POST(req: Request) {
       productName: body.productName,
       aspectRatio: body.aspectRatio,
       variantSeed: body.variantSeed,
+      keepBackground: body.keepBackground,
     };
 
     // остаток fal до работы — по разнице после посчитаем реальную себестоимость

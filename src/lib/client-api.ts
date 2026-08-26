@@ -54,6 +54,8 @@ type InfographicGenerateArgs = {
   styleReferenceImage?: string;
   productName?: string;
   aspectRatio?: "3:4" | "4:5";
+  /** сохранять фон загруженного фото (по умолчанию да) */
+  keepBackground?: boolean;
   /** advanced on each regenerate → next composition variant */
   variantSeed?: number;
   /** снимок заполненной формы — только для разбора жалоб в админке */

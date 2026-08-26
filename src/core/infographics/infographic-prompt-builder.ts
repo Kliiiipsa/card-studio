@@ -144,8 +144,25 @@ const DENSITY_WORDS: Record<StyleProfile["density"], string> = {
 function describeBakedStyle(
   style: Exclude<InfographicStyle, "auto">,
   styleProfile: StyleProfile | undefined,
-  restyleScene: boolean,
+  // restyle — модель пересобирает фон под стиль; keep — фон берётся из фото
+  // пользователя, стиль применяется ТОЛЬКО к графике; asis — генерация с нуля
+  // (фото нет), фон описывается стилем
+  scene: "restyle" | "keep" | "asis",
 ): string {
+  if (scene === "keep") {
+    // «Сохранять фон» (решение пользователя 2026-08-26): фон/сцена/свет — из
+    // фото; стиль влияет лишь на плашки, заголовок и акценты, не на окружение.
+    const accent = styleProfile?.palette.accent ?? STYLE_PRESETS[style].palette[0];
+    const parts = [
+      "The style below applies ONLY to the graphic layer (headline, benefit plates, accent shapes) — NOT to the photo, its background, scene or lighting",
+      `Accent color ${accent}`,
+    ];
+    if (styleProfile) {
+      parts.push(`panels ${styleProfile.palette.surface}`, CARD_STYLE_WORDS[styleProfile.cardStyle]);
+    }
+    return parts.filter(Boolean).join(". ");
+  }
+  const restyleScene = scene === "restyle";
   if (!styleProfile) {
     const sp = STYLE_PRESETS[style];
     return [
@@ -234,6 +251,8 @@ export function buildBakedCardPrompt(args: {
   variantSeed?: number;
   /** a user-uploaded style reference image is attached to this request */
   hasStyleReference?: boolean;
+  /** сохранять фон загруженного фото (стиль — только на графику); по умолч. да */
+  keepBackground?: boolean;
 }): string {
   const { productName, headline, subheadline, benefits, type, style, styleProfile, layoutPlan } =
     args;
@@ -245,6 +264,16 @@ export function buildBakedCardPrompt(args: {
   // Also true when the reference IMAGE is attached without an extracted profile —
   // the picture must still win over our generic composition/typography rules.
   const referenceDriven = styleProfile?.source === "reference" || !!args.hasStyleReference;
+
+  // Режим сцены: с референсом всегда рестайл (перенос стиля подразумевает новый
+  // фон); иначе при наличии фото и включённом keepBackground — бережём фон;
+  // без фото — генерация с нуля.
+  const keepBg = args.keepBackground !== false; // по умолчанию true
+  const sceneMode: "restyle" | "keep" | "asis" = !args.hasProductImage
+    ? "asis"
+    : keepBg && !referenceDriven
+      ? "keep"
+      : "restyle";
 
   const base = args.hasProductImage
     ? `Using the provided product photo, create a FINISHED Wildberries marketplace infographic card for ${product}. Keep the product/person photorealistic — same identity, clothing, materials, colors and proportions.`
@@ -259,7 +288,7 @@ export function buildBakedCardPrompt(args: {
     base,
     `Card purpose: ${spec.intent}.`,
     "Portrait 3:4 composition, product as the hero with tasteful clean space for text.",
-    describeBakedStyle(style, styleProfile, args.hasProductImage) + ".",
+    describeBakedStyle(style, styleProfile, sceneMode) + ".",
     referenceDriven
       ? `Composition: follow the style reference's composition and layout rhythm.${
           layoutPlan
@@ -273,7 +302,9 @@ export function buildBakedCardPrompt(args: {
           productName: product,
           variantSeed: args.variantSeed ?? 0,
         }),
-    "If it suits the product and style, ground the product in a believable real-world environment (real surface, subtle context props, natural depth) instead of a flat empty backdrop.",
+    sceneMode === "keep"
+      ? "Keep the EXACT background, scene, surface and lighting of the provided product photo — do NOT invent, replace or restyle the environment. Only overlay the graphic layer (headline, benefit plates, accents) on top of the otherwise untouched photo."
+      : "If it suits the product and style, ground the product in a believable real-world environment (real surface, subtle context props, natural depth) instead of a flat empty backdrop.",
     "Render the following RUSSIAN text directly inside the image as polished, modern marketplace typography — integrated into the layout, NOT as flat stickers, plastic pills or pasted badges:",
     `• Headline (dominant): «${headline.trim()}»`,
     subheadline ? `• Subheadline (smaller, lighter): «${subheadline.trim()}»` : "",

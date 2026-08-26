@@ -141,6 +141,8 @@ export const infographicGenerateSchema = z.object({
   styleReferenceImage: z.string().optional(),
   productName: z.string().max(200).optional(),
   aspectRatio: z.enum(["3:4", "4:5"]).optional(),
+  /** сохранять фон загруженного фото (по умолчанию да) */
+  keepBackground: z.boolean().optional(),
   /** skip the async gpt-image job and render a clean Flux base synchronously —
    *  the client sets this after a queued job fails (e.g. content moderation). */
   forceFallback: z.boolean().optional(),

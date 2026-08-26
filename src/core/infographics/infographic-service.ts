@@ -359,6 +359,8 @@ export type InfographicBaseArgs = {
   aspectRatio?: "3:4" | "4:5";
   /** advanced by the client on each regenerate → next composition variant */
   variantSeed?: number;
+  /** сохранять фон загруженного фото (по умолчанию да) — стиль только на графику */
+  keepBackground?: boolean;
 };
 
 type BuiltRequest =
@@ -403,6 +405,7 @@ function buildBaseRequest(args: InfographicBaseArgs, bake: boolean): BuiltReques
       hasProductImage: !!args.productImage || !!args.styleReferenceImage,
       variantSeed: args.variantSeed,
       hasStyleReference: !!args.styleReferenceImage,
+      keepBackground: args.keepBackground,
     });
 
   // Custom style reference + product photo: give the model BOTH images — the

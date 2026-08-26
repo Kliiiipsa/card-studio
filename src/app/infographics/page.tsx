@@ -54,6 +54,9 @@ export default function InfographicsPage() {
   // raw style-reference image (data URL) — the i2i style anchor, separate from
   // the product photo (`reference`)
   const [styleReferenceImage, setStyleReferenceImage] = React.useState<string | null>(null);
+  // сохранять фон загруженного фото (по умолчанию да); стиль применяется только
+  // к графике. Актуально в режиме «Визуальный стиль» без референса.
+  const [keepBackground, setKeepBackground] = React.useState(true);
 
   // пример выбранного библиотечного стиля — крупно в области результата, пока
   // своей карточки ещё нет («вот так будет выглядеть этот стиль»)
@@ -253,6 +256,7 @@ export default function InfographicsPage() {
         styleReferenceImage: styleReferenceImage ?? undefined,
         productName: product.name || undefined,
         aspectRatio: "3:4",
+        keepBackground,
         variantSeed: variantSeedRef.current,
         // снимок формы для поддержки: что человек ввёл и что выбрал
         userInput: {
@@ -424,6 +428,38 @@ export default function InfographicsPage() {
                 )}
               </div>
             </div>
+
+            {/* Фон фото: сохранять клиентский или дать модели заменить под стиль.
+                Актуально только с загруженным фото и визуальным стилем (без
+                референса — там замена фона заложена в переносе стиля). */}
+            {reference && !styleProfile && !styleReferenceImage && (
+              <div className="space-y-1.5">
+                <Label className="text-xs">Фон карточки</Label>
+                <div className="grid grid-cols-2 gap-2">
+                  {(
+                    [
+                      { keep: true, title: "Как на фото", desc: "Оставить ваш фон, стиль — только на плашки" },
+                      { keep: false, title: "Заменить под стиль", desc: "ИИ соберёт фон под выбранный стиль" },
+                    ] as const
+                  ).map((o) => (
+                    <button
+                      key={String(o.keep)}
+                      type="button"
+                      onClick={() => setKeepBackground(o.keep)}
+                      className={
+                        "rounded-lg border px-3 py-2 text-left transition-colors " +
+                        (keepBackground === o.keep
+                          ? "border-primary bg-primary/5"
+                          : "bg-card/60 hover:border-primary/40")
+                      }
+                    >
+                      <p className="text-xs font-medium">{o.title}</p>
+                      <p className="mt-0.5 text-[11px] leading-4 text-muted-foreground">{o.desc}</p>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
 
             <div className="space-y-2">
               <Label className="text-xs">Стиль референса</Label>
