@@ -27,7 +27,9 @@ export async function POST(req: Request) {
       referenceImageDataUrl: body.referenceImageDataUrl,
       strength: body.strength,
       aspectRatio: body.aspectRatio,
-      count: body.count,
+      // одно изображение за одно списание (аудит 2026-08-26); count из тела
+      // не масштабируем — иначе 4 картинки по цене одной
+      count: 1,
       cardText: body.cardText,
     });
     // permanent copies in our S3 + «Мои карточки» records (fal URLs expire)

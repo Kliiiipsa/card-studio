@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { getPool } from "./store-pg";
-import { normalizeEmail } from "./domains";
+import { normalizeEmail, canonicalEmail } from "./domains";
 import { deleteUser } from "./store";
 import { s3Delete, s3KeyFromUrl, s3Enabled } from "@/core/storage/s3";
 import {
@@ -35,8 +35,11 @@ import {
 
 const pgAvailable = () => Boolean(process.env.DATABASE_URL || process.env.PGHOST);
 
+// Надгробие — по КАНОНИЧЕСКОМУ адресу (plus-варианты одного ящика = один
+// след), чтобы повторный бонус нельзя было получить через user+1@ (аудит
+// 2026-08-26). Согласовано с ключом welcome-бонуса.
 export function emailHash(emailRaw: string): string {
-  return createHash("sha256").update(`kartogen:${normalizeEmail(emailRaw)}`).digest("hex");
+  return createHash("sha256").update(`kartogen:${canonicalEmail(emailRaw)}`).digest("hex");
 }
 
 /** Обезличенная замена почты в сохраняемых строках. */

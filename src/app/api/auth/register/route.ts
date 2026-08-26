@@ -61,7 +61,14 @@ export async function POST(req: Request) {
 
     // Open mode (temporary, until SMTP): the account is created right away,
     // no email code — the server confirms the registration itself.
-    if (process.env.REGISTRATION_OPEN === "true") {
+    // ЗАЩИТА (аудит 2026-08-26): в проде при настроенном SMTP этот режим
+    // ИГНОРИРУЕТСЯ — иначе можно наплодить verified-аккаунты на любые адреса
+    // без подтверждения и собрать приветственные бонусы. Публичное открытие
+    // регистрации = убрать инвайт-код, оставить подтверждение кодом по почте.
+    const instantOpen =
+      process.env.REGISTRATION_OPEN === "true" &&
+      !(process.env.NODE_ENV === "production" && isSmtpConfigured());
+    if (instantOpen) {
       const confirmed = await confirmRegistration(email, started.code);
       if (confirmed.status !== "ok") {
         throw new AppError("Не удалось создать аккаунт. Попробуйте ещё раз.", 500);

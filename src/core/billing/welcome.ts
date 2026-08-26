@@ -1,6 +1,7 @@
 import { billingEnabled, applyTx } from "./billing";
 import { WELCOME_SPARKS } from "./prices";
 import { wasDeleted } from "@/core/auth/deletion";
+import { canonicalEmail } from "@/core/auth/domains";
 
 /**
  * Starter sparks, granted exactly once per email (deduplicated by reference).
@@ -13,11 +14,13 @@ import { wasDeleted } from "@/core/auth/deletion";
 export async function grantWelcomeBonus(email: string): Promise<number | null> {
   if (!billingEnabled()) return null;
   if (await wasDeleted(email)) return 0;
+  // reference по КАНОНИЧЕСКОМУ адресу: все plus-варианты одного ящика делят
+  // один бонус (второй получит конфликт reference и 0 генов).
   const { balance } = await applyTx({
     email,
     amount: WELCOME_SPARKS,
     type: "welcome",
-    reference: `welcome:${email}`,
+    reference: `welcome:${canonicalEmail(email)}`,
     comment: "Стартовый бонус за регистрацию",
   });
   return balance;

@@ -85,7 +85,15 @@ export async function applyTx(args: {
   action?: string;
   reference?: string;
   comment?: string;
-}): Promise<{ balance: number; applied: boolean }> {
+  /**
+   * Для списаний: не дать балансу уйти в минус. Уменьшение делается атомарным
+   * UPDATE с условием `balance >= |amount|`; если средств не хватает —
+   * транзакция откатывается целиком (строка billing_tx тоже), возвращается
+   * `insufficient: true`. Закрывает гонку «проверил баланс → списал»
+   * (аудит 2026-08-26): N параллельных запросов больше не могут все пройти.
+   */
+  guardNonNegative?: boolean;
+}): Promise<{ balance: number; applied: boolean; insufficient?: boolean }> {
   await ensureSchema();
   const client = await getPool().connect();
   try {
@@ -106,13 +114,33 @@ export async function applyTx(args: {
     );
     let balance: number;
     if (inserted.rows[0]) {
-      const upd = await client.query<{ balance: number }>(
-        `insert into billing_balance (email, balance) values ($1, $2)
-         on conflict (email) do update set balance = billing_balance.balance + $2
-         returning balance`,
-        [args.email, args.amount],
-      );
-      balance = upd.rows[0].balance;
+      if (args.guardNonNegative && args.amount < 0) {
+        // атомарное условное списание: одна строка обновится только если
+        // средств хватает; конкурентные запросы упрутся здесь, а не в минус
+        const upd = await client.query<{ balance: number }>(
+          `update billing_balance set balance = balance + $2
+             where email = $1 and balance + $2 >= 0
+           returning balance`,
+          [args.email, args.amount],
+        );
+        if (upd.rowCount === 0) {
+          await client.query("rollback");
+          const cur = await getPool().query<{ balance: number }>(
+            "select balance from billing_balance where email = $1",
+            [args.email],
+          );
+          return { balance: cur.rows[0]?.balance ?? 0, applied: false, insufficient: true };
+        }
+        balance = upd.rows[0].balance;
+      } else {
+        const upd = await client.query<{ balance: number }>(
+          `insert into billing_balance (email, balance) values ($1, $2)
+           on conflict (email) do update set balance = billing_balance.balance + $2
+           returning balance`,
+          [args.email, args.amount],
+        );
+        balance = upd.rows[0].balance;
+      }
     } else {
       const cur = await client.query<{ balance: number }>(
         "select balance from billing_balance where email = $1",

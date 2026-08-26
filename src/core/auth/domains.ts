@@ -27,6 +27,25 @@ export function normalizeEmail(raw: string): string {
   return raw.trim().toLowerCase();
 }
 
+/**
+ * Канонический адрес для антифрода: срезает тег `+…` из локальной части.
+ * `user+1@yandex.ru`, `user+2@yandex.ru` → `user@yandex.ru`. Российские
+ * провайдеры доставляют plus-адреса в базовый ящик, поэтому по канону
+ * дедуплицируется приветственный бонус и ставится «надгробие» — иначе один
+ * ящик = бесконечные бонусы (аудит 2026-08-26). Для ВХОДА/хранения аккаунта
+ * используется обычный normalizeEmail (плюс-адрес остаётся отдельным логином).
+ */
+export function canonicalEmail(raw: string): string {
+  const email = normalizeEmail(raw);
+  const at = email.lastIndexOf("@");
+  if (at < 0) return email;
+  let local = email.slice(0, at);
+  const domain = email.slice(at + 1);
+  const plus = local.indexOf("+");
+  if (plus >= 0) local = local.slice(0, plus);
+  return `${local}@${domain}`;
+}
+
 /** Returns null when ok, otherwise a user-facing error message (Russian). */
 export function validateRussianEmail(raw: string): string | null {
   const email = normalizeEmail(raw);

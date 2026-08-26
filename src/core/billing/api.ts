@@ -66,14 +66,22 @@ export async function billingCtx(req: Request, action: SparkAction): Promise<Bil
  */
 export async function chargeSparks(ctx: BillingCtx, reference?: string): Promise<number | null> {
   if (ctx.free) return null;
-  const { balance, applied } = await applyTx({
+  // guardNonNegative: атомарное условное списание — баланс не уйдёт в минус
+  // даже при гонке параллельных запросов (аудит 2026-08-26).
+  const { balance, applied, insufficient } = await applyTx({
     email: ctx.email,
     amount: -ctx.price,
     type: "charge",
     action: ctx.action,
     reference: reference ?? uid("tx"),
     comment: ctx.promoCode ? `Спец-цена по промокоду ${ctx.promoCode}` : undefined,
+    guardNonNegative: true,
   });
+  if (insufficient) {
+    // средства кончились между проверкой и списанием (конкурентные запросы):
+    // результат уже готов, но баланс защищён — фиксируем в логах
+    console.warn(`[billing] concurrent depletion: ${ctx.email} action=${ctx.action}`);
+  }
   // одна генерация по спец-прайсу израсходована (только при реальном списании)
   if (applied && ctx.promoCode) await consumePriceListUse(ctx.email, ctx.promoCode);
   return balance;

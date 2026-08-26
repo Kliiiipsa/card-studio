@@ -3,6 +3,7 @@ import { z } from "zod";
 import { getLLMProvider, getImageProvider } from "./providers";
 import type { ImageResult } from "./providers/types";
 import { ProviderError } from "@/lib/errors";
+import { safeFetchMedia } from "@/lib/safe-fetch";
 import {
   SYSTEM_ANALYST,
   SYSTEM_COMPARATOR,
@@ -421,20 +422,13 @@ ${productBlock(args.product)}
 async function ensureDataUrl(src: string): Promise<string> {
   if (src.startsWith("data:")) return src;
   if (/^https?:\/\//.test(src)) {
-    let res: Response;
-    try {
-      res = await fetch(src, { cache: "no-store" });
-    } catch (e) {
-      throw new ProviderError(
-        "Не удалось загрузить изображение.",
-        `fetch image failed: ${String(e)}`,
-      );
+    // safeFetchMedia защищает от SSRF (аудит 2026-08-26): пользователь мог
+    // подсунуть внутренний адрес вместо ссылки на картинку.
+    const { buf, contentType } = await safeFetchMedia(src);
+    const mime = contentType.split(";")[0] || "image/jpeg";
+    if (!mime.startsWith("image/")) {
+      throw new ProviderError("Ссылка не является изображением.", `not an image: ${mime}`);
     }
-    if (!res.ok) {
-      throw new ProviderError("Не удалось загрузить изображение.", `image ${res.status}`);
-    }
-    const buf = Buffer.from(await res.arrayBuffer());
-    const mime = res.headers.get("content-type")?.split(";")[0] || "image/jpeg";
     return `data:${mime};base64,${buf.toString("base64")}`;
   }
   throw new ProviderError("Некорректный формат изображения.", "unsupported image src");
