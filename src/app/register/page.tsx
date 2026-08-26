@@ -20,11 +20,21 @@ export default function RegisterPage() {
   const [password2, setPassword2] = React.useState("");
   const [code, setCode] = React.useState("");
   const [inviteCode, setInviteCode] = React.useState("");
+  // поле инвайт-кода показываем только если сервер его требует (регистрация
+  // публично открыта 2026-08-26 → по умолчанию скрыто)
+  const [inviteRequired, setInviteRequired] = React.useState(false);
   const [agreed, setAgreed] = React.useState(false);
   const [devCode, setDevCode] = React.useState<string | null>(null);
   const [error, setError] = React.useState<string | null>(null);
   const [notice, setNotice] = React.useState<string | null>(null);
   const [busy, setBusy] = React.useState(false);
+
+  React.useEffect(() => {
+    fetch("/api/auth/config")
+      .then((r) => r.json())
+      .then((d: { inviteRequired?: boolean }) => setInviteRequired(d.inviteRequired === true))
+      .catch(() => undefined);
+  }, []);
 
   const post = async (url: string, body: unknown) => {
     const res = await fetch(url, {
@@ -159,20 +169,22 @@ export default function RegisterPage() {
                   placeholder="••••••••"
                 />
               </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="invite" className="text-xs">
-                  Инвайт-код
-                </Label>
-                <Input
-                  id="invite"
-                  value={inviteCode}
-                  onChange={(e) => setInviteCode(e.target.value)}
-                  placeholder="Код приглашения"
-                />
-                <p className="text-[11px] leading-4 text-muted-foreground">
-                  Сервис в закрытом тестировании — регистрация по приглашениям.
-                </p>
-              </div>
+              {inviteRequired && (
+                <div className="space-y-1.5">
+                  <Label htmlFor="invite" className="text-xs">
+                    Инвайт-код
+                  </Label>
+                  <Input
+                    id="invite"
+                    value={inviteCode}
+                    onChange={(e) => setInviteCode(e.target.value)}
+                    placeholder="Код приглашения"
+                  />
+                  <p className="text-[11px] leading-4 text-muted-foreground">
+                    Сервис в закрытом тестировании — регистрация по приглашениям.
+                  </p>
+                </div>
+              )}
               {/* consent must be an explicit, unchecked-by-default action (152-ФЗ) */}
               <label className="flex cursor-pointer items-start gap-2 text-xs leading-5 text-muted-foreground">
                 <input
