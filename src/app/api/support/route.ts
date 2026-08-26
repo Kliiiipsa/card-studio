@@ -4,7 +4,7 @@ import { AppError } from "@/lib/errors";
 import { sessionFromRequest } from "@/core/auth/session";
 import { enforceRateLimit } from "@/lib/rate-limit";
 import { saveTicket } from "@/core/support/support";
-import { notifyTelegram, tgEscape } from "@/core/notify/telegram";
+import { notifyOwner } from "@/core/notify/owner";
 
 export const runtime = "nodejs";
 
@@ -32,14 +32,13 @@ export async function POST(req: Request) {
       message: body.message,
     });
 
-    // уведомление владельцу в Telegram (best-effort, не влияет на ответ клиенту)
-    await notifyTelegram(
-      `🆘 <b>Новое обращение в поддержку</b>\n` +
-        `От: <b>${tgEscape(session.email)}</b>\n` +
-        (subject ? `Тема: ${tgEscape(subject)}\n` : "") +
-        `\n${tgEscape(body.message)}` +
-        (id ? `\n\n#${id}` : ""),
-    );
+    // уведомление владельцу (почта + Telegram), best-effort и НЕ блокируя клиента:
+    // на постоянном next-start сервере промис досчитывается в фоне после ответа.
+    const parts = [`От: ${session.email}`];
+    if (subject) parts.push(`Тема: ${subject}`);
+    parts.push("", body.message);
+    if (id) parts.push("", `#${id}`);
+    void notifyOwner("🆘 Новое обращение в поддержку", parts.join("\n")).catch(() => undefined);
 
     return ok({ sent: true });
   } catch (err) {

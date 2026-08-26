@@ -227,6 +227,30 @@ export function sendDeletionEmail(to: string, code: string): Promise<void> {
   return sendMail(to, deletionMail(code));
 }
 
+/**
+ * Best-effort уведомление владельцу (обращения в поддержку, ops-события).
+ * Использует тот же транспорт, что и коды подтверждения — он проверенно работает
+ * с прода, в отличие от api.telegram.org, недоступного из российского ДЦ.
+ * Получатель: OWNER_ALERT_EMAIL → ADMIN_EMAIL → MAIL_FROM. Никогда не бросает.
+ */
+export async function sendOwnerAlert(subject: string, text: string): Promise<boolean> {
+  const to = process.env.OWNER_ALERT_EMAIL || process.env.ADMIN_EMAIL || process.env.MAIL_FROM;
+  if (!to || !isSmtpConfigured()) return false;
+  const esc = (s: string) =>
+    s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  const html =
+    `<pre style="font:14px/1.6 -apple-system,Segoe UI,Roboto,sans-serif;white-space:pre-wrap;margin:0;color:#1d1c19">` +
+    `${esc(text)}</pre>`;
+  try {
+    await sendMail(to, { subject, text, html });
+    return true;
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.error("[owner-alert:mail]", err);
+    return false;
+  }
+}
+
 /* --------------------------------- SMTP ---------------------------------- */
 
 async function sendViaSmtp(to: string, mail: MailContent): Promise<void> {
