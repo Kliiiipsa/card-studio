@@ -39,7 +39,7 @@ import {
   type StyleProfile,
 } from "@/core/infographics/types";
 import { assembleBrief } from "@/core/infographics/brief-builder";
-import { DEFAULT_STYLE_PROFILE } from "@/core/infographics/style-library";
+import { DEFAULT_STYLE_PROFILE, STYLE_LIBRARY } from "@/core/infographics/style-library";
 import { INFOGRAPHICS_PREFILL_KEY } from "@/components/ai/analysis-report";
 
 export default function InfographicsPage() {
@@ -54,6 +54,14 @@ export default function InfographicsPage() {
   // raw style-reference image (data URL) — the i2i style anchor, separate from
   // the product photo (`reference`)
   const [styleReferenceImage, setStyleReferenceImage] = React.useState<string | null>(null);
+
+  // пример выбранного библиотечного стиля — крупно в области результата, пока
+  // своей карточки ещё нет («вот так будет выглядеть этот стиль»)
+  const styleExample = React.useMemo(() => {
+    if (styleProfile?.source !== "library") return null;
+    const item = STYLE_LIBRARY.find((s) => s.id === styleProfile.id);
+    return item?.example ? { src: item.example, name: item.name } : null;
+  }, [styleProfile]);
 
   const [brief, setBrief] = React.useState<InfographicBrief | null>(null);
   const [baseImageUrl, setBaseImageUrl] = React.useState<string | null>(null);
@@ -480,6 +488,25 @@ export default function InfographicsPage() {
               </div>
             ) : baseImageUrl && brief ? (
               <InfographicCanvas baseSrc={baseImageUrl} brief={brief} textBaked={textBaked} />
+            ) : styleExample ? (
+              // пока своего результата нет — крупно показываем пример выбранного
+              // стиля из библиотеки («вот так будет выглядеть»)
+              <div className="space-y-2">
+                <div className="relative overflow-hidden rounded-xl border">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={styleExample.src}
+                    alt={`Пример стиля «${styleExample.name}»`}
+                    className="w-full"
+                  />
+                  <span className="absolute left-2 top-2 rounded-md bg-black/60 px-2 py-0.5 text-[11px] font-medium text-white backdrop-blur">
+                    Пример стиля «{styleExample.name}»
+                  </span>
+                </div>
+                <p className="text-center text-xs text-muted-foreground">
+                  Так выглядит этот стиль. Ваш товар и тексты появятся здесь после генерации.
+                </p>
+              </div>
             ) : (
               <EmptyState
                 icon={<ImagePlus className="h-6 w-6" />}

@@ -64,7 +64,7 @@ export function InfographicReferencePicker({
 
       <TabsContent value="library" className="mt-0">
         <p className="mb-2 text-[11px] leading-4 text-muted-foreground">
-          На карточках — реальные примеры карточек в каждом стиле.
+          Выберите стиль — пример «как будет выглядеть» покажем справа, в области результата.
         </p>
         <div className="grid grid-cols-2 gap-2">
           {STYLE_LIBRARY.map((item) => {
@@ -85,23 +85,17 @@ export function InfographicReferencePicker({
                 )}
               >
                 <div
-                  className="relative h-28 overflow-hidden"
+                  className="relative flex h-16 items-end p-2"
                   style={{
                     background: `linear-gradient(135deg, ${item.preview.from}, ${item.preview.to})`,
                   }}
                 >
-                  {/* реальный пример-результат в этом стиле — «примерно так будет» */}
-                  {item.example && (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={item.example}
-                      alt={`Пример в стиле «${item.name}»`}
-                      loading="lazy"
-                      className="h-full w-full object-cover object-top"
-                    />
-                  )}
+                  <span
+                    className="h-4 w-4 rounded-full"
+                    style={{ background: item.preview.accent }}
+                  />
                   {active && (
-                    <span className="absolute right-1.5 top-1.5 rounded-full bg-primary p-0.5 text-primary-foreground shadow">
+                    <span className="absolute right-1.5 top-1.5 rounded-full bg-primary p-0.5 text-primary-foreground">
                       <Check className="h-3 w-3" />
                     </span>
                   )}
