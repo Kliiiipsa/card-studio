@@ -89,6 +89,20 @@ export const ACTION_LABELS: Record<SparkAction, string> = {
   extract_style: "Извлечение стиля",
 };
 
+/** Курс пополнения fal.ai (₽ за $), 2026-08-25. Для аналитики затрат в «Отчётах». */
+export const RUB_PER_USD = 98;
+
+/**
+ * Оценка нашей себестоимости fal за один ген (₽). Гены тратят на разные услуги
+ * с разной ценой fal: худший случай — всё уйдёт на видео, типичный — на
+ * инфографику. Нужно, чтобы оценить обязательства перед пользователями.
+ * (себестоимость услуги ÷ её цена в генах, курс 98 ₽/$)
+ */
+export const FAL_COST_PER_GENE = {
+  worst: 0.58, // видео: ~34,6 ₽ / 60 генов
+  typical: 0.45, // инфографика: ~5,3 ₽ / 12 генов
+} as const;
+
 /** starter balance granted once per account on signup */
 export const WELCOME_SPARKS = 20;
 

@@ -18,6 +18,8 @@ import {
   CircleAlert,
   CircleHelp,
   CircleMinus,
+  FileSpreadsheet,
+  Download,
 } from "lucide-react";
 import { AppShell } from "@/components/layout/app-shell";
 import { Card, CardContent } from "@/components/ui/card";
@@ -346,6 +348,55 @@ export default function AdminPage() {
   };
   React.useEffect(loadFlags, [loadFlags]);
 
+  // «Отчёты»: аналитика затрат + выгрузка чеков
+  type CostReport = {
+    outstandingGenes: number;
+    accounts: number;
+    liabilityWorstRub: number;
+    liabilityTypicalRub: number;
+    falUsd: number | null;
+    falRub: number | null;
+    spend24hRub: number;
+    spend7dRub: number;
+    burnPerDayRub: number;
+    runwayDays: number | null;
+    status: "green" | "amber" | "red";
+    advice: string;
+  };
+  const [report, setReport] = React.useState<CostReport | null>(null);
+  const [reportLoading, setReportLoading] = React.useState(false);
+  const mskToday = new Date(Date.now() + 3 * 3600_000).toISOString().slice(0, 10);
+  const [reportDate, setReportDate] = React.useState(mskToday);
+  const [downloading, setDownloading] = React.useState(false);
+  const loadReport = React.useCallback(() => {
+    setReportLoading(true);
+    fetch("/api/admin/reports/cost")
+      .then((r) => r.json())
+      .then((d) => setReport(d?.status ? d : null))
+      .catch(() => setReport(null))
+      .finally(() => setReportLoading(false));
+  }, []);
+  const downloadReceipts = async () => {
+    setDownloading(true);
+    try {
+      const res = await fetch(`/api/admin/reports/receipts?date=${reportDate}`);
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        throw new Error(d.error ?? "Не удалось сформировать таблицу");
+      }
+      const blob = await res.blob();
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = `kartogen-cheki-${reportDate}.csv`;
+      a.click();
+      URL.revokeObjectURL(a.href);
+    } catch (e) {
+      window.alert(e instanceof Error ? e.message : "Ошибка выгрузки");
+    } finally {
+      setDownloading(false);
+    }
+  };
+
   // «Генерации»: журнал для разбора жалоб
   const [gens, setGens] = React.useState<Generation[] | null>(null);
   const [genEmail, setGenEmail] = React.useState("");
@@ -534,6 +585,9 @@ export default function AdminPage() {
             </TabsTrigger>
             <TabsTrigger value="promo" className="gap-1.5">
               <Ticket className="h-4 w-4" /> Промокоды
+            </TabsTrigger>
+            <TabsTrigger value="reports" className="gap-1.5">
+              <FileSpreadsheet className="h-4 w-4" /> Отчёты
             </TabsTrigger>
           </TabsList>
 
@@ -837,6 +891,135 @@ export default function AdminPage() {
           {/* PROMO */}
           <TabsContent value="promo">
             <PromoManager />
+          </TabsContent>
+
+          {/* REPORTS — выгрузка чеков за день + аналитика «надо ли пополнять fal» */}
+          <TabsContent value="reports">
+            <div className="grid gap-4 lg:grid-cols-2">
+              {/* Выгрузка чеков */}
+              <Card>
+                <CardContent className="space-y-3 p-4">
+                  <p className="flex items-center gap-2 text-sm font-medium">
+                    <FileSpreadsheet className="h-4 w-4 text-primary" /> Выгрузка платежей за день
+                  </p>
+                  <p className="text-xs leading-5 text-muted-foreground">
+                    Выберите дату — сформируется таблица (Excel/CSV) со всеми пополнениями за этот
+                    день по московскому времени: сумма, почта, гены, номер платежа.
+                  </p>
+                  <div className="flex flex-wrap items-end gap-2">
+                    <div className="space-y-1">
+                      <label className="text-xs text-muted-foreground">Дата</label>
+                      <Input
+                        type="date"
+                        value={reportDate}
+                        max={mskToday}
+                        onChange={(e) => setReportDate(e.target.value)}
+                        className="h-9 w-auto"
+                      />
+                    </div>
+                    <Button onClick={downloadReceipts} disabled={downloading || !reportDate}>
+                      {downloading ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Download className="h-4 w-4" />
+                      )}
+                      Скачать таблицу
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Аналитика затрат */}
+              <Card>
+                <CardContent className="space-y-3 p-4">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-sm font-medium">Аналитика затрат</p>
+                    <Button variant="outline" size="sm" onClick={loadReport} disabled={reportLoading}>
+                      {reportLoading ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <RefreshCw className="h-3.5 w-3.5" />
+                      )}
+                      Обновить
+                    </Button>
+                  </div>
+
+                  {report === null ? (
+                    <p className="text-xs text-muted-foreground">
+                      {reportLoading ? "Считаем…" : "Нажмите «Обновить», чтобы посчитать."}
+                    </p>
+                  ) : (
+                    <div className="space-y-3">
+                      {/* вердикт */}
+                      <div
+                        className={cn(
+                          "rounded-lg border p-3 text-sm",
+                          report.status === "green" &&
+                            "border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400",
+                          report.status === "amber" &&
+                            "border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-400",
+                          report.status === "red" &&
+                            "border-destructive/50 bg-destructive/10 text-destructive",
+                        )}
+                      >
+                        <p className="font-medium">
+                          {report.status === "green"
+                            ? "Хватает"
+                            : report.status === "amber"
+                              ? "Скоро пополнять"
+                              : "Пополнить сейчас"}
+                        </p>
+                        <p className="mt-0.5 leading-5">{report.advice}</p>
+                      </div>
+
+                      <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                        <dt className="text-muted-foreground">Баланс fal</dt>
+                        <dd className="text-right font-medium">
+                          {report.falUsd === null
+                            ? "—"
+                            : `$${report.falUsd.toFixed(2)} ≈ ${report.falRub?.toLocaleString("ru-RU")} ₽`}
+                        </dd>
+
+                        <dt className="text-muted-foreground">Генов у пользователей</dt>
+                        <dd className="text-right font-medium">
+                          {report.outstandingGenes.toLocaleString("ru-RU")} 🧬
+                          <span className="ml-1 text-xs text-muted-foreground">
+                            ({report.accounts} чел.)
+                          </span>
+                        </dd>
+
+                        <dt className="text-muted-foreground">Обязательства (fal)</dt>
+                        <dd className="text-right font-medium">
+                          ~{report.liabilityTypicalRub.toLocaleString("ru-RU")}–
+                          {report.liabilityWorstRub.toLocaleString("ru-RU")} ₽
+                        </dd>
+
+                        <dt className="text-muted-foreground">Расход fal за сутки</dt>
+                        <dd className="text-right font-medium">
+                          {report.spend24hRub.toLocaleString("ru-RU")} ₽
+                        </dd>
+
+                        <dt className="text-muted-foreground">В среднем в день (7 дн.)</dt>
+                        <dd className="text-right font-medium">
+                          {report.burnPerDayRub.toLocaleString("ru-RU")} ₽
+                        </dd>
+
+                        <dt className="text-muted-foreground">Хватит примерно на</dt>
+                        <dd className="text-right font-medium">
+                          {report.runwayDays === null ? "—" : `${report.runwayDays} дн.`}
+                        </dd>
+                      </dl>
+
+                      <p className="text-[11px] leading-4 text-muted-foreground">
+                        Обязательства — оценка себестоимости fal, если пользователи потратят все
+                        свои гены (типичный случай — инфографика, худший — видео). Пополнение fal —
+                        в личном кабинете fal.ai.
+                      </p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
           </TabsContent>
 
           {/* GENERATIONS — разбор жалоб: что человек вводил и что получилось */}

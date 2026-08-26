@@ -186,6 +186,24 @@ export async function listCompleted(args: {
   return rows.map(toJob);
 }
 
+/**
+ * Расход fal (в долларах) по завершённым генерациям за последние N часов —
+ * для аналитики «сколько тратим и на сколько хватит» в «Отчётах». Берём
+ * реальную себестоимость, записанную фоновым замером в payload.falCostUsd.
+ */
+export async function falSpendUsdSince(hours: number): Promise<number> {
+  await ensureSchema();
+  const { rows } = await getPool().query<{ usd: string | null }>(
+    `select coalesce(sum((payload->>'falCostUsd')::numeric), 0) as usd
+       from gen_jobs
+      where payload ? 'falCostUsd'
+        and finished_at is not null
+        and finished_at >= now() - ($1 || ' hours')::interval`,
+    [String(hours)],
+  );
+  return Number(rows[0].usd ?? 0);
+}
+
 /** Aggregate storage usage for the admin dashboard. */
 export async function storageStats(): Promise<{ count: number; bytes: number }> {
   await ensureSchema();

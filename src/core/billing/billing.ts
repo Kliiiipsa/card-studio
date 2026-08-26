@@ -182,6 +182,46 @@ export async function listTransactions(opts: {
   }));
 }
 
+/**
+ * РЕАЛЬНЫЕ платежи (ЮKassa, reference 'yk-…') за конкретный МОСКОВСКИЙ день —
+ * для выгрузки чеков в «Отчётах». Промо-начисления и бонусы сюда НЕ попадают:
+ * чек = поступление денег. Границы дня считаем в +03:00 (налоговая отчётность
+ * по московскому времени).
+ */
+export async function paymentsOnDate(dateStr: string): Promise<SparkTransaction[]> {
+  await ensureSchema();
+  const from = `${dateStr}T00:00:00+03:00`;
+  const { rows } = await getPool().query(
+    `select * from billing_tx
+      where type = 'topup'
+        and reference like 'yk-%'
+        and created_at >= $1::timestamptz
+        and created_at < $1::timestamptz + interval '1 day'
+      order by created_at asc`,
+    [from],
+  );
+  return rows.map((r) => ({
+    id: Number(r.id),
+    email: r.email,
+    amount: r.amount,
+    type: r.type,
+    action: r.action,
+    reference: r.reference,
+    comment: r.comment,
+    createdAt: new Date(r.created_at).toISOString(),
+  }));
+}
+
+/** Суммарные обязательства: сколько генов на балансах всех пользователей. */
+export async function totalUserBalance(): Promise<{ totalGenes: number; accounts: number }> {
+  await ensureSchema();
+  const { rows } = await getPool().query<{ total: string | null; accounts: string }>(
+    `select coalesce(sum(balance), 0) as total, count(*) filter (where balance > 0) as accounts
+       from billing_balance`,
+  );
+  return { totalGenes: Number(rows[0].total ?? 0), accounts: Number(rows[0].accounts) };
+}
+
 /** balances for the admin table, keyed by email */
 export async function balancesFor(emails: string[]): Promise<Record<string, number>> {
   if (!emails.length) return {};
