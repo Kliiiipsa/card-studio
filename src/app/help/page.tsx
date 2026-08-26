@@ -413,8 +413,11 @@ export default function HelpPage() {
             ))}
           </div>
           <p className="text-sm text-muted-foreground">
-            Не нашли ответ — напишите на{" "}
+            Не нашли ответ — напишите нам через{" "}
+            <a href="/support" className="text-primary hover:underline">форму поддержки</a>{" "}
+            или на{" "}
             <a href="mailto:admin@kartogen.ru" className="text-primary hover:underline">admin@kartogen.ru</a>.
+            Поддержка работает с 10:00 до 20:00 по Москве — отвечаем в течение часа.
           </p>
         </section>
       </div>

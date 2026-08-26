@@ -51,8 +51,8 @@ export default function SupportPage() {
                 <CheckCircle2 className="h-10 w-10 text-emerald-500" />
                 <p className="text-sm font-medium">Обращение отправлено</p>
                 <p className="text-sm text-muted-foreground">
-                  Мы получили ваш вопрос и ответим на почту вашего аккаунта. Обычно отвечаем в
-                  течение дня.
+                  Мы получили ваш вопрос и ответим на почту вашего аккаунта в течение часа в
+                  рабочее время (10:00–20:00 МСК).
                 </p>
                 <Button
                   variant="outline"
@@ -68,7 +68,8 @@ export default function SupportPage() {
             ) : (
               <form onSubmit={submit} className="space-y-4">
                 <p className="text-xs leading-5 text-muted-foreground">
-                  Опишите вопрос — ответ придёт на почту вашего аккаунта. Если это жалоба на
+                  Опишите вопрос — ответ придёт на почту вашего аккаунта. Поддержка работает
+                  с 10:00 до 20:00 по Москве, отвечаем в течение часа. Если это жалоба на
                   генерацию, укажите, что вводили и что получили.
                 </p>
                 <div className="space-y-1.5">
