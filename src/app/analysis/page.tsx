@@ -259,7 +259,7 @@ export default function AnalysisPage() {
                   ) : (
                     <Wand2 className="h-4 w-4" />
                   )}
-                  Улучшить карточку по советам ИИ · 7 🧬
+                  Улучшить карточку по советам ИИ · {PRICES.generate} {SPARK}
                 </Button>
               )}
             </CardContent>

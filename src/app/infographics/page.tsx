@@ -15,6 +15,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ListField } from "@/components/generator/product-form";
+import { PRICES, SPARK } from "@/core/billing/prices";
 import { ImageUploader } from "@/components/media/image-uploader";
 import { EmptyState } from "@/components/project/empty-state";
 import { InfographicCanvas } from "@/components/infographics/infographic-canvas";
@@ -449,7 +450,7 @@ export default function InfographicsPage() {
                   ) : (
                     <Wand2 className="h-4 w-4" />
                   )}
-                  Сгенерировать изображение · 10 🧬
+                  Сгенерировать изображение · {PRICES.infographic} {SPARK}
                 </Button>
               </>
             ) : (

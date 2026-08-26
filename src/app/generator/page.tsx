@@ -28,6 +28,7 @@ import { useCardGeneration } from "@/hooks/use-card-generation";
 import { PHOTO_SCENARIOS, PHOTO_SCENARIO_MAP, type PhotoScenarioId } from "@/core/domain/photo-scenarios";
 import { ASPECT_RATIOS, type AspectRatioId } from "@/core/domain/export-presets";
 import { INFOGRAPHICS_PREFILL_KEY } from "@/components/ai/analysis-report";
+import { PRICES, SPARK } from "@/core/billing/prices";
 import { uid } from "@/lib/utils";
 
 const STYLE_MODES: { id: StyleMode; label: string }[] = [
@@ -363,7 +364,7 @@ function GeneratorInner() {
               className="w-full"
             >
               {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />}
-              Сгенерировать фото · 7 🧬
+              Сгенерировать фото · {PRICES.generate} {SPARK}
             </Button>
 
             {busy ? (
@@ -403,7 +404,7 @@ function GeneratorInner() {
                 />
                 <Button variant="outline" className="w-full" onClick={toInfographic}>
                   <LayoutGrid className="h-4 w-4" />
-                  Сделать инфографику из этого фото · 10 🧬
+                  Сделать инфографику из этого фото · {PRICES.infographic} {SPARK}
                 </Button>
                 {latestScore && (
                   <p className="text-center text-xs text-muted-foreground">
@@ -426,7 +427,7 @@ function GeneratorInner() {
           className="w-full"
         >
           {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />}
-          Сгенерировать фото · 7 🧬
+          Сгенерировать фото · {PRICES.generate} {SPARK}
         </Button>
       </div>
     </div>
