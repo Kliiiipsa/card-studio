@@ -2,7 +2,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { LogOut, Settings, ShieldCheck, Wallet, Dna } from "lucide-react";
+import { LogOut, Settings, ShieldCheck, Wallet, Dna, LifeBuoy } from "lucide-react";
 import { genWord } from "@/core/billing/prices";
 import { Button } from "@/components/ui/button";
 import { useProfileStore } from "@/store/profile-store";
@@ -79,6 +79,9 @@ export function ProfileMenu() {
             </MenuLink>
             <MenuLink href="/settings" onClick={() => setOpen(false)}>
               <Settings className="h-4 w-4" /> Настройки
+            </MenuLink>
+            <MenuLink href="/support" onClick={() => setOpen(false)}>
+              <LifeBuoy className="h-4 w-4" /> Поддержка
             </MenuLink>
             {role === "admin" && (
               <MenuLink href="/admin" onClick={() => setOpen(false)}>
