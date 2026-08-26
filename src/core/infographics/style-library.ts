@@ -4,6 +4,8 @@ import type { StyleProfile } from "./types";
 export type StyleLibraryItem = StyleProfile & {
   description: string;
   preview: { from: string; to: string; accent: string };
+  /** реальный пример-результат в этом стиле (из наших генераций в public/examples) */
+  example?: string;
 };
 
 /**
@@ -34,6 +36,7 @@ export const STYLE_LIBRARY: StyleLibraryItem[] = [
     headlinePosition: "top",
     accentElements: ["clean accent line", "consistent benefit cards"],
     preview: { from: "#eef2f7", to: "#dde5f0", accent: "#2563eb" },
+    example: "/examples/shirt.jpg",
   },
   {
     id: "premium-dark",
@@ -57,6 +60,7 @@ export const STYLE_LIBRARY: StyleLibraryItem[] = [
     headlinePosition: "top",
     accentElements: ["thin gold accent line", "lots of negative space"],
     preview: { from: "#1b2030", to: "#0c0f15", accent: "#c9a35c" },
+    example: "/examples/coat.jpg",
   },
   {
     id: "bright-accent",
@@ -80,6 +84,7 @@ export const STYLE_LIBRARY: StyleLibraryItem[] = [
     headlinePosition: "top",
     accentElements: ["vivid accent chips", "strong contrast"],
     preview: { from: "#fff1ea", to: "#ffd9cc", accent: "#e1483b" },
+    example: "/examples/sneakers.jpg",
   },
   {
     id: "soft-lifestyle",
@@ -103,6 +108,7 @@ export const STYLE_LIBRARY: StyleLibraryItem[] = [
     headlinePosition: "bottom",
     accentElements: ["soft rounded cards", "calm rhythm"],
     preview: { from: "#f3ece8", to: "#e7d8d4", accent: "#bd7e8e" },
+    example: "/examples/dress.jpg",
   },
   // Насыщенные «выпрыгивающие из ленты» стили — ответ на бежевый перекос
   // первой четвёрки: в белой выдаче WB такие карточки заметнее.
@@ -129,6 +135,7 @@ export const STYLE_LIBRARY: StyleLibraryItem[] = [
     headlinePosition: "top",
     accentElements: ["yellow headline blocks", "bold zigzag and spark doodles"],
     preview: { from: "#e5197f", to: "#ff5aa8", accent: "#ffd21f" },
+    example: "/examples/hoodie.jpg",
   },
   {
     id: "turquoise-fresh",
@@ -153,6 +160,7 @@ export const STYLE_LIBRARY: StyleLibraryItem[] = [
     headlinePosition: "top",
     accentElements: ["large friendly white headline", "small floating nature details"],
     preview: { from: "#22cfc7", to: "#0fa39d", accent: "#ffffff" },
+    example: "/examples/humidifier.jpg",
   },
   {
     id: "sunny-promo",
@@ -177,6 +185,7 @@ export const STYLE_LIBRARY: StyleLibraryItem[] = [
     headlinePosition: "top",
     accentElements: ["huge yellow condensed headline", "neat spec chips with icons"],
     preview: { from: "#8fd2f5", to: "#ffd21f", accent: "#1c4b6e" },
+    example: "/examples/suitcase.jpg",
   },
   {
     id: "scene-story",
@@ -202,6 +211,7 @@ export const STYLE_LIBRARY: StyleLibraryItem[] = [
     headlinePosition: "top",
     accentElements: ["huge warm poster headline", "sun-washed texture, natural props"],
     preview: { from: "#d99b5c", to: "#8a5a28", accent: "#ffcc33" },
+    example: "/examples/turka.jpg",
   },
 ];
 
@@ -209,9 +219,10 @@ export function getLibraryStyle(id: string): StyleProfile | null {
   const item = STYLE_LIBRARY.find((s) => s.id === id);
   if (!item) return null;
   // strip preview/description -> plain StyleProfile
-  const { preview, description, ...profile } = item;
+  const { preview, description, example, ...profile } = item;
   void preview;
   void description;
+  void example;
   return profile;
 }
 
