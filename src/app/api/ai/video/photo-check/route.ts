@@ -2,6 +2,7 @@ import { z } from "zod";
 import { parseBody, ok, fail } from "@/lib/api";
 import { AppError } from "@/lib/errors";
 import { sessionFromRequest } from "@/core/auth/session";
+import { enforceAiRateLimit } from "@/core/billing/api";
 import { getLLMProvider } from "@/core/ai/providers";
 import { validateDataUrl } from "@/lib/image-validation";
 
@@ -20,6 +21,8 @@ export async function POST(req: Request) {
   try {
     const session = await sessionFromRequest(req);
     if (!session) throw new AppError("Требуется вход.", 401);
+    // бесплатный vision-вызов мимо requireSparks — лимитируем отдельно (аудит 2026-08-26)
+    enforceAiRateLimit(session.email, session.role);
     const { productImage } = await parseBody(req, schema);
     if (productImage.startsWith("data:")) validateDataUrl(productImage);
 

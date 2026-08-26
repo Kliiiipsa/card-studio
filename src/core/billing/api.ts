@@ -4,6 +4,7 @@ import { billingEnabled, getBalance, applyTx } from "./billing";
 import { PRICES, SPARK, type SparkAction } from "./prices";
 import { effectivePrice, consumePriceListUse } from "./promo";
 import { disabledSections } from "@/core/ops/section-flags";
+import { enforceRateLimit } from "@/lib/rate-limit";
 import { uid } from "@/lib/utils";
 
 /**
@@ -24,8 +25,24 @@ export type BillingCtx = {
 };
 
 /** Resolve the session; throw 402 when the user can't afford the action. */
+/**
+ * Лимит частоты ИИ-запросов на аккаунт (аудит 2026-08-26). Одна щедрая планка
+ * на все действия: человек в живой работе её не достигает, а скрипт — да.
+ * Бьёт по двум векторам сразу: сжигание токенов на бесплатных роутах и
+ * «пулемётные» параллельные генерации, обходящие баланс. Админа не трогаем.
+ */
+export function enforceAiRateLimit(email: string, role: "admin" | "user"): void {
+  if (role === "admin") return;
+  enforceRateLimit(`ai:${email}`, {
+    limit: 30,
+    windowMs: 60_000,
+    message: "Слишком часто. Подождите минуту и попробуйте снова.",
+  });
+}
+
 export async function requireSparks(req: Request, action: SparkAction): Promise<BillingCtx> {
   const ctx = await billingCtx(req, action);
+  enforceAiRateLimit(ctx.email, ctx.role);
   // Экстренный рубильник раздела (админка → «Состояние»): блокируем только
   // ВХОД в новые генерации — идущие задачи доезжают и списываются штатно.
   // Админ проходит всегда: чинит и проверяет раздел, пока клиенты ждут.

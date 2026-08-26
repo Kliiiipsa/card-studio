@@ -7,6 +7,8 @@ import { isSmtpConfigured, sendVerificationEmail } from "@/core/auth/mailer";
 import { respondWithSession } from "@/core/auth/cookies";
 import { grantWelcomeBonus } from "@/core/billing/welcome";
 import { recordConsent } from "@/core/auth/consent";
+import { clientIp } from "@/lib/request-ip";
+import { enforceRateLimit } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 
@@ -25,6 +27,13 @@ export async function POST(req: Request) {
     if (!process.env.AUTH_SECRET) {
       throw new AppError("Регистрация не настроена: AUTH_SECRET не задан.", 500);
     }
+    // лимит по IP: не дать скриптом плодить аккаунты (аудит 2026-08-26)
+    const ip = clientIp(req);
+    enforceRateLimit(`register:${ip ?? "unknown"}`, {
+      limit: 8,
+      windowMs: 10 * 60_000,
+      message: "Слишком много попыток регистрации. Повторите позже.",
+    });
     const body = await parseBody(req, schema);
     // Explicit consent is required server-side too — the checkbox alone can be
     // bypassed by a crafted request, and 152-ФЗ wants a real affirmative act.
@@ -75,7 +84,7 @@ export async function POST(req: Request) {
       }
       await recordConsent({
         email,
-        ip: req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? null,
+        ip,
         userAgent: req.headers.get("user-agent"),
       });
       const balance = await grantWelcomeBonus(email);
