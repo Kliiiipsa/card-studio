@@ -26,7 +26,7 @@ const EXAMPLES: ExampleCard[] = [
   // примеры перемешаны, чтобы стили и категории чередовались в обеих.
   { src: "/examples/dress.jpg", title: "Платье", style: "Мягкий лайфстайл" },
   { src: "/examples/pan.png", title: "Сковорода", style: "Графитовый гранит" },
-  { src: "/examples/backpack.png", title: "Детский рюкзак", style: "Весёлый яркий" },
+  { src: "/examples/organizer.png", title: "Органайзер", style: "Скандинавский порядок" },
   { src: "/examples/shirt.jpg", title: "Рубашка", style: "Чистый маркетплейс" },
   { src: "/examples/carvac.png", title: "Автопылесос", style: "Техно тёмный" },
   { src: "/examples/bedding.png", title: "Постельное бельё", style: "Нежный текстиль" },
@@ -41,7 +41,7 @@ const EXAMPLES: ExampleCard[] = [
   { src: "/examples/humidifier.jpg", title: "Увлажнитель", style: "Бирюзовый фреш" },
   { src: "/examples/belt.png", title: "Кожаный ремень", style: "Премиум кожа" },
   { src: "/examples/jeans.jpg", title: "Джинсы", style: "Солнечный промо" },
-  { src: "/examples/organizer.png", title: "Органайзер", style: "Скандинавский порядок" },
+  { src: "/examples/backpack.png", title: "Детский рюкзак", style: "Весёлый яркий" },
   { src: "/examples/speaker.jpg", title: "Колонка", style: "Поп-арт · по референсу" },
   { src: "/examples/shampoo.png", title: "Мужской шампунь", style: "Свежий контраст" },
   { src: "/examples/yogamat.jpg", title: "Коврик для йоги", style: "Бирюзовый фреш" },
