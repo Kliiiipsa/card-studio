@@ -2,6 +2,7 @@ import { ok, fail } from "@/lib/api";
 import { AppError } from "@/lib/errors";
 import { sessionFromRequest } from "@/core/auth/session";
 import { billingEnabled, listTransactions } from "@/core/billing/billing";
+import { isHiddenAccount } from "@/core/auth/hidden-accounts";
 
 export const runtime = "nodejs";
 
@@ -11,8 +12,14 @@ export async function GET(req: Request) {
     const session = await sessionFromRequest(req);
     if (session?.role !== "admin") throw new AppError("Только для администратора.", 403);
     if (!billingEnabled()) return ok({ transactions: [] });
-    const email = new URL(req.url).searchParams.get("email") ?? undefined;
-    const transactions = await listTransactions({ email, limit: 200 });
+    const url = new URL(req.url);
+    const email = url.searchParams.get("email") ?? undefined;
+    const showAll = url.searchParams.get("all") === "1";
+    const rows = await listTransactions({ email, limit: 200 });
+    // Прячем транзакции тестовых/владельческих аккаунтов по умолчанию.
+    // Если админ явно смотрит одну почту (?email=) — показываем как есть.
+    const transactions =
+      email || showAll ? rows : rows.filter((t) => !isHiddenAccount(t.email));
     return ok({ transactions });
   } catch (err) {
     return fail(err);

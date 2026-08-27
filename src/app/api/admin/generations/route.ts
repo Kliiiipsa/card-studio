@@ -2,6 +2,7 @@ import { ok, fail } from "@/lib/api";
 import { AppError } from "@/lib/errors";
 import { sessionFromRequest } from "@/core/auth/session";
 import { jobsEnabled, listJobsForAdmin, type GenJobStatus } from "@/core/jobs/jobs";
+import { isHiddenAccount } from "@/core/auth/hidden-accounts";
 
 export const runtime = "nodejs";
 
@@ -24,6 +25,7 @@ export async function GET(req: Request) {
 
     const url = new URL(req.url);
     const email = url.searchParams.get("email")?.trim() || undefined;
+    const showAll = url.searchParams.get("all") === "1";
     const kindRaw = url.searchParams.get("kind") ?? "";
     const statusRaw = url.searchParams.get("status") ?? "";
     const limit = Number(url.searchParams.get("limit") ?? 50) || 50;
@@ -37,8 +39,12 @@ export async function GET(req: Request) {
       offset,
     });
 
+    // Прячем генерации тестовых/владельческих аккаунтов по умолчанию;
+    // при явном фильтре по почте (?email=) или ?all=1 — показываем всё.
+    const visible = email || showAll ? jobs : jobs.filter((j) => !isHiddenAccount(j.email));
+
     return ok({
-      generations: jobs.map((j) => ({
+      generations: visible.map((j) => ({
         id: j.id,
         email: j.email,
         kind: j.kind,

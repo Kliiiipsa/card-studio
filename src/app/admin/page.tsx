@@ -442,11 +442,11 @@ export default function AdminPage() {
   }, [showHidden]);
 
   const loadTxs = React.useCallback(() => {
-    fetch("/api/admin/transactions")
+    fetch(`/api/admin/transactions${showHidden ? "?all=1" : ""}`)
       .then((r) => r.json())
       .then((d: { transactions?: SparkTransaction[] }) => setTxs(d.transactions ?? []))
       .catch(() => setTxs([]));
-  }, []);
+  }, [showHidden]);
 
   // применённые промокоды — показываем в строке пользователя
   const [promoUses, setPromoUses] = React.useState<PromoRedemption[]>([]);
@@ -501,11 +501,12 @@ export default function AdminPage() {
     if (genEmail.trim()) qs.set("email", genEmail.trim());
     if (genKind) qs.set("kind", genKind);
     if (genStatus) qs.set("status", genStatus);
+    if (showHidden) qs.set("all", "1");
     fetch(`/api/admin/generations?${qs.toString()}`)
       .then((r) => r.json())
       .then((d: { generations?: Generation[] }) => setGens(d.generations ?? []))
       .catch(() => setGens([]));
-  }, [genEmail, genKind, genStatus]);
+  }, [genEmail, genKind, genStatus, showHidden]);
 
   React.useEffect(() => {
     loadUsers();
@@ -870,6 +871,15 @@ export default function AdminPage() {
           <TabsContent value="transactions">
             <Card>
               <CardContent className="p-4">
+                <label className="mb-3 flex cursor-pointer select-none items-center gap-1.5 text-xs text-muted-foreground">
+                  <input
+                    type="checkbox"
+                    checked={showHidden}
+                    onChange={(e) => setShowHidden(e.target.checked)}
+                    className="h-3.5 w-3.5 accent-primary"
+                  />
+                  Показать тестовые
+                </label>
                 {txs === null ? (
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     <Loader2 className="h-4 w-4 animate-spin" /> Загрузка…
@@ -1152,6 +1162,15 @@ export default function AdminPage() {
                   <Button variant="outline" size="sm" onClick={loadGens}>
                     Обновить
                   </Button>
+                  <label className="flex cursor-pointer select-none items-center gap-1.5 text-xs text-muted-foreground">
+                    <input
+                      type="checkbox"
+                      checked={showHidden}
+                      onChange={(e) => setShowHidden(e.target.checked)}
+                      className="h-3.5 w-3.5 accent-primary"
+                    />
+                    Показать тестовые
+                  </label>
                 </div>
 
                 {gens === null ? (
