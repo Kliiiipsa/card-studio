@@ -33,6 +33,7 @@ export async function middleware(req: NextRequest) {
     pathname.startsWith("/examples/") ||
     pathname === "/help" || // public «как это работает» — гайд + FAQ для поиска и нейровыдачи
     pathname.startsWith("/help/") || // static help screenshots
+    pathname === "/wildberries" || // SEO-посадочная под запросы про карточки WB
     pathname.startsWith("/login") ||
     pathname.startsWith("/register") ||
     pathname.startsWith("/api/auth") ||
