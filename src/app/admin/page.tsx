@@ -423,15 +423,23 @@ export default function AdminPage() {
   const [comment, setComment] = React.useState("");
   const [applying, setApplying] = React.useState(false);
 
+  const [showHidden, setShowHidden] = React.useState(false);
+  const [hiddenCount, setHiddenCount] = React.useState(0);
+
   const loadUsers = React.useCallback(() => {
-    fetch("/api/admin/users")
+    fetch(`/api/admin/users${showHidden ? "?all=1" : ""}`)
       .then(async (res) => {
-        const data = (await res.json().catch(() => ({}))) as { users?: AdminUser[]; error?: string };
+        const data = (await res.json().catch(() => ({}))) as {
+          users?: AdminUser[];
+          hiddenCount?: number;
+          error?: string;
+        };
         if (!res.ok) throw new Error(data.error ?? "Не удалось загрузить пользователей.");
         setUsers(data.users ?? []);
+        setHiddenCount(data.hiddenCount ?? 0);
       })
       .catch((e: Error) => setError(e.message));
-  }, []);
+  }, [showHidden]);
 
   const loadTxs = React.useCallback(() => {
     fetch("/api/admin/transactions")
@@ -719,12 +727,23 @@ export default function AdminPage() {
           <TabsContent value="users">
             <Card>
               <CardContent className="p-4">
-                <Input
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Поиск по почте или IP…"
-                  className="mb-3 max-w-sm"
-                />
+                <div className="mb-3 flex flex-wrap items-center gap-3">
+                  <Input
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    placeholder="Поиск по почте или IP…"
+                    className="max-w-sm"
+                  />
+                  <label className="flex cursor-pointer select-none items-center gap-1.5 text-xs text-muted-foreground">
+                    <input
+                      type="checkbox"
+                      checked={showHidden}
+                      onChange={(e) => setShowHidden(e.target.checked)}
+                      className="h-3.5 w-3.5 accent-primary"
+                    />
+                    Показать тестовые{hiddenCount > 0 ? ` (${hiddenCount})` : ""}
+                  </label>
+                </div>
                 {error ? (
                   <p className="text-sm text-destructive">{error}</p>
                 ) : filtered === null ? (

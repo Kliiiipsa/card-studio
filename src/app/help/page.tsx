@@ -17,9 +17,15 @@ import {
   CheckCircle2,
 } from "lucide-react";
 import { AppShell } from "@/components/layout/app-shell";
+import { JsonLd } from "@/components/seo/json-ld";
 import { PRICES, WELCOME_SPARKS, TOPUP_PACKAGES, CUSTOM_TOPUP } from "@/core/billing/prices";
 
-export const metadata: Metadata = { title: "Как это работает — Kartogen" };
+export const metadata: Metadata = {
+  title: "Как это работает — Kartogen",
+  description:
+    "Пошаговый гайд: как за пару минут собрать карточку товара для маркетплейса — инфографика с русским текстом, фото товара, SEO-тексты, разбор карточки. Ответы на частые вопросы.",
+  alternates: { canonical: "https://kartogen.ru/help" },
+};
 
 /* ------------------------------------------------------------------ */
 /* Content. Written from how the studio actually behaves — every claim  */
@@ -188,8 +194,22 @@ const FAQ: { q: string; a: string }[] = [
 /* ------------------------------------------------------------------ */
 
 export default function HelpPage() {
+  // FAQPage schema — поисковики и нейропоиск (Яндекс Нейро, GPT, Perplexity)
+  // читают вопросы-ответы как готовый FAQ и цитируют их. Строится из того же
+  // массива FAQ, что рендерится на странице, — источник один, рассинхрона нет.
+  const faqSchema = {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    mainEntity: FAQ.map((f) => ({
+      "@type": "Question",
+      name: f.q,
+      acceptedAnswer: { "@type": "Answer", text: f.a },
+    })),
+  };
+
   return (
     <AppShell title="Как это работает">
+      <JsonLd data={faqSchema} />
       <div className="mx-auto max-w-5xl space-y-14 pb-10">
         {/* Intro + TOC */}
         <section className="grid gap-6 lg:grid-cols-[1.4fr_1fr]">
