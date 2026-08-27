@@ -380,6 +380,12 @@ export default function VideoPage() {
                 (для карточки маркетплейса — 3:4). Генерация занимает 1–3 минуты. {SPARK} Гены списываются
                 только за готовое видео — за ошибки вы не платите.
               </p>
+              <p className="text-xs leading-5 text-muted-foreground">
+                Сценарий задаёт стиль движения — это ориентир, а не точный кадр: движение,
+                свет и детали подбирает нейросеть, поэтому каждый ролик получается немного
+                разным и может отличаться от превью. Не подошёл результат — сгенерируйте
+                ещё раз, следующий вариант будет другим.
+              </p>
               <div className="rounded-lg border bg-muted/40 px-3 py-2.5 text-xs leading-5 text-muted-foreground">
                 <p className="font-medium text-foreground">Как получить лучший результат</p>
                 <ul className="mt-1 list-disc space-y-0.5 pl-4">
