@@ -1,6 +1,9 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  // src/instrumentation.ts выполняется один раз при старте сервера (мониторы
+  // рантайма + страховка от падения процесса). В Next 14.2 нужен явный флаг.
+  experimental: { instrumentationHook: true },
   // ESLint's native resolver (unrs-resolver) can't run its postinstall in this
   // environment; skip lint during build (run `npm run lint` separately if needed).
   eslint: { ignoreDuringBuilds: true },

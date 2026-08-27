@@ -82,10 +82,11 @@ async function ensureAdmin(data: AuthData): Promise<void> {
   const password = process.env.ADMIN_PASSWORD;
   if (!email || !password) return;
   const existing = data.users[email];
-  if (existing && existing.role === "admin" && verifyPassword(password, existing.passHash)) return;
+  if (existing && existing.role === "admin" && (await verifyPassword(password, existing.passHash)))
+    return;
   data.users[email] = {
     email,
-    passHash: hashPassword(password),
+    passHash: await hashPassword(password),
     role: "admin",
     verified: true,
     createdAt: existing?.createdAt ?? new Date().toISOString(),
@@ -117,7 +118,7 @@ export function startRegistration(emailRaw: string, password: string): Promise<R
     const code = makeCode();
     data.pending[email] = {
       email,
-      passHash: hashPassword(password),
+      passHash: await hashPassword(password),
       codeHash: codeHashFor(email, code),
       expiresAt: now + CODE_TTL_MS,
       attempts: 0,
@@ -169,7 +170,7 @@ export function checkLogin(emailRaw: string, password: string): Promise<LoginRes
     }
 
     const user = data.users[email];
-    if (user?.verified && verifyPassword(password, user.passHash)) {
+    if (user?.verified && (await verifyPassword(password, user.passHash))) {
       delete data.throttle[email];
       return { status: "ok", user };
     }
@@ -189,10 +190,10 @@ export function changePassword(
   newPassword: string,
 ): Promise<"ok" | "bad_password"> {
   const email = normalizeEmail(emailRaw);
-  return locked((data): "ok" | "bad_password" => {
+  return locked(async (data): Promise<"ok" | "bad_password"> => {
     const user = data.users[email];
-    if (!user?.verified || !verifyPassword(oldPassword, user.passHash)) return "bad_password";
-    user.passHash = hashPassword(newPassword);
+    if (!user?.verified || !(await verifyPassword(oldPassword, user.passHash))) return "bad_password";
+    user.passHash = await hashPassword(newPassword);
     return "ok";
   });
 }

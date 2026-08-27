@@ -94,12 +94,13 @@ async function ensureAdmin(): Promise<void> {
     [email],
   );
   const existing = rows[0];
-  if (existing && existing.role === "admin" && verifyPassword(password, existing.pass_hash)) return;
+  if (existing && existing.role === "admin" && (await verifyPassword(password, existing.pass_hash)))
+    return;
   await getPool().query(
     `insert into auth_users (email, pass_hash, role, verified)
      values ($1, $2, 'admin', true)
      on conflict (email) do update set pass_hash = $2, role = 'admin', verified = true`,
-    [email, hashPassword(password)],
+    [email, await hashPassword(password)],
   );
 }
 
@@ -147,7 +148,7 @@ export async function startRegistration(
      values ($1, $2, $3, $4, 0, $5)
      on conflict (email) do update
        set pass_hash = $2, code_hash = $3, expires_at = $4, attempts = 0, last_sent_at = $5`,
-    [email, hashPassword(password), codeHashFor(email, code), now + CODE_TTL_MS, now],
+    [email, await hashPassword(password), codeHashFor(email, code), now + CODE_TTL_MS, now],
   );
   return { status: "ok", code };
 }
@@ -217,7 +218,7 @@ export async function checkLogin(emailRaw: string, password: string): Promise<Lo
     [email],
   );
   const user = rows[0];
-  if (user && verifyPassword(password, user.pass_hash)) {
+  if (user && (await verifyPassword(password, user.pass_hash))) {
     await db.query("delete from auth_throttle where email = $1", [email]);
     return { status: "ok", user: toUser(user) };
   }
@@ -243,10 +244,10 @@ export async function changePassword(
     [email],
   );
   const user = rows[0];
-  if (!user || !verifyPassword(oldPassword, user.pass_hash)) return "bad_password";
+  if (!user || !(await verifyPassword(oldPassword, user.pass_hash))) return "bad_password";
   await getPool().query("update auth_users set pass_hash = $2 where email = $1", [
     email,
-    hashPassword(newPassword),
+    await hashPassword(newPassword),
   ]);
   return "ok";
 }

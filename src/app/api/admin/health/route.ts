@@ -5,6 +5,7 @@ import { jobsEnabled, storageStats, listJobsForAdmin } from "@/core/jobs/jobs";
 import { billingEnabled } from "@/core/billing/billing";
 import { yookassaConfigured } from "@/core/billing/yookassa";
 import { isSmtpConfigured } from "@/core/auth/mailer";
+import { getRuntimeMetrics } from "@/core/ops/runtime-metrics";
 import { Pool } from "pg";
 
 export const runtime = "nodejs";
@@ -291,6 +292,76 @@ function checkMail(): HealthCheck {
       };
 }
 
+/** Формат аптайма: «3д 4ч», «5ч 20м», «12м». */
+function fmtUptime(sec: number): string {
+  const d = Math.floor(sec / 86400);
+  const h = Math.floor((sec % 86400) / 3600);
+  const m = Math.floor((sec % 3600) / 60);
+  if (d > 0) return `${d}д ${h}ч`;
+  if (h > 0) return `${h}ч ${m}м`;
+  return `${m}м`;
+}
+
+/**
+ * Ресурсы самого сервера (1 инстанс) — чтобы под наплывом сразу видеть, что
+ * пора усиливать: RAM, загрузка ядра, отзывчивость (лаг event-loop), аптайм.
+ */
+function serverChecks(): HealthCheck[] {
+  const m = getRuntimeMetrics();
+
+  const ram: HealthCheck = {
+    id: "ram",
+    title: "Оперативная память",
+    status: m.ramPct >= 85 ? "crit" : m.ramPct >= 70 ? "warn" : "ok",
+    value: `${m.rssMb} / ${m.ramLimitMb} МБ · ${m.ramPct}%`,
+    hint:
+      m.ramPct >= 85
+        ? "почти предел — под наплывом риск падения; поднимите план (больше RAM)"
+        : m.ramPct >= 70
+          ? "запас тает — присмотритесь к увеличению RAM"
+          : "запас в норме",
+  };
+
+  const cpu: HealthCheck = {
+    id: "cpu",
+    title: "Загрузка CPU",
+    status: m.loadPct >= 120 ? "crit" : m.loadPct >= 80 ? "warn" : "ok",
+    value: `${m.loadPct}% · ${m.cpuCount} ядро, load ${m.load1}`,
+    hint:
+      m.loadPct >= 120
+        ? "ядро перегружено — добавьте ядер или поднимите план"
+        : m.loadPct >= 80
+          ? "нагрузка высокая — держите на контроле при росте трафика"
+          : "нагрузка в норме",
+  };
+
+  const lag: HealthCheck = {
+    id: "lag",
+    title: "Отзывчивость сервера",
+    status: m.lagMeanMs >= 150 ? "crit" : m.lagMeanMs >= 50 ? "warn" : "ok",
+    value: `лаг ${m.lagMeanMs} мс · пик ${m.lagMaxMs} мс`,
+    hint:
+      m.lagMeanMs >= 150
+        ? "сервер стабильно подтормаживает — пора усиливать (RAM/ядра)"
+        : m.lagMeanMs >= 50
+          ? "иногда подтормаживает под нагрузкой — на контроле"
+          : "отклик мгновенный",
+  };
+
+  const up: HealthCheck = {
+    id: "uptime",
+    title: "Аптайм процесса",
+    status: "ok",
+    value: fmtUptime(m.uptimeSec),
+    hint:
+      m.jobsInFlight > 0
+        ? `в работе генераций: ${m.jobsInFlight} · частые сбросы аптайма = перезапуски/падения`
+        : "частые сбросы аптайма = перезапуски/падения",
+  };
+
+  return [ram, cpu, lag, up];
+}
+
 export async function GET(req: Request) {
   try {
     const session = await sessionFromRequest(req);
@@ -304,7 +375,17 @@ export async function GET(req: Request) {
       checkLLM(),
       checkGenerations(),
     ]);
-    const checks = [fal, timeweb, db, s3, llm, gen, checkPayments(), checkMail()];
+    const checks = [
+      ...serverChecks(),
+      fal,
+      timeweb,
+      db,
+      s3,
+      llm,
+      gen,
+      checkPayments(),
+      checkMail(),
+    ];
     const worst: HealthStatus = checks.some((c) => c.status === "crit")
       ? "crit"
       : checks.some((c) => c.status === "warn")
