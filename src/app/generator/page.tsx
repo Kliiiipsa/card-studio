@@ -56,9 +56,14 @@ function GeneratorInner() {
   const freeMode = s.genMode === "free";
   // Tailwind needs the literal class names — a computed aspect-[…] won't compile
   const placeholderAspect =
-    { "3:4": "aspect-[3/4]", "4:5": "aspect-[4/5]", "1:1": "aspect-square", "9:16": "aspect-[9/16]" }[
-      s.aspectRatio
-    ] ?? "aspect-[3/4]";
+    (
+      {
+        "3:4": "aspect-[3/4]",
+        "4:5": "aspect-[4/5]",
+        "1:1": "aspect-square",
+        "9:16": "aspect-[9/16]",
+      } as Record<string, string>
+    )[s.aspectRatio] ?? "aspect-[3/4]";
   const selected = s.variants.find((v) => v.id === s.selectedVariantId);
   const latestScore = s.lastScore;
 
@@ -91,7 +96,7 @@ function GeneratorInner() {
   };
 
   return (
-    <div className="mx-auto max-w-6xl space-y-4 pb-20 md:pb-0">
+    <div className="mx-auto max-w-6xl min-[2200px]:max-w-[1700px] space-y-4 pb-20 md:pb-0">
       {/* Режим раздела: карточка для маркетплейса или свободная генерация */}
       <div className="grid gap-2 sm:grid-cols-2">
         {(
@@ -111,7 +116,14 @@ function GeneratorInner() {
           <button
             key={m.id}
             type="button"
-            onClick={() => s.setField("genMode", m.id)}
+            onClick={() => {
+              s.setField("genMode", m.id);
+              // «Как у исходного» доступно только в свободном режиме — при
+              // возврате в маркетплейс возвращаем стандартный 3:4
+              if (m.id !== "free" && s.aspectRatio === "original") {
+                s.setField("aspectRatio", "3:4");
+              }
+            }}
             className={
               "rounded-xl border px-4 py-3 text-left transition-colors " +
               (s.genMode === m.id
@@ -261,7 +273,10 @@ function GeneratorInner() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {ASPECT_RATIOS.map((r) => (
+                  {ASPECT_RATIOS.filter(
+                    // «Как у исходного» — только в «Обычном фото» с загруженным референсом
+                    (r) => r.id !== "original" || (freeMode && !!s.reference),
+                  ).map((r) => (
                     <SelectItem key={r.id} value={r.id}>
                       {r.label}
                     </SelectItem>
@@ -395,6 +410,8 @@ function GeneratorInner() {
                 <ExportPanel
                   src={selected.url}
                   variants={s.variants}
+                  item={freeMode ? "photo" : "card"}
+                  allowOriginal={freeMode}
                   overlay={{
                     headline:
                       s.overlayHeadline || s.product.benefits[0] || s.product.name || undefined,

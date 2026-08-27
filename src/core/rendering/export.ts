@@ -91,6 +91,34 @@ export async function exportCard(
 }
 
 /**
+ * Экспорт в РОДНОМ разрешении изображения, без кропа — для «Как у исходного
+ * фото». Картинка уже сгенерирована в пропорциях оригинала, поэтому просто
+ * рисуем её 1:1 и отдаём. Наложение текста тут не нужно (режим «Обычное фото»).
+ */
+export async function exportCardNatural(
+  src: string,
+  format: ExportFormat,
+  opts?: { baseName?: string },
+) {
+  const img = await loadImage(src);
+  const canvas = document.createElement("canvas");
+  canvas.width = img.naturalWidth || img.width;
+  canvas.height = img.naturalHeight || img.height;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("Canvas не поддерживается.");
+  ctx.drawImage(img, 0, 0);
+  const blob = await new Promise<Blob>((resolve, reject) =>
+    canvas.toBlob(
+      (b) => (b ? resolve(b) : reject(new Error("Не удалось создать файл."))),
+      mime(format),
+      0.92,
+    ),
+  );
+  const base = opts?.baseName ?? "kartogen-photo";
+  downloadBlob(blob, `${base}-${canvas.width}x${canvas.height}.${format}`);
+}
+
+/**
  * Export EVERY generated variant across EVERY preset, with clear filenames:
  *   wb-card-variant-1-900x1200.png, wb-card-variant-2-1200x1600.png, ...
  */

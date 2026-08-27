@@ -22,6 +22,9 @@ export const ASPECT_RATIOS = [
   { id: "4:5", label: "4:5" },
   { id: "1:1", label: "1:1" },
   { id: "9:16", label: "9:16" },
+  // «Как у исходного фото» — только для «Обычного фото» с загруженным референсом;
+  // на клиенте резолвится в реальные пропорции загруженного изображения.
+  { id: "original", label: "Как у исходного фото" },
 ] as const;
 
 export type AspectRatioId = (typeof ASPECT_RATIOS)[number]["id"];

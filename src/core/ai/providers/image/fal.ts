@@ -177,11 +177,60 @@ function isSeedream(model: string): boolean {
   return model.toLowerCase().includes("seedream");
 }
 
-/** Kontext-style aspect_ratio enum. 4:5 isn't supported — fall back to 3:4. */
+/**
+ * Разобрать произвольную строку пропорции "W:H" (или "3:4") в число w/h.
+ * Возвращает null для нераспознаваемого. Нужно для режима «Как у исходного
+ * фото», где клиент присылает реальные пиксели референса, например "4032:3024".
+ */
+function parseRatio(ratio: string): number | null {
+  const m = /^\s*(\d+(?:\.\d+)?)\s*:\s*(\d+(?:\.\d+)?)\s*$/.exec(ratio);
+  if (!m) return null;
+  const w = parseFloat(m[1]);
+  const h = parseFloat(m[2]);
+  if (!(w > 0 && h > 0) || !Number.isFinite(w / h)) return null;
+  return w / h;
+}
+
+/** Подобрать пиксели под произвольную пропорцию: длинная сторона `long`,
+ *  короткая не меньше `min`, обе кратны 64 и не больше `max`. */
+function sizeForAspect(ar: number, long: number, min: number, max: number) {
+  let w: number, h: number;
+  if (ar >= 1) {
+    w = long;
+    h = long / ar;
+  } else {
+    h = long;
+    w = long * ar;
+  }
+  const shortest = Math.min(w, h);
+  if (shortest < min) {
+    const k = min / shortest;
+    w *= k;
+    h *= k;
+  }
+  const round64 = (n: number) => Math.min(max, Math.max(64, Math.round(n / 64) * 64));
+  return { width: round64(w), height: round64(h) };
+}
+
+/** Kontext-style aspect_ratio enum. Произвольную пропорцию мапим на ближайшую. */
 function toAspectRatio(ratio: string): string {
   const supported = ["21:9", "16:9", "4:3", "3:2", "1:1", "2:3", "3:4", "9:16", "9:21"];
   if (supported.includes(ratio)) return ratio;
   if (ratio === "4:5") return "3:4";
+  const ar = parseRatio(ratio);
+  if (ar !== null) {
+    let best = "3:4";
+    let bestDiff = Infinity;
+    for (const s of supported) {
+      const sr = parseRatio(s)!;
+      const diff = Math.abs(sr - ar);
+      if (diff < bestDiff) {
+        bestDiff = diff;
+        best = s;
+      }
+    }
+    return best;
+  }
   return "3:4";
 }
 
@@ -195,8 +244,11 @@ function toImageSize(ratio: string) {
     case "9:16":
       return { width: 768, height: 1344 };
     case "3:4":
-    default:
       return { width: 900, height: 1200 };
+    default: {
+      const ar = parseRatio(ratio);
+      return ar !== null ? sizeForAspect(ar, 1200, 720, 1440) : { width: 900, height: 1200 };
+    }
   }
 }
 
@@ -213,8 +265,13 @@ function toSeedreamSize(ratio: string) {
     case "9:16":
       return { width: 1152, height: 2048 };
     case "3:4":
-    default:
       return { width: 1152, height: 1536 };
+    default: {
+      // произвольная пропорция («Как у исходного фото»): длинная сторона 1536,
+      // короткая ≥ 768, обе кратны 64, потолок 2048 — вписываемся в лимиты Seedream
+      const ar = parseRatio(ratio);
+      return ar !== null ? sizeForAspect(ar, 1536, 768, 2048) : { width: 1152, height: 1536 };
+    }
   }
 }
 

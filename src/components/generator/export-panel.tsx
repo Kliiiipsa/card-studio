@@ -12,7 +12,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { EXPORT_PRESETS, type ExportFormat } from "@/core/domain/export-presets";
-import { exportCard, exportAllVariants, type ExportVariant } from "@/core/rendering/export";
+import {
+  exportCard,
+  exportCardNatural,
+  exportAllVariants,
+  type ExportVariant,
+} from "@/core/rendering/export";
 import type { CardOverlay } from "@/core/rendering/types";
 import { toast } from "@/components/ui/toaster";
 
@@ -26,12 +31,25 @@ export function ExportPanel({
   src,
   variants,
   overlay,
+  item = "card",
+  allowOriginal = false,
 }: {
   src?: string | null;
   variants?: ExportVariant[];
   overlay?: CardOverlay;
+  /** контекст названия: «карточка» для маркетплейса, «фото» для обычной генерации */
+  item?: "card" | "photo";
+  /** показать вариант «Как у исходного» (родное разрешение, без кропа) */
+  allowOriginal?: boolean;
 }) {
-  const [presetId, setPresetId] = React.useState(EXPORT_PRESETS[0].id);
+  // склонения под контекст: «Скачать фото» / «Фото скачано» vs карточка
+  const noun = item === "photo"
+    ? { acc: "фото", done: "Фото скачано" }
+    : { acc: "карточку", done: "Карточка скачана" };
+  const ORIGINAL = "__original";
+  const [presetId, setPresetId] = React.useState(
+    allowOriginal ? ORIGINAL : EXPORT_PRESETS[0].id,
+  );
   const [format, setFormat] = React.useState<ExportFormat>("png");
   const [withText, setWithText] = React.useState(true);
   const [busy, setBusy] = React.useState(false);
@@ -49,8 +67,13 @@ export function ExportPanel({
     if (!src) return;
     setBusy(true);
     try {
-      await exportCard(src, preset, format, { overlay: activeOverlay });
-      toast.success("Карточка скачана");
+      if (presetId === ORIGINAL) {
+        // родное разрешение сгенерированного фото, без кропа и без наложения текста
+        await exportCardNatural(src, format);
+      } else {
+        await exportCard(src, preset, format, { overlay: activeOverlay });
+      }
+      toast.success(noun.done);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Ошибка экспорта");
     } finally {
@@ -81,6 +104,9 @@ export function ExportPanel({
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
+              {allowOriginal && (
+                <SelectItem value={ORIGINAL}>Как у исходного</SelectItem>
+              )}
               {EXPORT_PRESETS.map((p) => (
                 <SelectItem key={p.id} value={p.id}>
                   {p.label} · {p.ratio}
@@ -115,7 +141,7 @@ export function ExportPanel({
 
       <Button onClick={single} disabled={!src || busy} className="w-full" variant="gradient">
         {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-        Скачать карточку
+        Скачать {noun.acc}
       </Button>
       <Button
         onClick={all}

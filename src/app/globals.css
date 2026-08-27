@@ -2,6 +2,23 @@
 @tailwind components;
 @tailwind utilities;
 
+/*
+ * Адаптация под БОЛЬШИЕ мониторы. Вся вёрстка на rem, поэтому бамп базового
+ * размера пропорционально увеличивает текст, кнопки и отступы — на 2K/4K
+ * интерфейс перестаёт казаться мелким. Порог 2200px ВЫШЕ Full HD (1920) и
+ * типичных ноутбуков — на них ничего не меняется.
+ */
+@media (min-width: 2200px) {
+  :root {
+    font-size: 17.5px;
+  }
+}
+@media (min-width: 3000px) {
+  :root {
+    font-size: 19px;
+  }
+}
+
 @layer base {
   :root {
     /* Light premium theme — graphite/white/grey + violet-blue accent */

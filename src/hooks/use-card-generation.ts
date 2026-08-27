@@ -7,6 +7,33 @@ import { uid } from "@/lib/utils";
 import { PHOTO_SCENARIO_MAP } from "@/core/domain/photo-scenarios";
 import { styleModeGuidance } from "@/core/prompting/prompt-intent";
 
+/** Реальные пиксельные размеры изображения из data URL (для «Как у исходного»). */
+function imageNaturalSize(dataUrl: string): Promise<{ w: number; h: number }> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve({ w: img.naturalWidth, h: img.naturalHeight });
+    img.onerror = () => reject(new Error("не удалось прочитать размеры изображения"));
+    img.src = dataUrl;
+  });
+}
+
+/**
+ * Превращает выбранную пропорцию в то, что уходит модели. Для «original» берём
+ * реальные пропорции загруженного референса (строка "W:H"); без референса или
+ * при ошибке — безопасный дефолт 3:4.
+ */
+async function resolveAspect(aspect: string, refDataUrl?: string): Promise<string> {
+  if (aspect !== "original") return aspect;
+  if (!refDataUrl) return "3:4";
+  try {
+    const { w, h } = await imageNaturalSize(refDataUrl);
+    if (w > 0 && h > 0) return `${w}:${h}`;
+  } catch {
+    // не смогли прочитать — падать не будем, отдадим дефолт
+  }
+  return "3:4";
+}
+
 /**
  * Generation pipeline.
  *
@@ -81,19 +108,21 @@ export function useCardGeneration() {
             .slice(0, 60) || undefined;
 
         gen.setField("status", "generating");
+        // «Как у исходного фото» → реальные пропорции референса; иначе как выбрано
+        const effAspect = await resolveAspect(s.aspectRatio, s.reference?.dataUrl);
         const result = s.reference
           ? await api.generateImage({
               prompt: finalPrompt,
               negativePrompt: s.negativePrompt,
               referenceImageDataUrl: s.reference.dataUrl,
               strength: s.referenceStrength,
-              aspectRatio: s.aspectRatio,
+              aspectRatio: effAspect,
               count: 1,
             })
           : await api.generateText({
               prompt: finalPrompt,
               negativePrompt: s.negativePrompt,
-              aspectRatio: s.aspectRatio,
+              aspectRatio: effAspect,
               count: 1,
             });
 
