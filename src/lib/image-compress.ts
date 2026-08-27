@@ -6,6 +6,13 @@
  * body limit (→ 413) and slow everything down. Compressing to ~1600px / JPEG
  * keeps requests small (usually <1.5 MB) and generation fast, with no quality
  * loss that matters for a 900–1080px marketplace card.
+ *
+ * ПРИВАТНОСТЬ (не удалять!): переэнкод через canvas.toDataURL заодно ПОЛНОСТЬЮ
+ * срезает метаданные исходного файла — EXIF, GPS-координаты, имя файла. Это и
+ * есть «удаление метаданных перед передачей провайдеру» из Политики обработки
+ * ПДн (см. [[legal-pack]]). Это ЕДИНСТВЕННЫЙ путь загрузки (ImageUploader);
+ * НЕ заменять на сырой FileReader.readAsDataURL — он сохраняет EXIF и нарушит
+ * заявленную приватность.
  */
 const MAX_DIM = 1600;
 const JPEG_QUALITY = 0.82;

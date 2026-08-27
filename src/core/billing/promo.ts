@@ -527,7 +527,9 @@ export async function consumeTopupBonus(
           select id from promo_redemptions
            where email = $1 and type = 'topup_bonus' and bonus_used = false and revoked = false
            order by redeemed_at asc limit 1
+           for update skip locked
         )
+        and bonus_used = false
         returning code, bonus_percent`,
       [email],
     );
