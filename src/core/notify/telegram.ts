@@ -5,13 +5,13 @@ import "server-only";
  *
  * Проблема: прод крутится в российском ДЦ Timeweb, откуда `api.telegram.org`
  * заблокирован по DPI (запрос висит и падает по таймауту). Прямой вызов Bot API
- * работает где угодно, КРОМЕ прода. Поэтому есть второй путь — ретрансляция
- * через GitHub Actions: наш сервер спокойно достучится до api.github.com, а
- * раннер GitHub (вне РФ) уже отправит сообщение в Telegram.
+ * работает где угодно, КРОМЕ прода. Поэтому есть релей: крохотная функция на
+ * Vercel (вне РФ) `https://kartogen-tg-relay.vercel.app/api/notify` — наш сервер
+ * шлёт ей обычный HTTPS POST с секретным заголовком, а она уже дёргает Telegram.
  *
  * env:
- *   TELEGRAM_BOT_TOKEN + TELEGRAM_CHAT_ID — сам бот и получатель.
- *   GITHUB_DISPATCH_TOKEN + GITHUB_DISPATCH_REPO ("owner/repo") — включают релей.
+ *   TELEGRAM_BOT_TOKEN + TELEGRAM_CHAT_ID — сам бот и получатель (для прямого пути).
+ *   TELEGRAM_RELAY_URL + TELEGRAM_RELAY_SECRET — включают релей (боевой путь на проде).
  * Все функции best-effort: любая ошибка логируется, но НИКОГДА не бросается —
  * неотправленное уведомление не должно ронять основной сценарий.
  */
@@ -20,7 +20,7 @@ export function telegramConfigured(): boolean {
 }
 
 export function telegramRelayConfigured(): boolean {
-  return Boolean(process.env.GITHUB_DISPATCH_TOKEN && process.env.GITHUB_DISPATCH_REPO);
+  return Boolean(process.env.TELEGRAM_RELAY_URL && process.env.TELEGRAM_RELAY_SECRET);
 }
 
 /** Прямой вызов Bot API. С прода (РФ) обычно уходит в таймаут — это ожидаемо. */
@@ -52,34 +52,27 @@ export async function sendTelegramDirect(text: string): Promise<boolean> {
 }
 
 /**
- * Ретрансляция через GitHub Actions (repository_dispatch). Требует fine-grained
- * PAT с правом Contents:write на репозиторий и секреты TELEGRAM_BOT_TOKEN /
- * TELEGRAM_CHAT_ID в самом репозитории (их читает воркфлоу .github/workflows/tg-notify.yml).
- * Успех = HTTP 204. Латентность старта раннера обычно 5–20 с — для поддержки ок.
+ * Ретрансляция через HTTPS-релей (функция на Vercel вне РФ). Наш сервер шлёт
+ * обычный POST с секретным заголовком, релей уже отправляет в Telegram.
+ * Успех = HTTP 200 с {sent:true}.
  */
-export async function sendTelegramViaGithub(text: string): Promise<boolean> {
-  const token = process.env.GITHUB_DISPATCH_TOKEN;
-  const repo = process.env.GITHUB_DISPATCH_REPO;
-  if (!token || !repo) return false;
+export async function sendTelegramViaRelay(text: string): Promise<boolean> {
+  const url = process.env.TELEGRAM_RELAY_URL;
+  const secret = process.env.TELEGRAM_RELAY_SECRET;
+  if (!url || !secret) return false;
   try {
-    const res = await fetch(`https://api.github.com/repos/${repo}/dispatches`, {
+    const res = await fetch(url, {
       method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        Accept: "application/vnd.github+json",
-        "X-GitHub-Api-Version": "2022-11-28",
-        "Content-Type": "application/json",
-        "User-Agent": "kartogen-notify",
-      },
-      body: JSON.stringify({ event_type: "tg-notify", client_payload: { text: text.slice(0, 3500) } }),
+      headers: { "Content-Type": "application/json", "x-relay-secret": secret },
+      body: JSON.stringify({ text: text.slice(0, 4000) }),
       cache: "no-store",
       signal: AbortSignal.timeout(8000),
     });
-    if (res.status === 204) return true;
-    console.error("[telegram:github]", res.status, (await res.text().catch(() => "")).slice(0, 200));
+    if (res.ok) return true;
+    console.error("[telegram:relay]", res.status, (await res.text().catch(() => "")).slice(0, 200));
     return false;
   } catch (e) {
-    console.error("[telegram:github] failed:", e instanceof Error ? e.message : e);
+    console.error("[telegram:relay] failed:", e instanceof Error ? e.message : e);
     return false;
   }
 }
@@ -87,7 +80,7 @@ export async function sendTelegramViaGithub(text: string): Promise<boolean> {
 /** Отправить в Telegram лучшим доступным путём: релей (если настроен), иначе напрямую. */
 export async function notifyTelegram(text: string): Promise<boolean> {
   if (telegramRelayConfigured()) {
-    if (await sendTelegramViaGithub(text)) return true;
+    if (await sendTelegramViaRelay(text)) return true;
     // релей не сработал — как последнюю попытку пробуем прямой вызов
   }
   return sendTelegramDirect(text);
