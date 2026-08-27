@@ -46,6 +46,7 @@ export async function middleware(req: NextRequest) {
     // crawlers and link-preview bots must reach these without a session
     pathname === "/robots.txt" ||
     pathname === "/sitemap.xml" ||
+    pathname === "/llms.txt" ||
     pathname === "/og.jpg" ||
     pathname === "/icon.png" ||
     pathname === "/apple-icon.png"
