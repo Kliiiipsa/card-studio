@@ -34,11 +34,24 @@ export async function POST(req: Request) {
 
     // уведомление владельцу (почта + Telegram), best-effort и НЕ блокируя клиента:
     // на постоянном next-start сервере промис досчитывается в фоне после ответа.
-    const parts = [`От: ${session.email}`];
-    if (subject) parts.push(`Тема: ${subject}`);
-    parts.push("", body.message);
-    if (id) parts.push("", `#${id}`);
-    void notifyOwner("🆘 Новое обращение в поддержку", parts.join("\n")).catch(() => undefined);
+    // Почта (транспорт в РФ) — ПОЛНЫЙ текст с email клиента. Telegram (релей на
+    // Vercel, вне РФ) — БЕЗ email: канал трансграничный, персональные данные туда
+    // не отдаём, детали смотрим в письме на admin@ и в админке.
+    const emailParts = [`От: ${session.email}`];
+    if (subject) emailParts.push(`Тема: ${subject}`);
+    emailParts.push("", body.message);
+    if (id) emailParts.push("", `#${id}`);
+
+    const tgParts: string[] = [];
+    if (subject) tgParts.push(`Тема: ${subject}`);
+    tgParts.push("", body.message);
+    tgParts.push("", id ? `#${id} — email и детали в письме на admin@` : "email и детали в письме на admin@");
+
+    void notifyOwner(
+      "🆘 Новое обращение в поддержку",
+      emailParts.join("\n"),
+      tgParts.join("\n"),
+    ).catch(() => undefined);
 
     return ok({ sent: true });
   } catch (err) {
