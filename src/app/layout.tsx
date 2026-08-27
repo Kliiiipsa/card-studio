@@ -19,6 +19,8 @@ export const metadata: Metadata = {
   title: TITLE,
   description: DESCRIPTION,
   alternates: { canonical: "/" },
+  // подтверждение прав в Google Search Console (не удалять — иначе слетит)
+  verification: { google: "-R-CzL1J1dyVwZA1o4s0A0tiJx0Hiv2rJOh3J2NTDwU" },
   openGraph: {
     title: TITLE,
     description: DESCRIPTION,
