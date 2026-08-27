@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Loader2, MailCheck, UserPlus } from "lucide-react";
 import { reachGoal, GOALS } from "@/components/analytics/yandex-metrica";
+import { getAttribution } from "@/lib/attribution";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -68,6 +69,7 @@ export default function RegisterPage() {
         password,
         inviteCode: inviteCode.trim() || undefined,
         acceptTerms: agreed,
+        attribution: getAttribution(),
       })) as {
         sent?: boolean;
         devCode?: string;

@@ -363,18 +363,31 @@ export default function AdminPage() {
     status: "green" | "amber" | "red";
     advice: string;
   };
+  type SourceRow = {
+    source: string;
+    registrations: number;
+    verified: number;
+    paying: number;
+    revenueRub: number;
+  };
   const [report, setReport] = React.useState<CostReport | null>(null);
+  const [sources, setSources] = React.useState<SourceRow[] | null>(null);
   const [reportLoading, setReportLoading] = React.useState(false);
   const mskToday = new Date(Date.now() + 3 * 3600_000).toISOString().slice(0, 10);
   const [reportDate, setReportDate] = React.useState(mskToday);
   const [downloading, setDownloading] = React.useState(false);
   const loadReport = React.useCallback(() => {
     setReportLoading(true);
-    fetch("/api/admin/reports/cost")
-      .then((r) => r.json())
-      .then((d) => setReport(d?.status ? d : null))
-      .catch(() => setReport(null))
-      .finally(() => setReportLoading(false));
+    Promise.all([
+      fetch("/api/admin/reports/cost")
+        .then((r) => r.json())
+        .then((d) => setReport(d?.status ? d : null))
+        .catch(() => setReport(null)),
+      fetch("/api/admin/reports/sources")
+        .then((r) => r.json())
+        .then((d) => setSources(Array.isArray(d?.rows) ? d.rows : []))
+        .catch(() => setSources(null)),
+    ]).finally(() => setReportLoading(false));
   }, []);
   const downloadReceipts = async () => {
     setDownloading(true);
@@ -1014,6 +1027,64 @@ export default function AdminPage() {
                         Обязательства — оценка себестоимости fal, если пользователи потратят все
                         свои гены (типичный случай — инфографика, худший — видео). Пополнение fal —
                         в личном кабинете fal.ai.
+                      </p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Источники регистраций по UTM-каналам */}
+              <Card>
+                <CardContent className="space-y-3 p-4">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-sm font-medium">Источники (UTM)</p>
+                    <Button variant="outline" size="sm" onClick={loadReport} disabled={reportLoading}>
+                      {reportLoading ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <RefreshCw className="h-3.5 w-3.5" />
+                      )}
+                      Обновить
+                    </Button>
+                  </div>
+
+                  {sources === null ? (
+                    <p className="text-xs text-muted-foreground">
+                      {reportLoading ? "Считаем…" : "Нажмите «Обновить»."}
+                    </p>
+                  ) : sources.length === 0 ? (
+                    <p className="text-xs text-muted-foreground">
+                      Пока нет размеченных регистраций — появятся, когда пойдёт трафик с UTM-ссылок.
+                    </p>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="border-b text-left text-xs text-muted-foreground">
+                            <th className="py-1.5 pr-2 font-medium">Источник</th>
+                            <th className="px-2 py-1.5 text-right font-medium">Рег.</th>
+                            <th className="px-2 py-1.5 text-right font-medium">Подтв.</th>
+                            <th className="px-2 py-1.5 text-right font-medium">Платящих</th>
+                            <th className="py-1.5 pl-2 text-right font-medium">Выручка</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {sources.map((s) => (
+                            <tr key={s.source} className="border-b last:border-0">
+                              <td className="py-1.5 pr-2">{s.source}</td>
+                              <td className="px-2 py-1.5 text-right">{s.registrations}</td>
+                              <td className="px-2 py-1.5 text-right">{s.verified}</td>
+                              <td className="px-2 py-1.5 text-right font-medium">{s.paying}</td>
+                              <td className="py-1.5 pl-2 text-right font-medium">
+                                {s.revenueRub.toLocaleString("ru-RU")} ₽
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                      <p className="mt-2 text-[11px] leading-4 text-muted-foreground">
+                        «(без метки)» — прямые и органические заходы. CAC по каналу = расход
+                        канала ÷ число платящих из него.
                       </p>
                     </div>
                   )}

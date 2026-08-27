@@ -7,6 +7,7 @@ import { isSmtpConfigured, sendVerificationEmail } from "@/core/auth/mailer";
 import { respondWithSession } from "@/core/auth/cookies";
 import { grantWelcomeBonus } from "@/core/billing/welcome";
 import { recordConsent } from "@/core/auth/consent";
+import { saveAttribution } from "@/core/analytics/attribution";
 import { clientIp } from "@/lib/request-ip";
 import { enforceRateLimit } from "@/lib/rate-limit";
 
@@ -20,6 +21,18 @@ const schema = z.object({
     .max(72, "Пароль слишком длинный."),
   inviteCode: z.string().max(64).optional(),
   acceptTerms: z.boolean().optional(),
+  // источник перехода (UTM) для атрибуции по каналам — необязательно
+  attribution: z
+    .object({
+      source: z.string().max(80).optional(),
+      medium: z.string().max(80).optional(),
+      campaign: z.string().max(160).optional(),
+      content: z.string().max(160).optional(),
+      term: z.string().max(160).optional(),
+      landing: z.string().max(300).optional(),
+      referrer: z.string().max(400).optional(),
+    })
+    .optional(),
 });
 
 export async function POST(req: Request) {
@@ -66,6 +79,11 @@ export async function POST(req: Request) {
         `Код уже отправлен. Повторная отправка через ${started.retryInSec} с.`,
         429,
       );
+    }
+
+    // источник перехода (UTM) — first-touch, best-effort, не роняет регистрацию
+    if (body.attribution) {
+      await saveAttribution(email, body.attribution).catch(() => undefined);
     }
 
     // Open mode (temporary, until SMTP): the account is created right away,
