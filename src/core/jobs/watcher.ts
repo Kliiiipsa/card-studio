@@ -3,16 +3,16 @@ import { pollVideoJob } from "@/core/video/video-service";
 import { completeJob, failJob, processingJobs, jobsEnabled, setJobCost, type GenJob } from "./jobs";
 import { settleFalCost, falJobStarted, falJobFinished } from "@/core/ai/fal-cost";
 import { persistImageToS3, s3Enabled } from "@/core/storage/s3";
-import { applyTx, billingEnabled } from "@/core/billing/billing";
-import { effectivePrice, consumePriceListUse } from "@/core/billing/promo";
-import { getUser } from "@/core/auth/store";
+import { refundCharge, jobChargeRef } from "@/core/billing/api";
 
 /**
  * In-process job watcher. We run on a persistent Node server (Timeweb app),
  * so a plain async loop is enough: it survives the user closing the tab,
- * finishes the fal job, persists the image to S3 and charges the sparks.
- * Charge reference = fal responseUrl — the same key the client status route
- * uses, so client + watcher can never double-charge.
+ * finishes the fal job and persists the image to S3.
+ *
+ * Списание генов происходит РЕЗЕРВОМ на старте (submit-роут, reserveSparks),
+ * поэтому здесь при УСПЕХЕ ничего не списываем, а при ЛЮБОЙ неудаче задачи —
+ * возвращаем зарезервированные гены по ключу jobChargeRef(id) (идемпотентно).
  *
  * State lives on globalThis to survive Next.js dev HMR module reloads.
  */
@@ -77,7 +77,7 @@ async function run(args: WatchArgs): Promise<void> {
     try {
       const st = await pollOnce(kind, handle);
       if (st.status === "failed") {
-        await failJob(args.id, st.error ?? "generation failed");
+        await failAndRefund(args, kind, st.error ?? "generation failed");
         return;
       }
       if (st.status === "completed" && st.url) {
@@ -95,7 +95,7 @@ async function run(args: WatchArgs): Promise<void> {
             console.error("[jobs] S3 persist failed:", e);
           }
         }
-        await chargeIfNeeded(args.email, args.falResponseUrl, kind);
+        // гены уже списаны резервом на старте — при успехе не списываем повторно
         await completeJob(args.id, finalUrl, sizeBytes);
         // фактическая себестоимость: сколько fal списал за эту задачу
         try {
@@ -110,32 +110,25 @@ async function run(args: WatchArgs): Promise<void> {
       }
     } catch (e) {
       if (++pollErrors >= 5) {
-        await failJob(args.id, e instanceof Error ? e.message : "poll error");
+        await failAndRefund(args, kind, e instanceof Error ? e.message : "poll error");
         return;
       }
     }
   }
-  await failJob(args.id, "timeout: генерация не завершилась за отведённое время");
+  await failAndRefund(args, kind, "timeout: генерация не завершилась за отведённое время");
 }
 
-async function chargeIfNeeded(email: string, reference: string, kind: WatchKind): Promise<void> {
-  if (!billingEnabled()) return;
+/**
+ * Пометить задачу неудачной И вернуть зарезервированные на старте гены.
+ * Возврат идемпотентен (refund:<jobChargeRef>), поэтому повторный вызов —
+ * no-op; для админа/бесплатного действия refundCharge сам ничего не делает.
+ */
+async function failAndRefund(args: WatchArgs, kind: WatchKind, reason: string): Promise<void> {
+  await failJob(args.id, reason);
   try {
-    const user = await getUser(email);
-    if (user?.role === "admin") return;
-    // цена та же, что проверялась на старте: спец-прайс промокода или общий
-    const { price, viaPromo } = await effectivePrice(email, kind);
-    const { applied } = await applyTx({
-      email,
-      amount: -price,
-      type: "charge",
-      action: kind,
-      reference,
-      comment: viaPromo ? `Спец-цена по промокоду ${viaPromo}` : undefined,
-    });
-    if (applied && viaPromo) await consumePriceListUse(email, viaPromo);
+    await refundCharge(args.email, kind, jobChargeRef(args.id));
   } catch (e) {
-    console.error("[jobs] charge failed:", e);
+    console.error("[jobs] refund failed:", e);
   }
 }
 

@@ -1,4 +1,4 @@
-import { createHash } from "node:crypto";
+import { createHash, randomInt } from "node:crypto";
 
 /** Shared types/constants for the auth store backends (file and postgres). */
 export type UserRecord = {
@@ -36,5 +36,6 @@ export function codeHashFor(email: string, code: string): string {
 }
 
 export function makeCode(): string {
-  return String(Math.floor(100000 + Math.random() * 900000));
+  // CSPRNG вместо Math.random(): код подтверждения не должен быть предсказуем
+  return String(randomInt(100000, 1000000));
 }

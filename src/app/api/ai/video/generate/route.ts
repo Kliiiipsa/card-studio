@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { parseBody, ok, fail } from "@/lib/api";
-import { requireSparks } from "@/core/billing/api";
+import { reserveSparks, refundReservation, jobChargeRef } from "@/core/billing/api";
 import { createJob, jobsEnabled } from "@/core/jobs/jobs";
 import { ensureWatcherBoot, watchJob } from "@/core/jobs/watcher";
 import { uid } from "@/lib/utils";
@@ -31,8 +31,6 @@ const schema = z.object({
 
 export async function POST(req: Request) {
   try {
-    // баланс проверяется до старта; списание — только при успешном завершении
-    const bill = await requireSparks(req, "video");
     const body = await parseBody(req, schema);
     if (body.productImage.startsWith("data:")) validateDataUrl(body.productImage);
 
@@ -45,63 +43,75 @@ export async function POST(req: Request) {
       }
     }
 
-    const { prompt, cameraFixed } = body.customPrompt
-      ? { prompt: body.customPrompt, cameraFixed: false }
-      : await buildVideoPrompt({
-          presetId: body.presetId,
-          productName: body.productName,
-          category: body.category,
-          userScenario: body.userScenario,
+    const tracked = jobsEnabled();
+    const jobId = uid("job");
+    // РЕЗЕРВ до submit fal (ключ по jobId, чтобы watcher вернул по нему при
+    // неудаче): параллельные запросы одного аккаунта не сожгут баланс fal.
+    const bill = await reserveSparks(req, "video", jobChargeRef(jobId));
+    let handedOff = false;
+    try {
+      const { prompt, cameraFixed } = body.customPrompt
+        ? { prompt: body.customPrompt, cameraFixed: false }
+        : await buildVideoPrompt({
+            presetId: body.presetId,
+            productName: body.productName,
+            category: body.category,
+            userScenario: body.userScenario,
+          });
+      // остаток на счёте fal ДО отправки: по разнице с остатком после завершения
+      // получим фактическую себестоимость этой генерации (видна в админке)
+      const concurrentAtStart = falJobsInFlight();
+      const falBalanceBefore = await readFalBalance();
+
+      const job = await submitVideoJob({
+        prompt,
+        imageDataUrl: body.productImage,
+        aspectRatio: body.aspectRatio ?? "3:4",
+        cameraFixed,
+        modelOverride: body.falModel,
+      });
+
+      // server-tracked job: доживёт до конца, даже если вкладку закрыли
+      if (tracked) {
+        ensureWatcherBoot();
+        await createJob({
+          id: jobId,
+          email: bill.ctx.email,
+          kind: "video",
+          payload: {
+            productName: body.productName,
+            category: body.category,
+            presetId: body.presetId,
+            // для отладки качества: что реально ушло в модель
+            videoPrompt: prompt,
+            userScenario: body.userScenario || undefined,
+            customPrompt: Boolean(body.customPrompt),
+            model:
+              body.falModel ??
+              process.env.FAL_VIDEO_MODEL ??
+              "fal-ai/kling-video/v2.5-turbo/pro/image-to-video",
+          },
+          falStatusUrl: job.statusUrl,
+          falResponseUrl: job.responseUrl,
         });
-    // остаток на счёте fal ДО отправки: по разнице с остатком после завершения
-    // получим фактическую себестоимость этой генерации (видна в админке)
-    const concurrentAtStart = falJobsInFlight();
-    const falBalanceBefore = await readFalBalance();
-
-    const job = await submitVideoJob({
-      prompt,
-      imageDataUrl: body.productImage,
-      aspectRatio: body.aspectRatio ?? "3:4",
-      cameraFixed,
-      modelOverride: body.falModel,
-    });
-
-    // server-tracked job: доживёт до конца, даже если вкладку закрыли
-    let jobId: string | undefined;
-    if (jobsEnabled()) {
-      ensureWatcherBoot();
-      jobId = uid("job");
-      await createJob({
-        id: jobId,
-        email: bill.email,
-        kind: "video",
-        payload: {
-          productName: body.productName,
-          category: body.category,
-          presetId: body.presetId,
-          // для отладки качества: что реально ушло в модель
-          videoPrompt: prompt,
-          userScenario: body.userScenario || undefined,
-          customPrompt: Boolean(body.customPrompt),
-          model:
-            body.falModel ??
-            process.env.FAL_VIDEO_MODEL ??
-            "fal-ai/kling-video/v2.5-turbo/pro/image-to-video",
-        },
-        falStatusUrl: job.statusUrl,
-        falResponseUrl: job.responseUrl,
-      });
-      watchJob({
-        id: jobId,
-        email: bill.email,
-        falStatusUrl: job.statusUrl,
-        falResponseUrl: job.responseUrl,
-        kind: "video",
-        falBalanceBefore,
-        concurrentAtStart,
-      });
+        watchJob({
+          id: jobId,
+          email: bill.ctx.email,
+          falStatusUrl: job.statusUrl,
+          falResponseUrl: job.responseUrl,
+          kind: "video",
+          falBalanceBefore,
+          concurrentAtStart,
+        });
+        // с этого момента возврат при неудаче — забота watcher'а (по jobChargeRef)
+        handedOff = true;
+      }
+      return ok({ done: false, jobId: tracked ? jobId : undefined, job, balance: bill.balance ?? undefined });
+    } catch (err) {
+      // ошибка ДО постановки задачи — возвращаем зарезервированные гены здесь
+      if (!handedOff) await refundReservation(bill).catch(() => undefined);
+      throw err;
     }
-    return ok({ done: false, jobId, job });
   } catch (err) {
     return fail(err);
   }

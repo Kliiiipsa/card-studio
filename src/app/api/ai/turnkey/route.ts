@@ -29,6 +29,13 @@ export async function POST(req: Request) {
     if (!jobsEnabled()) throw new AppError("Функция недоступна: не настроена база данных.", 500);
     // affordability for the whole pack up-front; actual charges are per item
     const bill = await requireSparks(req, "turnkey");
+    // «Под ключ» пока на доработке и скрыт в UI. Списание идёт по частям и
+    // НЕ атомарно (launch-аудит 2026-08-27: параллельные паки могут увести
+    // баланс в минус), поэтому до переделки ручка доступна только админу —
+    // у админа генерации бесплатны, денежной гонки нет.
+    if (bill.role !== "admin") {
+      throw new AppError("Раздел «под ключ» временно недоступен — идёт доработка.", 403);
+    }
     const body = await parseBody(req, schema);
     if (body.productImage.startsWith("data:")) validateDataUrl(body.productImage);
     else throw new AppError("Загрузите фото товара (файлом).");

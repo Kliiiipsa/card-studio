@@ -1,7 +1,8 @@
 import { z } from "zod";
 import { parseBody, ok, fail } from "@/lib/api";
 import { AppError } from "@/lib/errors";
-import { billingCtx, chargeSparks } from "@/core/billing/api";
+import { billingCtx } from "@/core/billing/api";
+import { billingEnabled, getBalance } from "@/core/billing/billing";
 import { pollVideoJob } from "@/core/video/video-service";
 
 export const runtime = "nodejs";
@@ -40,9 +41,9 @@ export async function POST(req: Request) {
     assertFalUrl(job.responseUrl);
     const status = await pollVideoJob(job);
     if (status.status === "completed") {
-      // charge exactly once per fal job — responseUrl is the dedup key
-      const balance = await chargeSparks(bill, job.responseUrl);
-      return ok({ ...status, balance: balance ?? undefined });
+      // гены списаны резервом на старте (submit-роут) — здесь только свежий баланс
+      const balance = billingEnabled() && !bill.free ? await getBalance(bill.email) : undefined;
+      return ok({ ...status, balance });
     }
     return ok(status);
   } catch (err) {

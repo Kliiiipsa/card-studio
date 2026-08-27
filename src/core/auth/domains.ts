@@ -40,9 +40,13 @@ export function canonicalEmail(raw: string): string {
   const at = email.lastIndexOf("@");
   if (at < 0) return email;
   let local = email.slice(0, at);
-  const domain = email.slice(at + 1);
+  let domain = email.slice(at + 1);
   const plus = local.indexOf("+");
   if (plus >= 0) local = local.slice(0, plus);
+  // ya.ru и yandex.ru — ОДИН физический ящик Яндекса. Складываем алиас, иначе
+  // user@ya.ru и user@yandex.ru получат приветственный бонус дважды и обойдут
+  // «надгробие» удаления (launch-аудит 2026-08-27).
+  if (domain === "ya.ru") domain = "yandex.ru";
   return `${local}@${domain}`;
 }
 

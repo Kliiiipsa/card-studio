@@ -1,5 +1,5 @@
 import { parseBody, ok, fail } from "@/lib/api";
-import { requireSparks, chargeSparks } from "@/core/billing/api";
+import { reserveSparks, refundReservation, jobChargeRef } from "@/core/billing/api";
 import { createJob, jobsEnabled } from "@/core/jobs/jobs";
 import { ensureWatcherBoot, watchJob } from "@/core/jobs/watcher";
 import { persistGeneration } from "@/core/jobs/persist";
@@ -23,12 +23,17 @@ export const maxDuration = 120;
 
 export async function POST(req: Request) {
   try {
-    // affordability is checked up-front; the actual charge happens only when a
-    // base is successfully produced (sync paths below, async — in /status)
-    const bill = await requireSparks(req, "infographic");
     const body = await parseBody(req, infographicGenerateSchema);
     if (body.productImage?.startsWith("data:")) validateDataUrl(body.productImage);
     if (body.styleReferenceImage?.startsWith("data:")) validateDataUrl(body.styleReferenceImage);
+
+    const tracked = jobsEnabled();
+    const jobId = uid("job");
+    // РЕЗЕРВ до вызова fal (ключ по jobId для возврата watcher'ом при неудаче):
+    // параллельные запросы одного аккаунта не сожгут баланс fal.
+    const bill = await reserveSparks(req, "infographic", jobChargeRef(jobId));
+    let handedOff = false;
+    try {
     const brief = body.brief as unknown as InfographicBrief;
     /**
      * Что кладём в задачу для разбора жалоб («Генерации» в админке): что
@@ -63,20 +68,19 @@ export async function POST(req: Request) {
       const cardId = uid("card");
       const finalUrl = await persistGeneration({
         id: cardId,
-        email: bill.email,
+        email: bill.ctx.email,
         kind: "infographic",
         sourceUrl: baseImageUrl,
         payload: { brief, textBaked, ...debug, fallback: true },
       });
       settleFalCostInBackground(cardId, falBalanceBefore, { concurrentAtStart });
-      const balance = await chargeSparks(bill);
       return ok({
         done: true,
         baseImageUrl: finalUrl,
         overlayPlan: brief.overlayPlan,
         brief,
         textBaked,
-        balance: balance ?? undefined,
+        balance: bill.balance ?? undefined,
       });
     }
 
@@ -86,32 +90,29 @@ export async function POST(req: Request) {
       const cardId = uid("card");
       const finalUrl = await persistGeneration({
         id: cardId,
-        email: bill.email,
+        email: bill.ctx.email,
         kind: "infographic",
         sourceUrl: result.baseImageUrl,
         payload: { brief, textBaked: result.textBaked, ...debug },
       });
       settleFalCostInBackground(cardId, falBalanceBefore, { concurrentAtStart });
-      const balance = await chargeSparks(bill);
       return ok({
         done: true,
         baseImageUrl: finalUrl,
         overlayPlan: brief.overlayPlan,
         brief,
         textBaked: result.textBaked,
-        balance: balance ?? undefined,
+        balance: bill.balance ?? undefined,
       });
     }
     // Queued async job (gpt-image). When Postgres is available the job is also
     // tracked server-side: the watcher finishes it even if the tab closes, so
     // the client polls /api/jobs/{id}. Legacy `job` handle kept for old tabs.
-    let jobId: string | undefined;
-    if (jobsEnabled()) {
+    if (tracked) {
       ensureWatcherBoot();
-      jobId = uid("job");
       await createJob({
         id: jobId,
-        email: bill.email,
+        email: bill.ctx.email,
         kind: "infographic",
         payload: { brief, textBaked: result.textBaked, ...debug },
         falStatusUrl: result.job.statusUrl,
@@ -119,21 +120,29 @@ export async function POST(req: Request) {
       });
       watchJob({
         id: jobId,
-        email: bill.email,
+        email: bill.ctx.email,
         falStatusUrl: result.job.statusUrl,
         falResponseUrl: result.job.responseUrl,
         falBalanceBefore,
         concurrentAtStart,
       });
+      // дальше возврат при неудаче — на watcher'е (по jobChargeRef)
+      handedOff = true;
     }
     return ok({
       done: false,
-      jobId,
+      jobId: tracked ? jobId : undefined,
       job: result.job,
       overlayPlan: brief.overlayPlan,
       brief,
       textBaked: result.textBaked,
+      balance: bill.balance ?? undefined,
     });
+    } catch (err) {
+      // ошибка ДО постановки async-задачи — возвращаем зарезервированные гены
+      if (!handedOff) await refundReservation(bill).catch(() => undefined);
+      throw err;
+    }
   } catch (err) {
     return fail(err);
   }
