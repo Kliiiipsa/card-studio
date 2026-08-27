@@ -303,6 +303,9 @@ export default async function LandingPage() {
       <footer className="container flex flex-col items-center gap-3 border-t py-8 text-center text-sm text-muted-foreground">
         <p>Kartogen — AI-студия карточек для маркетплейсов</p>
         <nav className="flex flex-wrap justify-center gap-x-4 gap-y-1">
+          <Link href="/blog" className="hover:text-foreground">
+            Блог
+          </Link>
           <Link href="/pricing" className="hover:text-foreground">
             Тарифы
           </Link>

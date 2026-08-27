@@ -34,6 +34,8 @@ export async function middleware(req: NextRequest) {
     pathname === "/help" || // public «как это работает» — гайд + FAQ для поиска и нейровыдачи
     pathname.startsWith("/help/") || // static help screenshots
     pathname === "/wildberries" || // SEO-посадочная под запросы про карточки WB
+    pathname === "/blog" ||
+    pathname.startsWith("/blog/") || // блог — публичный контент для поиска и нейровыдачи
     pathname.startsWith("/login") ||
     pathname.startsWith("/register") ||
     pathname.startsWith("/api/auth") ||
