@@ -34,6 +34,49 @@ async function resolveAspect(aspect: string, refDataUrl?: string): Promise<strin
   return "3:4";
 }
 
+/** "W:H" → число w/h, либо null. */
+function ratioNum(aspect: string): number | null {
+  const m = /^(\d+(?:\.\d+)?):(\d+(?:\.\d+)?)$/.exec(aspect);
+  if (!m) return null;
+  const w = parseFloat(m[1]);
+  const h = parseFloat(m[2]);
+  return w > 0 && h > 0 ? w / h : null;
+}
+
+/**
+ * Обрезать (cover) референс под нужную пропорцию ПЕРЕД отправкой.
+ * Зачем: в режиме правки фото (image-to-image) модель возвращает результат в
+ * форме ВХОДНОГО изображения и игнорирует запрошенный размер. Поэтому, чтобы
+ * «1:1» реально дал квадрат, сами приводим фото к этой пропорции. Для «Как у
+ * исходного» обрезка не вызывается — форма сохраняется.
+ */
+function cropToAspect(dataUrl: string, aspect: string): Promise<string> {
+  const ar = ratioNum(aspect);
+  return new Promise((resolve) => {
+    if (!ar) return resolve(dataUrl);
+    const img = new Image();
+    img.onload = () => {
+      const srcAr = img.naturalWidth / img.naturalHeight;
+      if (!Number.isFinite(srcAr) || Math.abs(srcAr - ar) < 0.01) return resolve(dataUrl);
+      const LONG = 1600;
+      const outW = ar >= 1 ? LONG : Math.round(LONG * ar);
+      const outH = ar >= 1 ? Math.round(LONG / ar) : LONG;
+      const canvas = document.createElement("canvas");
+      canvas.width = outW;
+      canvas.height = outH;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return resolve(dataUrl);
+      const s = Math.max(outW / img.naturalWidth, outH / img.naturalHeight);
+      const dw = img.naturalWidth * s;
+      const dh = img.naturalHeight * s;
+      ctx.drawImage(img, (outW - dw) / 2, (outH - dh) / 2, dw, dh);
+      resolve(canvas.toDataURL("image/jpeg", 0.9));
+    };
+    img.onerror = () => resolve(dataUrl);
+    img.src = dataUrl;
+  });
+}
+
 /**
  * Generation pipeline.
  *
@@ -110,11 +153,17 @@ export function useCardGeneration() {
         gen.setField("status", "generating");
         // «Как у исходного фото» → реальные пропорции референса; иначе как выбрано
         const effAspect = await resolveAspect(s.aspectRatio, s.reference?.dataUrl);
+        // i2i возвращает результат в форме входа → чтобы выбранный размер реально
+        // применился, приводим референс к нужной пропорции (кроме «original»)
+        const refUrl =
+          s.reference && s.aspectRatio !== "original"
+            ? await cropToAspect(s.reference.dataUrl, s.aspectRatio)
+            : s.reference?.dataUrl;
         const result = s.reference
           ? await api.generateImage({
               prompt: finalPrompt,
               negativePrompt: s.negativePrompt,
-              referenceImageDataUrl: s.reference.dataUrl,
+              referenceImageDataUrl: refUrl as string,
               strength: s.referenceStrength,
               aspectRatio: effAspect,
               count: 1,
