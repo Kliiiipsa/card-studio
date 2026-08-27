@@ -8,3 +8,6 @@ build
 .DS_Store
 *.tsbuildinfo
 next-env.d.ts
+
+# локальный помощник для рекламного баннера (не часть приложения)
+vk-ad-1080.html
