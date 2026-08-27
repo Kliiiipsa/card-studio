@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, ArrowRight, Clock, CalendarDays, HelpCircle } from "lucide-react";
+import { ArrowLeft, ArrowRight, Clock, CalendarDays, HelpCircle, PenLine } from "lucide-react";
 import { getPost, allPosts, readPostBody } from "@/core/blog/posts";
 import { Markdown } from "@/components/blog/markdown";
 import { BlogHeader, BlogFooter } from "@/components/blog/blog-chrome";
@@ -108,6 +108,9 @@ export default function BlogArticle({ params }: { params: { slug: string } }) {
           {post.title}
         </h1>
         <div className="mt-3 flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
+          <span className="inline-flex items-center gap-1">
+            <PenLine className="h-3.5 w-3.5" /> Редакция Kartogen
+          </span>
           <span className="inline-flex items-center gap-1">
             <CalendarDays className="h-3.5 w-3.5" /> {fmtDate(post.date)}
           </span>
