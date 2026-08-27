@@ -49,6 +49,9 @@ export async function middleware(req: NextRequest) {
     pathname === "/robots.txt" ||
     pathname === "/sitemap.xml" ||
     pathname === "/llms.txt" ||
+    // файлы подтверждения прав в поисковиках (Яндекс.Вебмастер, Search Console)
+    /^\/yandex_[0-9a-f]+\.html$/.test(pathname) ||
+    /^\/google[0-9a-f]+\.html$/.test(pathname) ||
     pathname === "/og.jpg" ||
     pathname === "/icon.png" ||
     pathname === "/apple-icon.png"
