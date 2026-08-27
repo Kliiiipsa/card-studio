@@ -1,5 +1,10 @@
 import { z } from "zod";
 import { parseBody, ok, fail } from "@/lib/api";
+import {
+  acquireGenerationSlot,
+  releaseGenerationSlot,
+  GEN_BUSY_MESSAGE,
+} from "@/lib/concurrency-gate";
 import { reserveSparks, refundReservation, jobChargeRef } from "@/core/billing/api";
 import { createJob, jobsEnabled } from "@/core/jobs/jobs";
 import { ensureWatcherBoot, watchJob } from "@/core/jobs/watcher";
@@ -30,6 +35,8 @@ const schema = z.object({
 });
 
 export async function POST(req: Request) {
+  // клапан нагрузки (см. generate/image): подождать слот, а не свалить сервер
+  if (!(await acquireGenerationSlot())) return fail(new AppError(GEN_BUSY_MESSAGE, 503));
   try {
     const body = await parseBody(req, schema);
     if (body.productImage.startsWith("data:")) validateDataUrl(body.productImage);
@@ -114,5 +121,7 @@ export async function POST(req: Request) {
     }
   } catch (err) {
     return fail(err);
+  } finally {
+    releaseGenerationSlot();
   }
 }

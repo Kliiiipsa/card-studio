@@ -1,4 +1,10 @@
 import { parseBody, ok, fail } from "@/lib/api";
+import { AppError } from "@/lib/errors";
+import {
+  acquireGenerationSlot,
+  releaseGenerationSlot,
+  GEN_BUSY_MESSAGE,
+} from "@/lib/concurrency-gate";
 import { reserveSparks, refundReservation, jobChargeRef } from "@/core/billing/api";
 import { createJob, jobsEnabled } from "@/core/jobs/jobs";
 import { ensureWatcherBoot, watchJob } from "@/core/jobs/watcher";
@@ -22,6 +28,8 @@ export const runtime = "nodejs";
 export const maxDuration = 120;
 
 export async function POST(req: Request) {
+  // клапан нагрузки (см. generate/image): подождать слот, а не свалить сервер
+  if (!(await acquireGenerationSlot())) return fail(new AppError(GEN_BUSY_MESSAGE, 503));
   try {
     const body = await parseBody(req, infographicGenerateSchema);
     if (body.productImage?.startsWith("data:")) validateDataUrl(body.productImage);
@@ -145,5 +153,7 @@ export async function POST(req: Request) {
     }
   } catch (err) {
     return fail(err);
+  } finally {
+    releaseGenerationSlot();
   }
 }

@@ -1,4 +1,10 @@
 import { parseBody, ok, fail } from "@/lib/api";
+import { AppError } from "@/lib/errors";
+import {
+  acquireGenerationSlot,
+  releaseGenerationSlot,
+  GEN_BUSY_MESSAGE,
+} from "@/lib/concurrency-gate";
 import { reserveSparks, refundReservation } from "@/core/billing/api";
 import { persistGeneration } from "@/core/jobs/persist";
 import { generateImageRequestSchema } from "@/core/ai/schemas";
@@ -12,6 +18,9 @@ export const runtime = "nodejs";
 export const maxDuration = 120;
 
 export async function POST(req: Request) {
+  // клапан нагрузки: под пиком лишний запрос подождёт слот (визуально — чуть
+  // дольше спиннер), а не свалит сервер; мягкое сообщение только если не дождался
+  if (!(await acquireGenerationSlot())) return fail(new AppError(GEN_BUSY_MESSAGE, 503));
   try {
     const body = await parseBody(req, generateImageRequestSchema);
     validateDataUrl(body.referenceImageDataUrl);
@@ -66,5 +75,7 @@ export async function POST(req: Request) {
     }
   } catch (err) {
     return fail(err);
+  } finally {
+    releaseGenerationSlot();
   }
 }

@@ -1,4 +1,10 @@
 import { parseBody, ok, fail } from "@/lib/api";
+import { AppError } from "@/lib/errors";
+import {
+  acquireGenerationSlot,
+  releaseGenerationSlot,
+  GEN_BUSY_MESSAGE,
+} from "@/lib/concurrency-gate";
 import { reserveSparks, refundReservation } from "@/core/billing/api";
 import { persistGeneration } from "@/core/jobs/persist";
 import { generateTextRequestSchema } from "@/core/ai/schemas";
@@ -10,6 +16,8 @@ export const runtime = "nodejs";
 export const maxDuration = 120;
 
 export async function POST(req: Request) {
+  // клапан нагрузки (см. generate/image): подождать слот, а не свалить сервер
+  if (!(await acquireGenerationSlot())) return fail(new AppError(GEN_BUSY_MESSAGE, 503));
   try {
     const body = await parseBody(req, generateTextRequestSchema);
     // РЕЗЕРВ до вызова fal (см. generate/image): параллельные запросы не жгут баланс
@@ -49,5 +57,7 @@ export async function POST(req: Request) {
     }
   } catch (err) {
     return fail(err);
+  } finally {
+    releaseGenerationSlot();
   }
 }
