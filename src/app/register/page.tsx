@@ -2,7 +2,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Loader2, MailCheck, UserPlus } from "lucide-react";
+import { Loader2, MailCheck, UserPlus, Eye, EyeOff } from "lucide-react";
 import { reachGoal, GOALS } from "@/components/analytics/yandex-metrica";
 import { getAttribution } from "@/lib/attribution";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { validateRussianEmail, ALLOWED_DOMAINS_HINT } from "@/core/auth/domains";
+import { WELCOME_SPARKS, SPARK } from "@/core/billing/prices";
 
 type Step = "form" | "code";
 
@@ -18,7 +19,7 @@ export default function RegisterPage() {
   const [step, setStep] = React.useState<Step>("form");
   const [email, setEmail] = React.useState("");
   const [password, setPassword] = React.useState("");
-  const [password2, setPassword2] = React.useState("");
+  const [showPassword, setShowPassword] = React.useState(false);
   const [code, setCode] = React.useState("");
   const [inviteCode, setInviteCode] = React.useState("");
   // поле инвайт-кода показываем только если сервер его требует (регистрация
@@ -59,7 +60,6 @@ export default function RegisterPage() {
     const emailError = validateRussianEmail(email);
     if (emailError) return setError(emailError);
     if (password.length < 8) return setError("Пароль должен быть не короче 8 символов.");
-    if (password !== password2) return setError("Пароли не совпадают.");
     if (!agreed)
       return setError("Чтобы зарегистрироваться, примите Пользовательское соглашение и Политику.");
     setBusy(true);
@@ -128,6 +128,16 @@ export default function RegisterPage() {
         <CardContent>
           {step === "form" ? (
             <form onSubmit={submitForm} className="space-y-3">
+              {/* ценность: холодный посетитель должен видеть, ЗАЧЕМ регистрируется */}
+              <div className="rounded-lg border border-primary/20 bg-primary/5 px-3 py-2.5 text-xs leading-5">
+                <p className="font-medium text-foreground">
+                  {SPARK} {WELCOME_SPARKS} генов в подарок · первое фото — бесплатно
+                </p>
+                <p className="mt-0.5 text-muted-foreground">
+                  Фото товара, инфографика с текстом, SEO и видео — за минуты. Тексты, идеи и
+                  заполнение по фото бесплатны.
+                </p>
+              </div>
               <div className="space-y-1.5">
                 <Label htmlFor="email" className="text-xs">
                   Российская почта
@@ -149,27 +159,26 @@ export default function RegisterPage() {
                 <Label htmlFor="password" className="text-xs">
                   Пароль (от 8 символов)
                 </Label>
-                <Input
-                  id="password"
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  autoComplete="new-password"
-                  placeholder="••••••••"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="password2" className="text-xs">
-                  Повторите пароль
-                </Label>
-                <Input
-                  id="password2"
-                  type="password"
-                  value={password2}
-                  onChange={(e) => setPassword2(e.target.value)}
-                  autoComplete="new-password"
-                  placeholder="••••••••"
-                />
+                <div className="relative">
+                  <Input
+                    id="password"
+                    type={showPassword ? "text" : "password"}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    autoComplete="new-password"
+                    placeholder="••••••••"
+                    className="pr-10"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((v) => !v)}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    aria-label={showPassword ? "Скрыть пароль" : "Показать пароль"}
+                    tabIndex={-1}
+                  >
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
               </div>
               {inviteRequired && (
                 <div className="space-y-1.5">
