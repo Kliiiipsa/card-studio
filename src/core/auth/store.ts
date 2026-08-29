@@ -14,6 +14,7 @@ const impl =
   process.env.DATABASE_URL || process.env.PGHOST ? pgStore : fileStore;
 
 export const getUser = impl.getUser;
+export const upsertOAuthUser = impl.upsertOAuthUser;
 export const startRegistration = impl.startRegistration;
 export const confirmRegistration = impl.confirmRegistration;
 export const checkLogin = impl.checkLogin;

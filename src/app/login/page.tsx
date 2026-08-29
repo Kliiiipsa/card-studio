@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { OAuthButtons } from "@/components/auth/oauth-buttons";
 
 function LoginInner() {
   const router = useRouter();
@@ -85,11 +86,16 @@ function LoginInner() {
                 placeholder="••••••••"
               />
             </div>
-            {error && <p className="text-sm text-destructive">{error}</p>}
+            {(error || params.get("error")) && (
+              <p className="text-sm text-destructive">
+                {error ?? "Не удалось войти через Яндекс. Попробуйте ещё раз."}
+              </p>
+            )}
             <Button type="submit" disabled={!canSubmit} className="w-full">
               {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
               Войти
             </Button>
+            <OAuthButtons />
             <p className="text-center text-sm text-muted-foreground">
               Нет аккаунта?{" "}
               <Link href="/register" className="font-medium text-primary hover:underline">

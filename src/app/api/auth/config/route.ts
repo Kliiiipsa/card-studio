@@ -1,4 +1,5 @@
 import { ok } from "@/lib/api";
+import { yandexConfigured } from "@/core/auth/oauth-yandex";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -10,5 +11,8 @@ export const dynamic = "force-dynamic";
  * повторном закрытии регистрации (возврат env) поле вернётся само, без сборки.
  */
 export function GET() {
-  return ok({ inviteRequired: Boolean(process.env.REGISTRATION_INVITE_CODE) });
+  return ok({
+    inviteRequired: Boolean(process.env.REGISTRATION_INVITE_CODE),
+    yandexOauth: yandexConfigured(),
+  });
 }

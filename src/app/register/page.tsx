@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { validateRussianEmail, ALLOWED_DOMAINS_HINT } from "@/core/auth/domains";
 import { WELCOME_SPARKS, SPARK } from "@/core/billing/prices";
+import { OAuthButtons } from "@/components/auth/oauth-buttons";
 
 type Step = "form" | "code";
 
@@ -221,6 +222,7 @@ export default function RegisterPage() {
                 {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
                 Получить код
               </Button>
+              <OAuthButtons />
               <p className="text-center text-sm text-muted-foreground">
                 Уже есть аккаунт?{" "}
                 <Link href="/login" className="font-medium text-primary hover:underline">

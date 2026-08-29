@@ -1,5 +1,6 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
+import { randomBytes } from "node:crypto";
 import { hashPassword, verifyPassword } from "./passwords";
 import { normalizeEmail } from "./domains";
 import {
@@ -97,6 +98,33 @@ export function getUser(email: string): Promise<UserRecord | null> {
   return locked(async (data) => {
     await ensureAdmin(data);
     return data.users[normalizeEmail(email)] ?? null;
+  });
+}
+
+export function upsertOAuthUser(
+  emailRaw: string,
+): Promise<{ user: UserRecord; isNew: boolean }> {
+  return locked(async (data) => {
+    await ensureAdmin(data);
+    const email = normalizeEmail(emailRaw);
+    const existing = data.users[email];
+    if (existing) {
+      if (!existing.verified) {
+        existing.verified = true;
+        await save(data);
+      }
+      return { user: existing, isNew: false };
+    }
+    const user: UserRecord = {
+      email,
+      passHash: await hashPassword(randomBytes(24).toString("hex")),
+      role: "user",
+      verified: true,
+      createdAt: new Date().toISOString(),
+    };
+    data.users[email] = user;
+    await save(data);
+    return { user, isNew: true };
   });
 }
 

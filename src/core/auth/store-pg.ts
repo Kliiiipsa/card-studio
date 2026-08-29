@@ -1,4 +1,5 @@
 import { Pool } from "pg";
+import { randomBytes } from "node:crypto";
 import { hashPassword, verifyPassword } from "./passwords";
 import { normalizeEmail } from "./domains";
 import {
@@ -112,6 +113,39 @@ export async function getUser(emailRaw: string): Promise<UserRecord | null> {
     [normalizeEmail(emailRaw)],
   );
   return rows[0] ? toUser(rows[0]) : null;
+}
+
+/**
+ * Создать (или найти) верифицированный аккаунт для входа через соцсеть
+ * (Яндекс ID и т.п.). Пароля у такого аккаунта нет — ставим случайный
+ * неиспользуемый хеш, чтобы удовлетворить схему; вход только через OAuth.
+ * isNew=true при первом создании — по нему выдаём приветственный бонус и
+ * пишем согласие ровно один раз.
+ */
+export async function upsertOAuthUser(
+  emailRaw: string,
+): Promise<{ user: UserRecord; isNew: boolean }> {
+  await ensureSchema();
+  await ensureAdmin();
+  const email = normalizeEmail(emailRaw);
+  const db = getPool();
+  const existing = await db.query<UserRow>("select * from auth_users where email = $1", [email]);
+  if (existing.rows[0]) {
+    if (!existing.rows[0].verified) {
+      await db.query("update auth_users set verified = true where email = $1", [email]);
+      existing.rows[0].verified = true;
+    }
+    return { user: toUser(existing.rows[0]), isNew: false };
+  }
+  const passHash = await hashPassword(randomBytes(24).toString("hex"));
+  const { rows } = await db.query<UserRow>(
+    `insert into auth_users (email, pass_hash, role, verified)
+     values ($1, $2, 'user', true)
+     on conflict (email) do update set verified = true
+     returning *`,
+    [email, passHash],
+  );
+  return { user: toUser(rows[0]), isNew: true };
 }
 
 export async function startRegistration(
