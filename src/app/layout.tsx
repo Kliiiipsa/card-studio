@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
 import { YandexMetrica } from "@/components/analytics/yandex-metrica";
+import { VkPixel } from "@/components/analytics/vk-pixel";
 import { AttributionCapture } from "@/components/analytics/attribution-capture";
 
 const inter = Inter({ subsets: ["latin", "cyrillic"], variable: "--font-inter" });
@@ -46,6 +47,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <Toaster />
         <AttributionCapture />
         <YandexMetrica />
+        <VkPixel />
       </body>
     </html>
   );
