@@ -11,9 +11,13 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const STATE_COOKIE = "yandex_oauth_state";
+// За прокси Timeweb req.url может нести внутренний хост — строим редиректы от
+// публичного адреса, иначе браузер уходит «в никуда» и человек видит ошибку.
+const SITE_URL = process.env.SITE_URL || "https://kartogen.ru";
 
-function fail(req: Request, code = "oauth") {
-  const url = new URL("/login", req.url);
+function fail(reason: string, code = "oauth") {
+  console.error(`[yandex-oauth] fail: ${reason}`);
+  const url = new URL("/login", SITE_URL);
   url.searchParams.set("error", code);
   const res = NextResponse.redirect(url);
   res.cookies.delete(STATE_COOKIE);
@@ -25,7 +29,8 @@ export async function GET(req: Request) {
   const url = new URL(req.url);
   const code = url.searchParams.get("code");
   const state = url.searchParams.get("state");
-  if (url.searchParams.get("error") || !code) return fail(req);
+  const providerError = url.searchParams.get("error");
+  if (providerError || !code) return fail(`provider error/no code: ${providerError ?? "no code"}`);
 
   // CSRF: state из query должен совпасть с тем, что положили в куку на /start
   const cookieState = req.headers
@@ -34,16 +39,18 @@ export async function GET(req: Request) {
     .map((c) => c.trim())
     .find((c) => c.startsWith(`${STATE_COOKIE}=`))
     ?.slice(STATE_COOKIE.length + 1);
-  if (!state || !cookieState || state !== cookieState) return fail(req);
+  if (!state || !cookieState || state !== cookieState) {
+    return fail(`state mismatch (query=${Boolean(state)}, cookie=${Boolean(cookieState)})`);
+  }
 
   try {
     const secret = process.env.AUTH_SECRET;
-    if (!secret) return fail(req);
+    if (!secret) return fail("AUTH_SECRET missing");
 
     const token = await yandexExchangeCode(code);
-    if (!token) return fail(req);
+    if (!token) return fail("token exchange failed");
     const info = await yandexUserInfo(token);
-    if (!info?.email) return fail(req);
+    if (!info?.email) return fail("userinfo failed / no email");
 
     const email = normalizeEmail(info.email);
     const { user, isNew } = await upsertOAuthUser(email);
@@ -60,7 +67,7 @@ export async function GET(req: Request) {
     }
 
     const sessionToken = await createSessionToken(secret, { email: user.email, role: user.role });
-    const res = NextResponse.redirect(new URL("/dashboard", req.url));
+    const res = NextResponse.redirect(new URL("/dashboard", SITE_URL));
     res.cookies.set(SESSION_COOKIE, sessionToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
@@ -70,7 +77,7 @@ export async function GET(req: Request) {
     });
     res.cookies.delete(STATE_COOKIE);
     return res;
-  } catch {
-    return fail(req);
+  } catch (e) {
+    return fail(`exception: ${e instanceof Error ? e.message : String(e)}`);
   }
 }

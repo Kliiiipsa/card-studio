@@ -43,7 +43,10 @@ export async function yandexExchangeCode(code: string): Promise<string | null> {
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body,
   });
-  if (!res.ok) return null;
+  if (!res.ok) {
+    console.error(`[yandex-oauth] token ${res.status}: ${(await res.text().catch(() => "")).slice(0, 300)}`);
+    return null;
+  }
   const data = (await res.json().catch(() => null)) as { access_token?: string } | null;
   return data?.access_token ?? null;
 }
@@ -53,7 +56,10 @@ export async function yandexUserInfo(
   token: string,
 ): Promise<{ email: string; name: string } | null> {
   const res = await fetch(INFO, { headers: { Authorization: `OAuth ${token}` } });
-  if (!res.ok) return null;
+  if (!res.ok) {
+    console.error(`[yandex-oauth] info ${res.status}: ${(await res.text().catch(() => "")).slice(0, 300)}`);
+    return null;
+  }
   const d = (await res.json().catch(() => null)) as {
     default_email?: string;
     emails?: string[];

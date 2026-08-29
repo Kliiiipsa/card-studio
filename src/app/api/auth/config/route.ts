@@ -13,6 +13,9 @@ export const dynamic = "force-dynamic";
 export function GET() {
   return ok({
     inviteRequired: Boolean(process.env.REGISTRATION_INVITE_CODE),
-    yandexOauth: yandexConfigured(),
+    // Кнопка показывается только при явном флаге YANDEX_OAUTH_VISIBLE=true.
+    // Так можно чинить поток (роуты гейтятся отдельно, по наличию ключей),
+    // не показывая клиентам сырую кнопку.
+    yandexOauth: yandexConfigured() && process.env.YANDEX_OAUTH_VISIBLE === "true",
   });
 }
