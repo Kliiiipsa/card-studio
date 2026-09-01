@@ -14,8 +14,10 @@ import { infographicGenerateSchema } from "@/core/infographics/schemas";
 import {
   submitInfographicBase,
   generateInfographicFallback,
+  adaptiveScenesEnabled,
   type InfographicBaseArgs,
 } from "@/core/infographics/infographic-service";
+import { sessionFromRequest } from "@/core/auth/session";
 import type { InfographicBrief } from "@/core/infographics/types";
 import { validateDataUrl } from "@/lib/image-validation";
 import { readFalBalance, settleFalCostInBackground, falJobsInFlight } from "@/core/ai/fal-cost";
@@ -48,6 +50,9 @@ export async function POST(req: Request) {
      * человек заполнил и выбрал, прикладывал ли фото/референс и какой промпт
      * реально ушёл в модель. Сами изображения НЕ сохраняем.
      */
+    // превью адаптивных сцен: только админ (или env-раскатка INFOGRAPHIC_ADAPTIVE=all)
+    const session = await sessionFromRequest(req);
+    const previewAdaptive = adaptiveScenesEnabled(session?.role);
     const debug = {
       userInput: body.userInput,
       hasProductPhoto: Boolean(body.productImage),
@@ -55,6 +60,8 @@ export async function POST(req: Request) {
       imagePrompt: brief.imagePrompt?.slice(0, 2000),
       styleProfileName: brief.styleProfile?.name,
       styleProfileSource: brief.styleProfile?.source,
+      adaptivePreview: previewAdaptive || undefined,
+      keepBackground: body.keepBackground,
     };
     const args: InfographicBaseArgs = {
       brief,
@@ -64,6 +71,7 @@ export async function POST(req: Request) {
       aspectRatio: body.aspectRatio,
       variantSeed: body.variantSeed,
       keepBackground: body.keepBackground,
+      previewAdaptive,
     };
 
     // остаток fal до работы — по разнице после посчитаем реальную себестоимость

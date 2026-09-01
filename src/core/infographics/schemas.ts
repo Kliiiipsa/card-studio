@@ -110,6 +110,14 @@ export const layoutPlanSchema = z
     callouts: z.array(calloutZ).default([]),
     source: z.enum(["vision", "fallback"]).default("vision"),
     notes: z.string().optional(),
+    // per-product art direction (adaptive scenes) — optional, added 2026-09
+    art: z
+      .object({
+        mood: z.string().max(120).optional(),
+        productColors: z.array(z.string().max(40)).max(6).optional(),
+        scenes: z.array(z.string().max(300)).max(6).optional(),
+      })
+      .optional(),
   })
   .passthrough();
 

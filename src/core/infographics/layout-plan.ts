@@ -54,6 +54,20 @@ export type LayoutCallout = {
   fontScale: number;
 };
 
+/**
+ * Per-product art direction from the vision pass (adaptive-scene mode): what
+ * environment/mood suits THIS product. Only geometry-free hints — the card copy
+ * still comes from the brief, so Cyrillic safety is unaffected.
+ */
+export type ArtDirection = {
+  /** short mood phrase, e.g. "premium tech", "cozy handmade" */
+  mood?: string;
+  /** up to 3 dominant product colors (hex or english names) for soft accents */
+  productColors?: string[];
+  /** 2-3 DIFFERENT specific environment ideas for this product (english) */
+  scenes?: string[];
+};
+
 export type LayoutPlan = {
   version: 1;
   /** brightness of the BACKGROUND where text sits: "light" => dark text. */
@@ -67,6 +81,7 @@ export type LayoutPlan = {
   callouts: LayoutCallout[];
   source: "vision" | "fallback";
   notes?: string;
+  art?: ArtDirection;
 };
 
 export type FallbackPlanParams = {
@@ -173,6 +188,32 @@ export function fallbackLayoutPlan(p: FallbackPlanParams): LayoutPlan {
   };
 }
 
+/** Clamp vision art direction to safe sizes; drop it entirely when empty. */
+function sanitizeArt(raw: ArtDirection | undefined): ArtDirection | undefined {
+  if (!raw || typeof raw !== "object") return undefined;
+  const str = (v: unknown, max: number): string | undefined =>
+    typeof v === "string" && v.trim() ? v.trim().slice(0, max) : undefined;
+  const mood = str(raw.mood, 80);
+  const productColors = Array.isArray(raw.productColors)
+    ? raw.productColors
+        .map((c) => str(c, 24))
+        .filter((c): c is string => !!c)
+        .slice(0, 3)
+    : undefined;
+  const scenes = Array.isArray(raw.scenes)
+    ? raw.scenes
+        .map((s) => str(s, 200))
+        .filter((s): s is string => !!s)
+        .slice(0, 3)
+    : undefined;
+  if (!mood && !productColors?.length && !scenes?.length) return undefined;
+  return {
+    mood,
+    productColors: productColors?.length ? productColors : undefined,
+    scenes: scenes?.length ? scenes : undefined,
+  };
+}
+
 /**
  * Turn a raw (zod-parsed) vision plan into a complete, render-safe plan:
  * clamp every coordinate, guarantee benefit boxes for exactly `benefitCount`
@@ -257,6 +298,7 @@ export function sanitizeLayoutPlan(raw: LayoutPlan, params: FallbackPlanParams):
     callouts,
     source: "vision",
     notes: typeof raw.notes === "string" ? raw.notes.slice(0, 300) : undefined,
+    art: sanitizeArt(raw.art),
   };
 }
 

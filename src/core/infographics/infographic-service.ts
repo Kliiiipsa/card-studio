@@ -128,6 +128,8 @@ export async function analyzeLayout(args: {
   headlinePosition?: "top" | "bottom";
   mode?: "light" | "dark";
   hasSubheadline: boolean;
+  /** адаптивные сцены (превью): попросить у vision ещё и art-дирекшн под товар */
+  wantArt?: boolean;
 }): Promise<LayoutPlan> {
   const params = {
     benefitCount: args.benefitCount,
@@ -164,9 +166,16 @@ export async function analyzeLayout(args: {
 6) Если товар смещён влево — текст справа, и наоборот. НЕ повторяй один и тот же шаблон.
 7) fontScale (доля высоты): заголовок 0.05–0.09, преимущества 0.02–0.035.
 8) Соблюдай safeMargins (~4% от краёв).
-9) callouts добавляй только если видны конкретные детали для выноски (воротник, ткань, фурнитура): anchor — точка на детали, label — место подписи.
+9) callouts добавляй только если видны конкретные детали для выноски (воротник, ткань, фурнитура): anchor — точка на детали, label — место подписи.${
+            args.wantArt
+              ? `
+10) Поле art — арт-дирекшн ИМЕННО под этот товар: mood — короткое настроение по-английски; productColors — до 3 доминирующих цветов товара (hex или английские названия); scenes — 2–3 РАЗНЫХ варианта уместного окружения/фона для этого конкретного товара, по-английски, каждый одним конкретным предложением (поверхность, место, свет; без людей и без текста). Варианты должны заметно отличаться друг от друга. НЕ предлагай шаблонную «белую студию с растением в горшке».`
+              : ""
+          }
 
-Верни JSON: { version:1, mode, product:{x,y,w,h}, freeZones:[{x,y,w,h}], safeMargins:{top,bottom,left,right}, headline:{box:{x,y,w,h},align,fontScale,maxLines,plate,side}, subheadline?, benefits:[{index,box,align,fontScale,plate,icon}], callouts:[], notes? }`,
+Верни JSON: { version:1, mode, product:{x,y,w,h}, freeZones:[{x,y,w,h}], safeMargins:{top,bottom,left,right}, headline:{box:{x,y,w,h},align,fontScale,maxLines,plate,side}, subheadline?, benefits:[{index,box,align,fontScale,plate,icon}], callouts:[]${
+            args.wantArt ? ", art:{mood,productColors:[],scenes:[]}" : ""
+          }, notes? }`,
           imageDataUrl: image,
         },
       ],
@@ -205,6 +214,10 @@ export async function analyzeLayout(args: {
 export async function buildInfographicBrief(
   input: InfographicInput,
   styleProfile?: StyleProfile,
+  opts?: {
+    /** превью адаптивных сцен (админ / env-флаг): просить art-дирекшн у vision */
+    adaptiveArt?: boolean;
+  },
 ): Promise<InfographicBrief> {
   // plan the per-photo layout in parallel with copywriting when a photo exists
   const blocksForCount = Math.min(
@@ -222,6 +235,7 @@ export async function buildInfographicBrief(
         headlinePosition: styleProfile?.headlinePosition,
         mode: styleProfile?.mode,
         hasSubheadline: !!(input.category || input.targetAudience),
+        wantArt: opts?.adaptiveArt,
       })
     : Promise.resolve(undefined);
 
@@ -373,6 +387,15 @@ function canBakeText(providerId: string): boolean {
   return providerId === "fal-gpt-image" || providerId === "openai";
 }
 
+/**
+ * Превью адаптивных сцен (кнопка фона работает со стилями; фон под товар от
+ * vision; композиция из пула вариантов вместо копии образца). Сейчас — только
+ * админ; раскатка на всех = env INFOGRAPHIC_ADAPTIVE=all, без правки кода.
+ */
+export function adaptiveScenesEnabled(role?: string | null): boolean {
+  return role === "admin" || process.env.INFOGRAPHIC_ADAPTIVE === "all";
+}
+
 export type InfographicBaseArgs = {
   brief: InfographicBrief;
   /** the user's product photo */
@@ -385,6 +408,8 @@ export type InfographicBaseArgs = {
   variantSeed?: number;
   /** сохранять фон загруженного фото (по умолчанию да) — стиль только на графику */
   keepBackground?: boolean;
+  /** превью адаптивных сцен: админ или env INFOGRAPHIC_ADAPTIVE=all */
+  previewAdaptive?: boolean;
 };
 
 type BuiltRequest =
@@ -409,11 +434,20 @@ function buildBaseRequest(args: InfographicBaseArgs, bake: boolean): BuiltReques
   // reference" branch lets the exemplar's own product take over the frame
   // (a face cream turned into the exemplar's suit) — text profile only then.
   // A user-uploaded reference always wins over the library exemplar.
+  // Кто дал референс: пользовательский (авторитет дизайна) или библиотечный
+  // образец (в адаптивном режиме — только мягкий якорь стиля).
+  const userSuppliedRef = !!args.styleReferenceImage;
   const styleReferenceImage =
     args.styleReferenceImage ??
     (args.productImage && args.brief.styleProfile?.source === "library"
       ? STYLE_REF_IMAGES[args.brief.styleProfile.id]
       : undefined);
+  const refKind: "user" | "library" | undefined = userSuppliedRef
+    ? "user"
+    : styleReferenceImage
+      ? "library"
+      : undefined;
+  const adaptive = !!args.previewAdaptive;
   args = { ...args, styleReferenceImage };
   const bakedPrompt = () =>
     buildBakedCardPrompt({
@@ -430,15 +464,28 @@ function buildBaseRequest(args: InfographicBaseArgs, bake: boolean): BuiltReques
       variantSeed: args.variantSeed,
       hasStyleReference: !!args.styleReferenceImage,
       keepBackground: args.keepBackground,
+      refKind,
+      adaptive,
     });
 
   // Custom style reference + product photo: give the model BOTH images — the
   // product MUST come from the user's photo, the reference supplies STYLE only
   // (gpt-image-2 takes multiple images; single-image models use just the product).
   if (args.styleReferenceImage && args.productImage) {
-    const twoImageNote = bake
+    const keepBg = args.keepBackground !== false;
+    // Адаптивный режим меняет роль второй картинки: при «Как на фото» референс
+    // отдаёт только графический слой (фон остаётся родной), а библиотечный
+    // образец при рестайле — только палитру/плашки/типографику, НЕ композицию
+    // и НЕ окружение (иначе один образец штампует одинаковые карточки).
+    const adaptiveNote =
+      adaptive && bake && keepBg
+        ? ` Two images are provided. The FIRST image is the user's product photo — keep its product AND its background, scene, surfaces and lighting completely untouched. The SECOND image is a STYLE REFERENCE for the GRAPHIC LAYER ONLY: borrow its plate/panel treatment, typography style, palette and decorative language for the overlaid graphics, but do NOT copy its environment, background, furniture, plants or props, and do NOT reuse its product, model, photo or text. CRITICAL: every word, number, price or badge visible in the reference belongs to a DIFFERENT product — none of it may appear on this card. Use ONLY the Russian texts listed in this prompt.`
+        : adaptive && bake && refKind === "library"
+          ? ` Two images are provided. The FIRST image is the user's product — keep THAT exact product (same garment, colors, materials, person/identity). The SECOND image is a soft STYLE REFERENCE: borrow ONLY its palette, plate/panel treatment, typography style and decorative language. Do NOT copy its composition or layout, its environment, background, furniture, plants or props, its product, its model or its text — follow the composition and environment instructions in this prompt instead. CRITICAL: every word, number, price or badge visible in the reference belongs to a DIFFERENT product — none of it may appear on this card. Use ONLY the Russian texts listed in this prompt.`
+          : undefined;
+    const twoImageNote = adaptiveNote ?? (bake
       ? ` Two images are provided. The FIRST image is the user's product — keep THAT exact product (same garment, colors, materials, person/identity). The SECOND image is a STYLE REFERENCE ONLY: take its composition, layout rhythm, palette, typography and decorative language, but DO NOT reuse its product, its model, its photo or its text. CRITICAL: every word, number, price, sales figure, size range, feature claim or badge text visible in the reference belongs to a DIFFERENT product — none of it may appear on this card. Recreate the reference's TEXT STYLE (lettering, plates, effects) using ONLY the Russian texts listed in this prompt; if the reference has more text blocks than provided texts, leave those blocks out rather than inventing or copying content. Aim for a card in the same style family — clearly similar, not an exact replica.`
-      : ` The product is the FIRST image — keep it unchanged. Use the SECOND image only as a STYLE reference (palette, composition, rhythm); do not copy its product or text. Remove any text/logo, leave empty space for a future text overlay.`;
+      : ` The product is the FIRST image — keep it unchanged. Use the SECOND image only as a STYLE reference (palette, composition, rhythm); do not copy its product or text. Remove any text/logo, leave empty space for a future text overlay.`);
     return {
       kind: "i2i",
       req: {

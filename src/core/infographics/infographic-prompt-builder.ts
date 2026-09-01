@@ -253,27 +253,61 @@ export function buildBakedCardPrompt(args: {
   hasStyleReference?: boolean;
   /** сохранять фон загруженного фото (стиль — только на графику); по умолч. да */
   keepBackground?: boolean;
+  /** who supplied the style reference: user upload vs auto-attached library exemplar */
+  refKind?: "user" | "library";
+  /** превью адаптивных сцен (админ/env): кнопка фона работает со стилями, сцена — под товар */
+  adaptive?: boolean;
 }): string {
   const { productName, headline, subheadline, benefits, type, style, styleProfile, layoutPlan } =
     args;
   const product = productName.trim() || "the product";
   const spec = TYPE_BAKED_SPEC[type];
+  const adaptive = !!args.adaptive;
   // A user-uploaded reference is the design authority: our generic poster
   // typography and the composition variant pool step aside so the card lands
   // in the reference's style family (similar, never a replica).
   // Also true when the reference IMAGE is attached without an extracted profile —
   // the picture must still win over our generic composition/typography rules.
-  const referenceDriven = styleProfile?.source === "reference" || !!args.hasStyleReference;
+  // ADAPTIVE: библиотечный экземпляр — НЕ авторитет композиции (иначе все
+  // карточки повторяют раскладку и фон одного образца); он даёт только палитру,
+  // плашки и типографику, а композиция идёт из пула вариантов + vision-плана.
+  const userReference = styleProfile?.source === "reference" || args.refKind === "user";
+  const referenceDriven = adaptive
+    ? userReference
+    : styleProfile?.source === "reference" || !!args.hasStyleReference;
 
   // Режим сцены: с референсом всегда рестайл (перенос стиля подразумевает новый
   // фон); иначе при наличии фото и включённом keepBackground — бережём фон;
   // без фото — генерация с нуля.
+  // ADAPTIVE: выбор пользователя «Как на фото» уважается ВСЕГДА, даже со стилем
+  // или референсом — стиль тогда применяется только к графическому слою.
   const keepBg = args.keepBackground !== false; // по умолчанию true
   const sceneMode: "restyle" | "keep" | "asis" = !args.hasProductImage
     ? "asis"
-    : keepBg && !referenceDriven
-      ? "keep"
-      : "restyle";
+    : adaptive
+      ? keepBg
+        ? "keep"
+        : "restyle"
+      : keepBg && !referenceDriven
+        ? "keep"
+        : "restyle";
+
+  // Адаптивная сцена под товар: vision предлагает 2–3 варианта окружения, выбор
+  // детерминирован по товару и сдвигается variantSeed на каждом регенерейте.
+  // НЕ применяется при пользовательском референсе — там перенос окружения из
+  // референса и есть желаемое поведение.
+  const artScenes =
+    adaptive && sceneMode === "restyle" && !userReference
+      ? (layoutPlan?.art?.scenes ?? [])
+      : [];
+  const adaptiveScene = artScenes.length
+    ? artScenes[(hashSeed(product) + (args.variantSeed ?? 0)) % artScenes.length]
+    : undefined;
+  const artMood = adaptive ? layoutPlan?.art?.mood : undefined;
+  const artColorsNote =
+    adaptive && layoutPlan?.art?.productColors?.length
+      ? ` Let small accents subtly echo the product's own colors (${layoutPlan.art.productColors.join(", ")}).`
+      : "";
 
   const base = args.hasProductImage
     ? `Using the provided product photo, create a FINISHED Wildberries marketplace infographic card for ${product}. Keep the product/person photorealistic — same identity, clothing, materials, colors and proportions.`
@@ -304,7 +338,11 @@ export function buildBakedCardPrompt(args: {
         }),
     sceneMode === "keep"
       ? "Keep the EXACT background, scene, surface and lighting of the provided product photo — do NOT invent, replace or restyle the environment. Only overlay the graphic layer (headline, benefit plates, accents) on top of the otherwise untouched photo."
-      : "If it suits the product and style, ground the product in a believable real-world environment (real surface, subtle context props, natural depth) instead of a flat empty backdrop.",
+      : adaptiveScene
+        ? `Environment for this card: ${adaptiveScene}.${artMood ? ` Mood: ${artMood}.` : ""} Build the background around this idea — it OVERRIDES any generic background description above. Keep it photorealistic, with believable surfaces, natural depth and soft shadows.${artColorsNote} Do NOT copy the style reference photo's environment, background, furniture, plants or props, and do NOT default to a generic white studio with a potted plant.`
+        : adaptive && !userReference
+          ? "Ground the product in a believable real-world environment that fits THIS specific product's nature and typical use (real surface, subtle context props, natural depth) — vary the setting between generations, do NOT default to a generic white studio with a potted plant, and do NOT copy the style reference photo's environment, furniture or props."
+          : "If it suits the product and style, ground the product in a believable real-world environment (real surface, subtle context props, natural depth) instead of a flat empty backdrop.",
     "Render the following RUSSIAN text directly inside the image as polished, modern marketplace typography — integrated into the layout, NOT as flat stickers, plastic pills or pasted badges:",
     `• Headline (dominant): «${headline.trim()}»`,
     subheadline ? `• Subheadline (smaller, lighter): «${subheadline.trim()}»` : "",

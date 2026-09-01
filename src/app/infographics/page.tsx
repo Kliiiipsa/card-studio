@@ -26,6 +26,7 @@ import {
 import { InfographicExportPanel } from "@/components/infographics/infographic-export-panel";
 import { InfographicReferencePicker } from "@/components/infographics/infographic-reference-picker";
 import { api } from "@/lib/client-api";
+import { useProfileStore } from "@/store/profile-store";
 import { reachGoal, GOALS } from "@/components/analytics/yandex-metrica";
 import { toast } from "@/components/ui/toaster";
 import { EMPTY_PRODUCT, type ProductInfo } from "@/core/domain/types";
@@ -57,6 +58,9 @@ export default function InfographicsPage() {
   // сохранять фон загруженного фото (по умолчанию да); стиль применяется только
   // к графике. Актуально в режиме «Визуальный стиль» без референса.
   const [keepBackground, setKeepBackground] = React.useState(true);
+  // ПРЕВЬЮ адаптивных сцен (пока только админ): кнопка фона видна и при
+  // выбранном стиле/референсе — бэк уважает выбор. Раскатка = убрать условие.
+  const isAdmin = useProfileStore((s) => s.role) === "admin";
 
   // пример выбранного библиотечного стиля — крупно в области результата, пока
   // своей карточки ещё нет («вот так будет выглядеть этот стиль»)
@@ -430,9 +434,10 @@ export default function InfographicsPage() {
             </div>
 
             {/* Фон фото: сохранять клиентский или дать модели заменить под стиль.
-                Актуально только с загруженным фото и визуальным стилем (без
-                референса — там замена фона заложена в переносе стиля). */}
-            {reference && !styleProfile && !styleReferenceImage && (
+                Для обычных пользователей — только с фото и без стиля/референса
+                (там замена фона пока заложена в переносе стиля); в адаптивном
+                превью (админ) — при любом стиле/референсе, бэк уважает выбор. */}
+            {reference && (isAdmin || (!styleProfile && !styleReferenceImage)) && (
               <div className="space-y-1.5">
                 <Label className="text-xs">Фон карточки</Label>
                 <div className="grid grid-cols-2 gap-2">
