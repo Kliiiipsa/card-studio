@@ -14,6 +14,7 @@ import {
   ArrowRight,
   Gem,
   Dna,
+  ScanSearch,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -203,6 +204,12 @@ export default async function LandingPage() {
             <Link href={authed ? "/dashboard" : "/register"}>
               {authed ? "Открыть студию" : "Начать бесплатно"}
               <ArrowRight className="h-4 w-4" />
+            </Link>
+          </Button>
+          <Button asChild size="lg" variant="outline">
+            <Link href="/check">
+              <ScanSearch className="h-4 w-4" />
+              Бесплатный анализ карточки
             </Link>
           </Button>
           <Button asChild size="lg" variant="outline">

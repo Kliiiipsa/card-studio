@@ -1,13 +1,14 @@
 import type { Metadata } from "next";
 
 /**
- * Пока страница скрытая (лид-магнит на одобрении) — noindex. После вывода на
- * главную: убрать robots и добавить description/canonical — страница может
- * ранжироваться по «проверка карточки wildberries бесплатно».
+ * Публичный лид-магнит (одобрен 2026-09-01, выведен на главную): индексируем —
+ * страница может ранжироваться по «проверка/анализ карточки wildberries бесплатно».
  */
 export const metadata: Metadata = {
   title: "Бесплатный анализ карточки товара — Kartogen",
-  robots: { index: false, follow: false },
+  description:
+    "Загрузите фото карточки или товара — ИИ оценит её как покупатель на Wildberries, поставит балл и подскажет, что мешает продажам. Бесплатно, без регистрации.",
+  alternates: { canonical: "https://kartogen.ru/check" },
 };
 
 export default function CheckLayout({ children }: { children: React.ReactNode }) {
