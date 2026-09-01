@@ -42,6 +42,8 @@ export async function middleware(req: NextRequest) {
     // ЮKassa server-to-server notifications carry no session cookie; the
     // route itself trusts nothing from the body (re-fetches the payment)
     pathname === "/api/billing/yookassa/webhook" ||
+    // read-only диагностика, защищена собственным секретом DIAG_TOKEN (не сессией)
+    pathname === "/api/diag" ||
     // legal documents are public by law
     pathname === "/terms" ||
     pathname === "/offer" ||
