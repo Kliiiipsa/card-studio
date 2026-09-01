@@ -43,7 +43,11 @@ export function captureAttribution(): void {
       referrer,
       ts: Date.now(),
     };
-    localStorage.setItem(KEY, JSON.stringify(attr));
+    const json = JSON.stringify(attr);
+    localStorage.setItem(KEY, json);
+    // Дублируем в cookie: вход через Яндекс ID идёт server-side, а localStorage
+    // серверу не виден — из cookie колбэк OAuth прочитает источник.
+    document.cookie = `kg_attr=${encodeURIComponent(json)}; path=/; max-age=${60 * 60 * 24 * 30}; samesite=lax`;
   } catch {
     // приватный режим / заблокированный storage — просто пропускаем
   }

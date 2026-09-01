@@ -3,6 +3,7 @@ import { yandexExchangeCode, yandexUserInfo } from "@/core/auth/oauth-yandex";
 import { upsertOAuthUser } from "@/core/auth/store";
 import { normalizeEmail } from "@/core/auth/domains";
 import { recordConsent } from "@/core/auth/consent";
+import { saveAttribution } from "@/core/analytics/attribution";
 import { grantWelcomeBonus } from "@/core/billing/welcome";
 import { createSessionToken, SESSION_COOKIE, SESSION_MAX_AGE } from "@/core/auth/session";
 import { clientIp } from "@/lib/request-ip";
@@ -14,6 +15,15 @@ const STATE_COOKIE = "yandex_oauth_state";
 // За прокси Timeweb req.url может нести внутренний хост — строим редиректы от
 // публичного адреса, иначе браузер уходит «в никуда» и человек видит ошибку.
 const SITE_URL = process.env.SITE_URL || "https://kartogen.ru";
+
+function readCookie(req: Request, name: string): string | undefined {
+  return req.headers
+    .get("cookie")
+    ?.split(";")
+    .map((c) => c.trim())
+    .find((c) => c.startsWith(`${name}=`))
+    ?.slice(name.length + 1);
+}
 
 function fail(reason: string, code = "oauth") {
   console.error(`[yandex-oauth] fail: ${reason}`);
@@ -33,12 +43,7 @@ export async function GET(req: Request) {
   if (providerError || !code) return fail(`provider error/no code: ${providerError ?? "no code"}`);
 
   // CSRF: state из query должен совпасть с тем, что положили в куку на /start
-  const cookieState = req.headers
-    .get("cookie")
-    ?.split(";")
-    .map((c) => c.trim())
-    .find((c) => c.startsWith(`${STATE_COOKIE}=`))
-    ?.slice(STATE_COOKIE.length + 1);
+  const cookieState = readCookie(req, STATE_COOKIE);
   if (!state || !cookieState || state !== cookieState) {
     return fail(`state mismatch (query=${Boolean(state)}, cookie=${Boolean(cookieState)})`);
   }
@@ -64,10 +69,23 @@ export async function GET(req: Request) {
         userAgent: req.headers.get("user-agent"),
       }).catch(() => undefined);
       await grantWelcomeBonus(email).catch(() => undefined);
+      // Источник (UTM) — из cookie kg_attr, которую пишет клиент при заходе с
+      // рекламной ссылки (localStorage серверу не виден). First-touch на email.
+      const rawAttr = readCookie(req, "kg_attr");
+      if (rawAttr) {
+        try {
+          const a = JSON.parse(decodeURIComponent(rawAttr));
+          if (a && typeof a === "object") await saveAttribution(email, a).catch(() => undefined);
+        } catch {
+          /* битая cookie — пропускаем */
+        }
+      }
     }
 
     const sessionToken = await createSessionToken(secret, { email: user.email, role: user.role });
-    const res = NextResponse.redirect(new URL("/dashboard", SITE_URL));
+    // ?welcome=1 у новых — чтобы клиент отправил цель «Регистрация» в Метрику
+    // (server-side колбэк сам Метрику дёрнуть не может).
+    const res = NextResponse.redirect(new URL(`/dashboard${isNew ? "?welcome=1" : ""}`, SITE_URL));
     res.cookies.set(SESSION_COOKIE, sessionToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",

@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { YandexMetrica } from "@/components/analytics/yandex-metrica";
 import { VkPixel } from "@/components/analytics/vk-pixel";
 import { AttributionCapture } from "@/components/analytics/attribution-capture";
+import { OAuthRegisterPing } from "@/components/analytics/oauth-register-ping";
 
 const inter = Inter({ subsets: ["latin", "cyrillic"], variable: "--font-inter" });
 
@@ -46,6 +47,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         {children}
         <Toaster />
         <AttributionCapture />
+        <OAuthRegisterPing />
         <YandexMetrica />
         <VkPixel />
       </body>

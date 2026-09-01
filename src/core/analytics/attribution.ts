@@ -105,6 +105,9 @@ export async function attributionSummary(): Promise<SourceRow[]> {
     paying: string;
     revenue: string | null;
   }>(
+    // База — ВСЕ пользователи (auth_users), а не только те, у кого есть метка:
+    // иначе регистрации через Яндекс ID и прямые заходы (без строки в
+    // signup_attribution) выпадали из отчёта. Кто без метки → «(без метки)».
     `with attr as (
        select email, coalesce(nullif(source,''), '(без метки)') as source
        from signup_attribution
@@ -115,15 +118,16 @@ export async function attributionSummary(): Promise<SourceRow[]> {
        where type = 'topup' and reference like 'yk-%'
        group by email
      )
-     select a.source,
-       count(*)::int                       as registrations,
-       count(u.email)::int                 as verified,
-       count(p.email)::int                 as paying,
-       coalesce(sum(p.rub), 0)::int        as revenue
-     from attr a
-     left join auth_users u on u.email = a.email and u.verified = true
-     left join pay p        on p.email = a.email
-     group by a.source
+     select coalesce(a.source, '(без метки)')      as source,
+       count(*)::int                               as registrations,
+       count(*) filter (where u.verified)::int     as verified,
+       count(p.email)::int                         as paying,
+       coalesce(sum(p.rub), 0)::int                as revenue
+     from auth_users u
+     left join attr a on a.email = u.email
+     left join pay p  on p.email = u.email
+     where u.role <> 'admin'
+     group by 1
      order by paying desc, registrations desc`,
   );
   return rows.map((r) => ({
