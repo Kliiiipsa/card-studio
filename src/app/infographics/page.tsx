@@ -184,17 +184,11 @@ export default function InfographicsPage() {
             generatingRef.current = false;
           }
         }
-      } else if (job.status === "completed" && job.resultUrl) {
-        // restore the last finished card only onto a fresh, empty page
-        setBaseImageUrl((prev) => {
-          if (prev) return prev;
-          if (payload?.brief) {
-            setBrief((b) => b ?? payload.brief);
-            setTextBaked(payload.textBaked ?? true);
-          }
-          return job.resultUrl;
-        });
       }
+      // Завершённый результат НЕ восстанавливаем на свежей странице (решение
+      // 2026-09-01): он «залипал» в области результата и мешал смотреть примеры
+      // стилей. Готовые карточки живут в «Моих карточках» (подпись под панелью
+      // скачивания об этом говорит), а здесь после перезахода — чистый лист.
     })();
     return () => {
       cancelled = true;
@@ -557,7 +551,16 @@ export default function InfographicsPage() {
             )}
 
             {baseImageUrl && brief && (
-              <InfographicExportPanel baseSrc={baseImageUrl} brief={brief} textBaked={textBaked} />
+              <>
+                <InfographicExportPanel baseSrc={baseImageUrl} brief={brief} textBaked={textBaked} />
+                <p className="mt-2 text-center text-xs text-muted-foreground">
+                  Карточка сохранена — она всегда доступна в{" "}
+                  <a href="/cards" className="underline underline-offset-2 hover:text-foreground">
+                    «Моих карточках»
+                  </a>
+                  . Можно менять стиль и генерировать следующую.
+                </p>
+              </>
             )}
           </CardContent>
         </Card>
