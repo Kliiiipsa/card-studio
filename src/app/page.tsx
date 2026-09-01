@@ -205,7 +205,13 @@ export default async function LandingPage() {
               <ArrowRight className="h-4 w-4" />
             </Link>
           </Button>
-          <Button asChild size="lg" variant="outline">
+          {/* козырь-лидмагнит: выделен цветом среди нейтральных кнопок */}
+          <Button
+            asChild
+            size="lg"
+            variant="outline"
+            className="border-primary/50 bg-primary/5 font-semibold text-primary shadow-[0_4px_24px_-6px_hsl(var(--primary)/0.5)] hover:border-primary hover:bg-primary/10 hover:text-primary"
+          >
             <Link href="/check">
               <ScanSearch className="h-4 w-4" />
               Бесплатный анализ карточки
