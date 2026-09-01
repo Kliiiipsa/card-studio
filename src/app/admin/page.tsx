@@ -415,6 +415,7 @@ export default function AdminPage() {
   const [genEmail, setGenEmail] = React.useState("");
   const [genKind, setGenKind] = React.useState("");
   const [genStatus, setGenStatus] = React.useState("");
+  const [genLimit, setGenLimit] = React.useState(50);
   const [openGen, setOpenGen] = React.useState<Generation | null>(null);
 
   // credit dialog state
@@ -502,11 +503,12 @@ export default function AdminPage() {
     if (genKind) qs.set("kind", genKind);
     if (genStatus) qs.set("status", genStatus);
     if (showHidden) qs.set("all", "1");
+    qs.set("limit", String(genLimit));
     fetch(`/api/admin/generations?${qs.toString()}`)
       .then((r) => r.json())
       .then((d: { generations?: Generation[] }) => setGens(d.generations ?? []))
       .catch(() => setGens([]));
-  }, [genEmail, genKind, genStatus, showHidden]);
+  }, [genEmail, genKind, genStatus, showHidden, genLimit]);
 
   React.useEffect(() => {
     loadUsers();
@@ -1242,9 +1244,23 @@ export default function AdminPage() {
                     </table>
                   </div>
                 )}
+                {gens !== null && gens.length >= genLimit && (
+                  <div className="mt-3 flex justify-center">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setGenLimit((l) => l + 100)}
+                    >
+                      Показать ещё
+                    </Button>
+                  </div>
+                )}
                 <p className="mt-3 text-xs text-muted-foreground">
-                  Показываются последние 50 генераций по фильтру. Загруженные клиентом фото не
-                  сохраняются — видны только введённые данные, настройки и промпт, ушедший в модель.
+                  {gens !== null
+                    ? `Показано генераций: ${gens.length} (по фильтру, свежие сверху).`
+                    : ""}{" "}
+                  Загруженные клиентом фото не сохраняются — видны только введённые данные, настройки
+                  и промпт, ушедший в модель.
                 </p>
               </CardContent>
             </Card>

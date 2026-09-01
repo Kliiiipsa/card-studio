@@ -171,10 +171,31 @@ export async function analyzeLayout(args: {
         },
       ],
     });
-    const parsed = layoutPlanSchema.safeParse(safeJson(result.text));
-    if (!parsed.success) throw new Error("invalid layout plan");
+    const json = safeJson(result.text);
+    const parsed = layoutPlanSchema.safeParse(json);
+    if (!parsed.success) {
+      // Диагностика (без изменения поведения): почему vision-план не принят —
+      // пустой JSON или какие поля схемы не сошлись. Читается в логах Timeweb
+      // по тегу [layout-fallback], чтобы точечно чинить причину, а не гадать.
+      console.warn(
+        "[layout-fallback] schema-parse:",
+        json == null
+          ? "safeJson=null"
+          : parsed.error.issues
+              .slice(0, 4)
+              .map((i) => `${i.path.join(".")}:${i.code}`)
+              .join("; "),
+        "| head:",
+        (result.text || "").replace(/\s+/g, " ").slice(0, 160),
+      );
+      return fallbackLayoutPlan(params);
+    }
     return sanitizeLayoutPlan(parsed.data as LayoutPlan, params);
-  } catch {
+  } catch (e) {
+    console.warn(
+      "[layout-fallback] vision-call:",
+      e instanceof Error ? e.message.slice(0, 160) : String(e).slice(0, 160),
+    );
     return fallbackLayoutPlan(params);
   }
 }
@@ -190,6 +211,9 @@ export async function buildInfographicBrief(
     (input.benefits ?? []).filter((b) => b.trim()).length || LAYOUT_BY_TYPE[input.type].maxBlocks,
     styleProfile?.density === "low" ? 3 : styleProfile?.density === "high" ? 5 : 4,
   );
+  if (!input.referenceImage) {
+    console.warn("[layout-fallback] no-reference-image → deterministic layout");
+  }
   const layoutPromise: Promise<LayoutPlan | undefined> = input.referenceImage
     ? analyzeLayout({
         productImageDataUrl: input.referenceImage,
