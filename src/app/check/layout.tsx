@@ -6,7 +6,7 @@ import type { Metadata } from "next";
  * ранжироваться по «проверка карточки wildberries бесплатно».
  */
 export const metadata: Metadata = {
-  title: "Бесплатная проверка карточки — Kartogen",
+  title: "Бесплатный анализ карточки товара — Kartogen",
   robots: { index: false, follow: false },
 };
 

@@ -94,7 +94,7 @@ export default function QuickCheckPage() {
       </div>
 
       <h1 className="text-2xl font-bold [text-wrap:balance]">
-        Бесплатная проверка карточки товара
+        Бесплатный анализ карточки товара
       </h1>
       <p className="mt-2 text-sm text-muted-foreground">
         Загрузите фото карточки или товара — ИИ оценит её как покупатель на Wildberries и подскажет,
@@ -174,7 +174,7 @@ export default function QuickCheckPage() {
             <Button asChild className="w-full" variant="gradient">
               <Link href="/register">
                 <Sparkles className="h-4 w-4" />
-                Открыть полный разбор — бесплатно, 20 генов в подарок
+                Открыть полный разбор — 20 генов в подарок
               </Link>
             </Button>
             <p className="text-center text-xs text-muted-foreground">
