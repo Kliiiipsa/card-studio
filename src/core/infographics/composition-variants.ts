@@ -45,16 +45,14 @@ export const COMPOSITION_VARIANTS: CompositionVariant[] = [
     describe: (n) =>
       `Headline at the very top with the ${n} captions directly beneath it as a compact aligned group; the product occupies the lower two-thirds of the frame, large and confident.`,
   },
+  // «staggered» (плашки на разных высотах) и «side-panel» (сплошная панель в
+  // треть ширины) убраны 2026-09-01 по фидбеку владельца: gpt-image раздувал
+  // панель до полэкрана, а разноуровневые плашки читались как «разлетелись».
   {
-    id: "staggered",
+    id: "split-columns",
     suits: ["benefits", "why_buy"],
     describe: (n) =>
-      `Editorial asymmetric layout: headline at the top, and the ${n} captions staggered at DIFFERENT heights on alternating sides of the product, following its silhouette — dynamic but tidy, nothing overlaps the product.`,
-  },
-  {
-    id: "side-panel",
-    describe: (n) =>
-      `A vertical tinted panel (about one third of the width, in the style's surface color) runs down one side and holds the headline and all ${n} captions top-to-bottom; the product fills the remaining frame, slightly overlapping the panel edge for depth.`,
+      `Headline at the top. The ${n} captions are split into two SHORT aligned columns flanking the product — one on the left, one on the right, their tops aligned at the SAME height, equal vertical spacing within each column. Calm, symmetric and tidy; no caption floats at a random height.`,
   },
   {
     id: "callout-lines",
