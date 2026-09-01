@@ -7,52 +7,11 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/project/empty-state";
-import { useProfileStore } from "@/store/profile-store";
 
+// Инфографика первой как главный сценарий; у Фото и Инфографики явно указано
+// «с текстом / без текста» — лечит частую путаницу (половина новичков шла в
+// «Фото», ожидая карточку с надписями). Порядок остальных без изменений.
 const QUICK = [
-  {
-    href: "/generator",
-    icon: Wand2,
-    title: "Фото товара",
-    desc: "Новый фон, свет и подача — по описанию или из снимка",
-  },
-  {
-    href: "/infographics",
-    icon: LayoutTemplate,
-    title: "Инфографика",
-    desc: "Готовая карточка с русским текстом и плашками",
-  },
-  {
-    href: "/video",
-    icon: Clapperboard,
-    title: "Видео товара",
-    desc: "5-секундный живой ролик из одного фото",
-  },
-  {
-    href: "/seo",
-    icon: FileText,
-    title: "SEO-тексты",
-    desc: "Название, описание и ключевые запросы для карточки",
-  },
-  {
-    href: "/analysis",
-    icon: ScanSearch,
-    title: "Анализ и улучшение",
-    desc: "Аудит карточки + улучшение ИИ",
-  },
-  {
-    href: "/compare",
-    icon: Scale,
-    title: "Сравнение карточек",
-    desc: "Ваша карточка против конкурента: кто выигрывает и почему",
-  },
-];
-
-// НОВАЯ раскладка (пока видна только админу — предпросмотр). Инфографика
-// первой как главный сценарий; у Фото и Инфографики явно указано «с текстом /
-// без текста» — это лечит частую путаницу (половина новичков шла в «Фото»,
-// ожидая карточку с надписями). Порядок остальных без изменений.
-const QUICK_NEW = [
   {
     href: "/infographics",
     icon: LayoutTemplate,
@@ -109,12 +68,9 @@ const KIND_LABEL: Record<string, string> = {
 
 export default function DashboardPage() {
   const [cards, setCards] = React.useState<CardItem[] | null>(null);
-  // Предпросмотр новой раскладки — пока только для админа. Снять гейт (показать
-  // всем) = заменить `preview ? QUICK_NEW : QUICK` на всегда QUICK_NEW и убрать
-  // условие у баннера/плашки «предпросмотр».
-  const role = useProfileStore((s) => s.role);
-  const preview = role === "admin";
-  const quick = preview ? QUICK_NEW : QUICK;
+  // Онбординг-баннер показываем только новичкам (ещё нет ни одной работы),
+  // чтобы не мозолил глаза постоянным пользователям.
+  const isNewUser = cards !== null && cards.length === 0;
 
   React.useEffect(() => {
     fetch("/api/cards")
@@ -126,10 +82,9 @@ export default function DashboardPage() {
   return (
     <AppShell title="Главная">
       <div className="space-y-8">
-        {/* Онбординг для новичка — пока только в предпросмотре (админ) */}
-        {preview && (
+        {/* Онбординг для новичка — только пока нет ни одной работы */}
+        {isNewUser && (
           <section className="rounded-2xl border border-primary/30 bg-primary/5 p-5">
-            <Badge variant="secondary" className="mb-2">Предпросмотр · виден только вам</Badge>
             <h2 className="text-base font-semibold [text-wrap:balance]">
               Новичок? Начните с «Инфографики» — это карточка с текстом для маркетплейса
             </h2>
@@ -156,12 +111,12 @@ export default function DashboardPage() {
         <section>
           <h2 className="mb-3 text-sm font-semibold text-muted-foreground">Быстрые действия</h2>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            {quick.map((q) => (
+            {QUICK.map((q) => (
               <Link key={q.href} href={q.href}>
                 <Card
                   className={
                     "h-full transition-all hover:border-primary/40 hover:shadow-md" +
-                    (preview && "primary" in q && q.primary ? " border-primary/50 ring-1 ring-primary/20" : "")
+                    ("primary" in q && q.primary ? " border-primary/50 ring-1 ring-primary/20" : "")
                   }
                 >
                   <CardContent className="flex flex-col gap-3 p-5">
@@ -169,7 +124,7 @@ export default function DashboardPage() {
                       <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
                         <q.icon className="h-5 w-5" />
                       </div>
-                      {preview && "primary" in q && q.primary && (
+                      {"primary" in q && q.primary && (
                         <Badge className="px-1.5 py-0 text-[10px]">Начните с этого</Badge>
                       )}
                     </div>
