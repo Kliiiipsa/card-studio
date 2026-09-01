@@ -68,6 +68,7 @@ export async function GET(req: Request) {
     firstGenKind,
     welcome,
     payments,
+    genSamples,
   ] = await Promise.all([
     rows(`select count(*)::int total, count(*) filter(where verified)::int verified
           from auth_users where role <> 'admin'`),
@@ -91,6 +92,12 @@ export async function GET(req: Request) {
     rows(`select count(*)::int n, coalesce(sum(amount),0)::int rub from billing_tx where type='welcome'`),
     rows(`select count(distinct email)::int payers, coalesce(sum(amount),0)::int rub
           from billing_tx where type='topup' and reference like 'yk-%'`),
+    // Последние генерации: что ввели + какой промпт ушёл в модель (payload без
+    // ПД — только данные товара, бриф и промпт). Для разбора «что генерят».
+    rows(`select kind, status, to_char(created_at,'MM-DD HH24:MI') t,
+                 left(payload::text, 1800) payload
+          from gen_jobs where payload is not null
+          order by created_at desc limit 25`),
   ]);
 
   let sources: unknown;
@@ -112,7 +119,7 @@ export async function GET(req: Request) {
       ok: true,
       generatedAt: new Date().toISOString(),
       users: { totals: usersTotal, byDay: usersByDay, domains, generatedVsNot },
-      generations: { byKindStatus: genByKindStatus, failRate, topErrors, firstGenKind },
+      generations: { byKindStatus: genByKindStatus, failRate, topErrors, firstGenKind, samples: genSamples },
       billing: { welcome, payments },
       sources,
       server,
