@@ -20,7 +20,9 @@ import {
   CircleMinus,
   FileSpreadsheet,
   Download,
+  Megaphone,
 } from "lucide-react";
+import { Markdown } from "@/components/blog/markdown";
 import { AppShell } from "@/components/layout/app-shell";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -412,6 +414,26 @@ export default function AdminPage() {
 
   // «Генерации»: журнал для разбора жалоб
   const [gens, setGens] = React.useState<Generation[] | null>(null);
+  // ИИ-советник по рекламе (вкладка «Реклама»)
+  const [adsReport, setAdsReport] = React.useState<{
+    report: string;
+    sources: { direct: boolean; metrika: boolean };
+    generatedAt: string;
+  } | null>(null);
+  const [adsLoading, setAdsLoading] = React.useState(false);
+  const runAdsAnalysis = async () => {
+    setAdsLoading(true);
+    try {
+      const res = await fetch("/api/admin/ads/analyze", { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Не удалось получить анализ.");
+      setAdsReport(data);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Не удалось получить анализ.");
+    } finally {
+      setAdsLoading(false);
+    }
+  };
   const [genEmail, setGenEmail] = React.useState("");
   const [genKind, setGenKind] = React.useState("");
   const [genStatus, setGenStatus] = React.useState("");
@@ -612,6 +634,9 @@ export default function AdminPage() {
             </TabsTrigger>
             <TabsTrigger value="reports" className="gap-1.5">
               <FileSpreadsheet className="h-4 w-4" /> Отчёты
+            </TabsTrigger>
+            <TabsTrigger value="ads" className="gap-1.5">
+              <Megaphone className="h-4 w-4" /> Реклама
             </TabsTrigger>
           </TabsList>
 
@@ -1262,6 +1287,45 @@ export default function AdminPage() {
                   Загруженные клиентом фото не сохраняются — видны только введённые данные, настройки
                   и промпт, ушедший в модель.
                 </p>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* ИИ-советник по рекламе: настройки Директа + статистика + Метрика */}
+          <TabsContent value="ads">
+            <Card>
+              <CardContent className="p-4">
+                <div className="mb-3 flex flex-wrap items-center gap-3">
+                  <Button onClick={runAdsAnalysis} disabled={adsLoading} variant="gradient">
+                    {adsLoading ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" /> Анализирую (до минуты)…
+                      </>
+                    ) : (
+                      <>
+                        <Megaphone className="h-4 w-4" /> Получить анализ
+                      </>
+                    )}
+                  </Button>
+                  {adsReport && (
+                    <span className="text-xs text-muted-foreground">
+                      {new Date(adsReport.generatedAt).toLocaleString("ru-RU")} · Директ:{" "}
+                      {adsReport.sources.direct ? "✓" : "нет доступа (заявка на API?)"} · Метрика:{" "}
+                      {adsReport.sources.metrika ? "✓" : "нет доступа"}
+                    </span>
+                  )}
+                </div>
+                {adsReport ? (
+                  <div className="max-w-3xl">
+                    <Markdown md={adsReport.report} />
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    ИИ посмотрит настройки кампаний и поисковые запросы в Директе, статистику и цели
+                    Метрики за 30 дней — и даст оценку с конкретными действиями. Каждый совет
+                    привязан к цифрам; если данных мало — так и скажет.
+                  </p>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
