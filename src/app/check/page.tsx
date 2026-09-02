@@ -98,7 +98,7 @@ export default function QuickCheckPage() {
       </h1>
       <p className="mt-2 text-sm text-muted-foreground">
         Загрузите фото карточки или товара — ИИ оценит её как покупатель на Wildberries и подскажет,
-        что мешает продажам. Без регистрации, 3 проверки в день.
+        что мешает продажам. Без регистрации.
       </p>
 
       <Card className="mt-6">
