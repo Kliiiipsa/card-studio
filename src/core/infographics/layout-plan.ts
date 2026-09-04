@@ -240,7 +240,8 @@ export function sanitizeLayoutPlan(raw: LayoutPlan, params: FallbackPlanParams):
       align: v.align ?? "left",
       fontScale: clampScale(v.fontScale, 0.016, 0.045, 0.028),
       plate: v.plate ?? true,
-      icon: v.icon ?? true,
+      // vision может прислать имя иконки строкой — трактуем как «иконка есть»
+      icon: v.icon !== false,
     };
   });
 

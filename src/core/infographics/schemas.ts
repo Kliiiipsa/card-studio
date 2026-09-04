@@ -63,25 +63,31 @@ const overlayPlanSchema = z.object({
 
 /* --------------------------- dynamic layout plan --------------------------- */
 
-const boxZ = z.object({ x: z.number(), y: z.number(), w: z.number(), h: z.number() });
-const pointZ = z.object({ x: z.number(), y: z.number() });
+// Числа — с приведением: vision иногда присылает "0.2" строкой, и раньше это
+// роняло ВЕСЬ план в fallback (диагноз по логам [layout-fallback] 01–04.09).
+const numZ = z.coerce.number();
+const boxZ = z.object({ x: numZ, y: numZ, w: numZ, h: numZ });
+const pointZ = z.object({ x: numZ, y: numZ });
 const alignZ = z.enum(["left", "center", "right"]);
 
 const textBlockZ = z.object({
   box: boxZ,
   align: alignZ.default("left"),
-  fontScale: z.number().default(0.05),
-  maxLines: z.number().int().default(2),
+  fontScale: numZ.default(0.05),
+  maxLines: numZ.int().default(2),
   plate: z.boolean().default(false),
 });
 
 const benefitZ = z.object({
-  index: z.number().int(),
+  index: numZ.int(),
   box: boxZ,
   align: alignZ.default("left"),
-  fontScale: z.number().default(0.028),
+  fontScale: numZ.default(0.028),
   plate: z.boolean().default(true),
-  icon: z.boolean().default(true),
+  // ГЛАВНАЯ причина 55/57 fallback'ов: модель шлёт сюда ИМЯ иконки строкой
+  // ("hanger"), а strict boolean браковал весь план. Принимаем что угодно,
+  // санитайзер приведёт к boolean.
+  icon: z.any().default(true),
 });
 
 const calloutZ = z.object({
