@@ -350,11 +350,12 @@ export function buildBakedCardPrompt(args: {
     referenceDriven
       ? "TYPOGRAPHY: mirror the reference's typographic treatment — headline scale, weight, placement, letter case, plates and decorative effects — recreated with the RUSSIAN texts provided above. The goal is a card in the SAME style family as the reference: clearly similar, never a pixel-perfect replica." +
         (styleProfile?.typography ? ` Reference typography: ${styleProfile.typography}.` : "")
-      : "POSTER-GRADE TYPOGRAPHY: the headline is the main visual element of the card — set it VERY large in a heavy bold sans-serif, like a magazine cover or promo poster. Break the headline into 2–3 size steps: the key product word largest, secondary words clearly smaller. If a provided text contains a number or measurement, it may be highlighted in a compact accent plate.",
+      : "POSTER-GRADE TYPOGRAPHY: the headline is the main visual element of the card — set it VERY large in a heavy bold sans-serif, like a magazine cover or promo poster. Break the headline into 2–3 size steps: the key product word largest, secondary words clearly smaller. If the HEADLINE or SUBHEADLINE itself contains a number or measurement, it may be highlighted in a compact accent plate — but never lift a number out of a caption into a separate badge.",
     "Letterforms must keep NATURAL, optically correct proportions — never artificially stretch, squeeze, condense or expand the letters to fill space. Scale comes from font SIZE only; if a word doesn't fit, make it smaller or break the line, don't distort it. Letter width and spacing stay uniform within each line.",
     "The headline must stay high-contrast and readable against its background even at thumbnail size.",
     "Typography rules: correct Russian spelling is MANDATORY — no gibberish, no invented or duplicated words, high legibility, elegant visual hierarchy and consistent alignment.",
     "Use ONLY the texts provided above — do not add any other words, numbers, percentages, sizes or invented specifications (no made-up fabric composition, no fake ratings).",
+    "Every fact appears on the card EXACTLY ONCE: never show the same number, measurement or claim in two places (e.g. as an accent badge near the headline AND again as a caption plate).",
     "Do not cover the face or key product details with text. No watermark, no fake brand logos, no Wildberries logo.",
     "The result must look like a high-end, cohesive marketplace card — text feels designed into the scene, not pasted on top.",
   ]
