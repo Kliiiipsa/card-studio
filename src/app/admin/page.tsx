@@ -21,6 +21,7 @@ import {
   FileSpreadsheet,
   Download,
   Megaphone,
+  Mail,
 } from "lucide-react";
 import { Markdown } from "@/components/blog/markdown";
 import { AppShell } from "@/components/layout/app-shell";
@@ -421,6 +422,11 @@ export default function AdminPage() {
     generatedAt: string;
   } | null>(null);
   const [adsLoading, setAdsLoading] = React.useState(false);
+  // журнал согласий на рассылку (вкладка «Рассылка»)
+  const [mk, setMk] = React.useState<{
+    subscribers: number;
+    rows: { email: string; action: string; created_at: string; ip: string | null }[];
+  } | null>(null);
   const runAdsAnalysis = async () => {
     setAdsLoading(true);
     try {
@@ -543,6 +549,12 @@ export default function AdminPage() {
         setStorage({ count: d.count ?? 0, bytes: d.bytes ?? 0 }),
       )
       .catch(() => undefined);
+    fetch("/api/admin/marketing")
+      .then((r) => r.json())
+      .then((d: { subscribers?: number; rows?: [] }) =>
+        setMk({ subscribers: d.subscribers ?? 0, rows: d.rows ?? [] }),
+      )
+      .catch(() => setMk({ subscribers: 0, rows: [] }));
   }, [loadUsers, loadTxs, loadHealth, loadPromoUses]);
 
   // журнал генераций: перезапрос при смене фильтров (почта — с задержкой,
@@ -637,6 +649,9 @@ export default function AdminPage() {
             </TabsTrigger>
             <TabsTrigger value="ads" className="gap-1.5">
               <Megaphone className="h-4 w-4" /> Реклама
+            </TabsTrigger>
+            <TabsTrigger value="mail" className="gap-1.5">
+              <Mail className="h-4 w-4" /> Рассылка
             </TabsTrigger>
           </TabsList>
 
@@ -1287,6 +1302,61 @@ export default function AdminPage() {
                   Загруженные клиентом фото не сохраняются — видны только введённые данные, настройки
                   и промпт, ушедший в модель.
                 </p>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Журнал согласий на рассылку: кто ставит/снимает галочку */}
+          <TabsContent value="mail">
+            <Card>
+              <CardContent className="p-4">
+                <p className="mb-3 text-sm">
+                  Подписаны сейчас:{" "}
+                  <b>{mk ? mk.subscribers : "…"}</b>
+                  <span className="ml-2 text-xs text-muted-foreground">
+                    (галочка «Получать советы и новости» при регистрации; тестовые аккаунты скрыты)
+                  </span>
+                </p>
+                {mk === null ? (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Loader2 className="h-4 w-4 animate-spin" /> Загрузка…
+                  </div>
+                ) : mk.rows.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">
+                    Пока никто не ставил галочку — она появилась на регистрации только что.
+                  </p>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b text-left text-xs text-muted-foreground">
+                          <th className="py-2 pr-4 font-medium">Когда</th>
+                          <th className="py-2 pr-4 font-medium">Почта</th>
+                          <th className="py-2 pr-4 font-medium">Действие</th>
+                          <th className="py-2 font-medium">IP</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {mk.rows.map((r, i) => (
+                          <tr key={`${r.email}-${r.created_at}-${i}`} className="border-b last:border-0">
+                            <td className="whitespace-nowrap py-2 pr-4 text-xs text-muted-foreground">
+                              {new Date(r.created_at).toLocaleString("ru-RU")}
+                            </td>
+                            <td className="py-2 pr-4 text-xs">{r.email}</td>
+                            <td className="py-2 pr-4 text-xs">
+                              {r.action === "granted" ? (
+                                <span className="text-emerald-600 dark:text-emerald-400">подписался</span>
+                              ) : (
+                                <span className="text-destructive">отписался</span>
+                              )}
+                            </td>
+                            <td className="py-2 font-mono text-xs text-muted-foreground">{r.ip ?? "—"}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>

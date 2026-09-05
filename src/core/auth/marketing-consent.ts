@@ -85,6 +85,30 @@ export async function marketingOptIn(email: string): Promise<boolean> {
   }
 }
 
+export type MarketingConsentRow = {
+  email: string;
+  action: string;
+  created_at: string;
+  ip: string | null;
+};
+
+/** Журнал согласий для админки: свежие сверху. */
+export async function listMarketingConsents(limit = 300): Promise<MarketingConsentRow[]> {
+  if (!dbConfigured()) return [];
+  try {
+    await ensure();
+    const { rows } = await getPool().query<MarketingConsentRow>(
+      `select email, action, created_at::text, ip from marketing_consents
+        order by created_at desc limit $1`,
+      [limit],
+    );
+    return rows;
+  } catch (e) {
+    console.error("[marketing-consent] list failed:", e);
+    return [];
+  }
+}
+
 /** Список согласных адресов (для будущей рассылки). */
 export async function marketingSubscribers(): Promise<string[]> {
   if (!dbConfigured()) return [];
