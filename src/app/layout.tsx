@@ -22,7 +22,11 @@ export const metadata: Metadata = {
   description: DESCRIPTION,
   alternates: { canonical: "/" },
   // подтверждение прав в Google Search Console (не удалять — иначе слетит)
-  verification: { google: "-R-CzL1J1dyVwZA1o4s0A0tiJx0Hiv2rJOh3J2NTDwU" },
+  verification: {
+    google: "-R-CzL1J1dyVwZA1o4s0A0tiJx0Hiv2rJOh3J2NTDwU",
+    // Pinterest: подтверждение домена (НЕ УДАЛЯТЬ — слетит верификация)
+    other: { "p:domain_verify": "22a3ca9d9dfb81ac84366a09449011d6" },
+  },
   openGraph: {
     title: TITLE,
     description: DESCRIPTION,
