@@ -27,6 +27,8 @@ export default function RegisterPage() {
   // публично открыта 2026-08-26 → по умолчанию скрыто)
   const [inviteRequired, setInviteRequired] = React.useState(false);
   const [agreed, setAgreed] = React.useState(false);
+  // добровольная подписка на рассылку — снята по умолчанию, ни на что не влияет
+  const [newsletter, setNewsletter] = React.useState(false);
   const [devCode, setDevCode] = React.useState<string | null>(null);
   const [error, setError] = React.useState<string | null>(null);
   const [notice, setNotice] = React.useState<string | null>(null);
@@ -103,7 +105,7 @@ export default function RegisterPage() {
     setError(null);
     setBusy(true);
     try {
-      await post("/api/auth/verify", { email: email.trim(), code: code.trim() });
+      await post("/api/auth/verify", { email: email.trim(), code: code.trim(), newsletter });
       reachGoal(GOALS.register);
       router.replace("/dashboard");
       router.refresh();
@@ -216,6 +218,17 @@ export default function RegisterPage() {
                   </Link>
                   .
                 </span>
+              </label>
+              {/* ОТДЕЛЬНОЕ добровольное согласие на рассылку (ст. 18 «О рекламе»):
+                  снято по умолчанию, регистрацию не блокирует */}
+              <label className="flex cursor-pointer items-start gap-2 text-xs leading-5 text-muted-foreground">
+                <input
+                  type="checkbox"
+                  checked={newsletter}
+                  onChange={(e) => setNewsletter(e.target.checked)}
+                  className="mt-0.5 h-4 w-4 shrink-0 rounded border-input accent-primary"
+                />
+                <span>Получать советы по карточкам и новости сервиса на почту</span>
               </label>
               {error && <p className="text-sm text-destructive">{error}</p>}
               <Button type="submit" disabled={busy || !agreed} className="w-full">

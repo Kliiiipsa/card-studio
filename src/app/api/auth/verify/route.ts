@@ -5,6 +5,7 @@ import { confirmRegistration } from "@/core/auth/store";
 import { respondWithSession } from "@/core/auth/cookies";
 import { grantWelcomeBonus } from "@/core/billing/welcome";
 import { recordConsent } from "@/core/auth/consent";
+import { recordMarketingConsent } from "@/core/auth/marketing-consent";
 import { clientIp } from "@/lib/request-ip";
 import { enforceRateLimit } from "@/lib/rate-limit";
 
@@ -13,6 +14,8 @@ export const runtime = "nodejs";
 const schema = z.object({
   email: z.string().min(3).max(120),
   code: z.string().regex(/^\d{6}$/, "Код — 6 цифр из письма."),
+  /** необязательная галочка «получать советы и новости» с формы регистрации */
+  newsletter: z.boolean().optional(),
 });
 
 export async function POST(req: Request) {
@@ -36,6 +39,15 @@ export async function POST(req: Request) {
           ip,
           userAgent: req.headers.get("user-agent"),
         });
+        // отдельное ДОБРОВОЛЬНОЕ согласие на рассылку (ст. 18 закона «О рекламе»)
+        if (body.newsletter) {
+          await recordMarketingConsent({
+            email: result.user.email,
+            granted: true,
+            ip,
+            userAgent: req.headers.get("user-agent"),
+          });
+        }
         const balance = await grantWelcomeBonus(result.user.email);
         return respondWithSession({ ok: true, balance: balance ?? undefined }, result.user);
       }
