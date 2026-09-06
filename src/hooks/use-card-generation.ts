@@ -167,6 +167,11 @@ export function useCardGeneration() {
               strength: s.referenceStrength,
               aspectRatio: effAspect,
               count: 1,
+              // сервер: промпт человека не фильтруем, к сценарию дописываем
+              // конкретику (под гейтом photoFix). «Обычное фото» — свободная
+              // генерация, там ни сценария, ни требования сохранить товар
+              purpose: freeMode ? undefined : "photo",
+              scenario: scenario?.id,
             })
           : await api.generateText({
               prompt: finalPrompt,

@@ -150,6 +150,7 @@ export default function AnalysisPage() {
         aspectRatio: "3:4",
         count: 1,
         cardText,
+        purpose: "improve",
       });
       const vs: GeneratedVariant[] = result.images.map((img) => ({
         id: uid("var"),

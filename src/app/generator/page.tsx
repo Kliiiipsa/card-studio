@@ -30,6 +30,8 @@ import { ASPECT_RATIOS, type AspectRatioId } from "@/core/domain/export-presets"
 import { INFOGRAPHICS_PREFILL_KEY } from "@/components/ai/analysis-report";
 import { PRICES, SPARK } from "@/core/billing/prices";
 import { uid } from "@/lib/utils";
+import { useProfileStore } from "@/store/profile-store";
+import { wantsTextOnPhoto } from "@/core/ai/photo-fix";
 
 const STYLE_MODES: { id: StyleMode; label: string }[] = [
   { id: "auto", label: "Авто" },
@@ -54,6 +56,26 @@ function GeneratorInner() {
 
   const busy = s.status === "generating" || s.status === "scoring";
   const freeMode = s.genMode === "free";
+
+  // Перехват «хочу текст на фото» (под гейтом photoFix): 29 из 144 промптов в
+  // журнале просили преимущества/надписи, раздел этого не делает, а модель
+  // рисовала английскую кашу за гены. Показываем один раз на промпт.
+  const photoFix = useProfileStore((p) => p.photoFix);
+  const [textWarn, setTextWarn] = React.useState<null | string>(null); // промпт, на который согласились
+  const textIntent = photoFix && !freeMode && wantsTextOnPhoto(s.userPrompt, s.userNote);
+  const [showTextWarn, setShowTextWarn] = React.useState(false);
+  const tryGenerate = () => {
+    if (textIntent && textWarn !== s.userPrompt) {
+      setShowTextWarn(true);
+      return;
+    }
+    generate();
+  };
+  const generateAnyway = () => {
+    setTextWarn(s.userPrompt);
+    setShowTextWarn(false);
+    generate();
+  };
   // Tailwind needs the literal class names — a computed aspect-[…] won't compile
   const placeholderAspect =
     (
@@ -82,16 +104,28 @@ function GeneratorInner() {
   // hand the generated photo over to the infographics section as the product
   // photo — the natural "clean photo → card with text" pipeline
   const router = useRouter();
-  const toInfographic = () => {
-    if (!selected) return;
-    sessionStorage.setItem(
-      INFOGRAPHICS_PREFILL_KEY,
-      JSON.stringify({
-        name: s.product.name,
-        benefits: s.product.benefits,
-        image: selected.url,
-      }),
-    );
+  const toInfographic = (image?: string) => {
+    const img = image ?? selected?.url;
+    try {
+      sessionStorage.setItem(
+        INFOGRAPHICS_PREFILL_KEY,
+        JSON.stringify({
+          name: s.product.name,
+          benefits: s.product.benefits,
+          image: img,
+        }),
+      );
+    } catch {
+      // фото не влезло в sessionStorage — переносим только данные товара
+      try {
+        sessionStorage.setItem(
+          INFOGRAPHICS_PREFILL_KEY,
+          JSON.stringify({ name: s.product.name, benefits: s.product.benefits }),
+        );
+      } catch {
+        /* ничего не переносим */
+      }
+    }
     router.push("/infographics");
   };
 
@@ -372,7 +406,7 @@ function GeneratorInner() {
           </CardHeader>
           <CardContent className="space-y-4">
             <Button
-              onClick={() => generate()}
+              onClick={tryGenerate}
               disabled={busy || !s.userPrompt.trim()}
               variant="gradient"
               size="lg"
@@ -381,6 +415,31 @@ function GeneratorInner() {
               {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />}
               Сгенерировать фото · {PRICES.generate} {SPARK}
             </Button>
+
+            {showTextWarn && (
+              <div className="space-y-3 rounded-xl border border-amber-500/40 bg-amber-500/5 p-4 text-sm">
+                <p className="font-medium">Похоже, вы хотите текст на фото</p>
+                <p className="text-muted-foreground">
+                  Этот раздел делает чистое фото товара без надписей — модель не умеет писать
+                  по-русски и вместо преимуществ нарисует кашу из букв. Плашки, преимущества и
+                  заголовок собирает раздел «Инфографика»: перенесём туда название, преимущества
+                  и фото.
+                </p>
+                <div className="flex flex-col gap-2 sm:flex-row">
+                  <Button
+                    variant="gradient"
+                    className="flex-1"
+                    onClick={() => toInfographic(s.reference?.dataUrl)}
+                  >
+                    <LayoutGrid className="h-4 w-4" />
+                    Сделать инфографику · {PRICES.infographic} {SPARK}
+                  </Button>
+                  <Button variant="outline" className="flex-1" onClick={generateAnyway}>
+                    Всё равно сделать чистое фото
+                  </Button>
+                </div>
+              </div>
+            )}
 
             {busy ? (
               <LoadingGenerationState status={s.status} />
@@ -419,7 +478,7 @@ function GeneratorInner() {
                     scrim: true,
                   }}
                 />
-                <Button variant="outline" className="w-full" onClick={toInfographic}>
+                <Button variant="outline" className="w-full" onClick={() => toInfographic()}>
                   <LayoutGrid className="h-4 w-4" />
                   Сделать инфографику из этого фото · {PRICES.infographic} {SPARK}
                 </Button>
@@ -438,7 +497,7 @@ function GeneratorInner() {
       {/* Mobile: the generate CTA is always in reach at the bottom of the screen */}
       <div className="fixed inset-x-0 bottom-0 z-30 border-t bg-background/90 p-3 backdrop-blur-xl md:hidden">
         <Button
-          onClick={() => generate()}
+          onClick={tryGenerate}
           disabled={busy || !s.userPrompt.trim()}
           variant="gradient"
           className="w-full"

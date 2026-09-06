@@ -317,6 +317,8 @@ export const api = {
     aspectRatio?: string;
     count?: number;
     cardText?: string;
+    purpose?: "photo" | "improve";
+    scenario?: string;
   }) => post<ImageResult>("/api/ai/generate/image", args),
 
   score: (args: { imageDataUrl: string; product?: Partial<ProductInfo>; cardType?: string }) =>

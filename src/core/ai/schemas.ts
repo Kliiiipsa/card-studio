@@ -177,6 +177,11 @@ export const generateImageRequestSchema = z.object({
   aspectRatio: z.string().default("3:4"),
   count: z.number().int().min(1).max(4).default(2),
   cardText: z.string().max(120).optional(),
+  /** откуда запрос: "improve" — «Улучшить по советам» (советы фильтруем),
+   *  "photo" — раздел «Фото товара» (промпт человека не трогаем) */
+  purpose: z.enum(["photo", "improve"]).optional(),
+  /** сценарий раздела «Фото товара» — сервер дописывает конкретику под него */
+  scenario: z.string().max(40).optional(),
 });
 
 export const scoreRequestSchema = z.object({

@@ -11,7 +11,8 @@ import { generateImageRequestSchema } from "@/core/ai/schemas";
 import { generateImageFromReference } from "@/core/ai/service";
 import { validateDataUrl } from "@/lib/image-validation";
 import { readFalBalance, settleFalCostInBackground, falJobsInFlight } from "@/core/ai/fal-cost";
-import { sanitizeImagePrompt } from "@/core/ai/improve-prompt";
+import { sanitizeImagePrompt, sanitizeImagePromptV2 } from "@/core/ai/improve-prompt";
+import { photoFixEnabled, scenarioDirectives } from "@/core/ai/photo-fix";
 import { uid } from "@/lib/utils";
 
 export const runtime = "nodejs";
@@ -30,12 +31,32 @@ export async function POST(req: Request) {
     try {
       const concurrentAtStart = falJobsInFlight();
       const falBalanceBefore = await readFalBalance();
-      // предохранитель: даже если клиент прислал советы вида «добавить плашку
-      // „Размеры S-XL“», до модели они не дойдут — она рисует их нечитаемой кашей
-      const safePrompt = sanitizeImagePrompt(body.prompt);
+      // Предохранитель: советы вида «добавить плашку „Размеры S-XL“» до модели
+      // не доходят — она рисует их нечитаемой кашей.
+      //
+      // Под гейтом photoFix (разбор 2026-09-06): фильтр с границами слов и
+      // ТОЛЬКО для потока «Улучшить по советам». Промпт из «Фото товара» не
+      // режем вовсе — старый фильтр выкидывал описание товара из-за слов
+      // «текстура»/«контекст»/«для заголовка» у 84 из 115 генераций.
+      const fix = photoFixEnabled(bill.ctx.role);
+      const safePrompt = !fix
+        ? sanitizeImagePrompt(body.prompt)
+        : body.purpose === "improve"
+          ? sanitizeImagePromptV2(body.prompt)
+          : body.prompt;
+      // Под гейтом к сценарию дописываем конкретику (товар целиком в кадре,
+      // чистая поверхность, фон заменён) — иначе Seedream оставляет пыль и
+      // кабели с исходного фото. Английский: этот кусок переводчику не нужен.
+      const modelPrompt =
+        fix && body.purpose === "photo"
+          ? `${safePrompt}\n\n${scenarioDirectives(body.scenario)}`
+          : safePrompt;
       const result = await generateImageFromReference({
-        prompt: safePrompt,
-        negativePrompt: body.negativePrompt,
+        prompt: modelPrompt,
+        // Seedream не имеет поля негатива и вклеивает его в инструкцию как
+        // «Avoid: random text, logos, watermark» — по нашему же уроку «запрет =
+        // приглашение» под гейтом негатив в «Фото товара» не передаём
+        negativePrompt: fix && body.purpose === "photo" ? undefined : body.negativePrompt,
         referenceImageDataUrl: body.referenceImageDataUrl,
         strength: body.strength,
         aspectRatio: body.aspectRatio,
@@ -55,8 +76,11 @@ export async function POST(req: Request) {
           sourceUrl: img.url,
           payload: {
             // в журнал пишем то, что реально ушло в модель
-            prompt: safePrompt.slice(0, 2000),
+            prompt: modelPrompt.slice(0, 2000),
             promptRaw: safePrompt === body.prompt ? undefined : body.prompt.slice(0, 2000),
+            purpose: body.purpose,
+            scenario: body.scenario,
+            photoFix: fix || undefined,
             cardText: body.cardText,
             // для разбора жалоб в админке
             negativePrompt: body.negativePrompt?.slice(0, 500),
