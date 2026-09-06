@@ -1218,7 +1218,7 @@ export default function AdminPage() {
                       </p>
                       <p className="mt-1 text-[11px] leading-4 text-muted-foreground">
                         Люди считаются по числовому id Telegram, без имён и никнеймов. Переход =
-                        клик по ссылке в ответе бота (kartogen.ru/go/tg). Регистрации — те же, что
+                        клик по ссылке в ответе бота (kartogen.ru/tg). Регистрации — те же, что
                         строка «telegram» в источниках выше.
                       </p>
                     </div>

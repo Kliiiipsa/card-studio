@@ -16,9 +16,11 @@ import { PER_USER_PER_DAY, releaseCheckSlot, takeCheckSlot } from "./limits";
  */
 
 const SITE = "https://kartogen.ru";
-// через /go/tg: считаем переходы, дальше редирект на главную с UTM
-const LINK = `${SITE}/go/tg`;
-const AD = `Хочешь улучшить карточку? Попробуй бесплатно: <a href="${LINK}">kartogen.ru</a> — 20 генов в подарок при регистрации.`;
+// kartogen.ru/tg: считаем переходы, дальше редирект на главную с UTM.
+// Ссылку показываем КАК ЕСТЬ (текст = адрес): иначе Telegram открывает диалог
+// «ссылка ведёт на …», и люди, наученные мошенниками, не переходят.
+const LINK = `${SITE}/tg`;
+const AD = `Хочешь улучшить карточку? Попробуй бесплатно: ${LINK} — 20 генов в подарок при регистрации.`;
 
 type TgUser = { id: number; is_bot?: boolean; username?: string; first_name?: string };
 type TgChat = { id: number; type: "private" | "group" | "supergroup" | "channel" };
@@ -126,9 +128,9 @@ export async function handleUpdate(update: TgUpdate): Promise<void> {
     await sendMessage(
       chatId,
       slot.globalFull
-        ? `Сегодня бесплатные проверки в боте закончились — попробуйте завтра. Полный разбор без очереди: <a href="${LINK}">kartogen.ru</a>.`
+        ? `Сегодня бесплатные проверки в боте закончились — попробуйте завтра. Полный разбор без очереди: ${LINK}.`
         : `На сегодня ${PER_USER_PER_DAY} бесплатные проверки использованы, завтра можно снова.\n\n` +
-            `Полный разбор без лимита и готовые тексты для карточки — на <a href="${LINK}">kartogen.ru</a>, 20 генов в подарок при регистрации.`,
+            `Полный разбор без лимита и готовые тексты для карточки — на ${LINK}, 20 генов в подарок при регистрации.`,
     );
     return;
   }

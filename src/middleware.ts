@@ -39,7 +39,7 @@ export async function middleware(req: NextRequest) {
     pathname === "/check" || // бесплатная экспресс-проверка карточки (лид-магнит)
     pathname === "/api/public/quick-check" || // её API: свои лимиты по IP + дневной потолок
     pathname === "/api/tg/webhook" || // Telegram-бот: свой секрет в заголовке, без сессии
-    pathname === "/go/tg" || // ссылка из бота: счётчик переходов + редирект на главную с UTM
+    pathname === "/tg" || // ссылка из бота: счётчик переходов + редирект на главную с UTM
     pathname === "/blog" ||
     pathname.startsWith("/blog/") || // блог — публичный контент для поиска и нейровыдачи
     pathname.startsWith("/login") ||
