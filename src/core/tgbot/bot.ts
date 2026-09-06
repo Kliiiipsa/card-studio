@@ -103,7 +103,9 @@ export async function handleUpdate(update: TgUpdate): Promise<void> {
     const file = await tg<{ file_path?: string }>("getFile", { file_id: fileId });
     if (!file.file_path) throw new Error("no file_path");
     const dataUrl = await tgFileDataUrl(file.file_path);
-    const report = await analyzeProductCard(dataUrl);
+    // LLM иногда отдаёт обрезанный JSON (1 из 3 в первом прогоне) — один
+    // повтор дешевле, чем просить человека слать фото заново
+    const report = await analyzeProductCard(dataUrl).catch(() => analyzeProductCard(dataUrl));
 
     const top = report.problems.find((p) => p.severity === "high") ?? report.problems[0] ?? null;
     const lockedProblems = Math.max(0, report.problems.length - 1);
