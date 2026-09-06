@@ -1473,6 +1473,28 @@ export default function AdminPage() {
                         Открыть файл
                       </a>
                     )}
+                    {/* исходное фото клиента (хранится с 2026-09-06) */}
+                    {typeof openGen.payload?.sourceUrl === "string" && (
+                      <div className="space-y-1 border-t pt-2">
+                        <p className="text-[11px] font-medium text-muted-foreground">
+                          Исходное фото клиента
+                        </p>
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={openGen.payload.sourceUrl}
+                          alt="Исходное фото"
+                          className="w-full rounded-lg border"
+                        />
+                        <a
+                          href={openGen.payload.sourceUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="block text-xs text-primary hover:underline"
+                        >
+                          Открыть исходник
+                        </a>
+                      </div>
+                    )}
                   </div>
 
                   {/* детали */}

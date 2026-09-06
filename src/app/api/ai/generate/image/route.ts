@@ -14,6 +14,7 @@ import { readFalBalance, settleFalCostInBackground, falJobsInFlight } from "@/co
 import { sanitizeImagePrompt, sanitizeImagePromptV2 } from "@/core/ai/improve-prompt";
 import { photoFixEnabled, scenarioDirectives } from "@/core/ai/photo-fix";
 import { uid } from "@/lib/utils";
+import { persistSourcePhoto } from "@/core/storage/source-photo";
 
 export const runtime = "nodejs";
 export const maxDuration = 120;
@@ -51,6 +52,9 @@ export async function POST(req: Request) {
         fix && body.purpose === "photo"
           ? `${safePrompt}\n\n${scenarioDirectives(body.scenario)}`
           : safePrompt;
+      // id результата задаём заранее: исходник ложится рядом под тем же id
+      const cardId = uid("card");
+      const sourceUrl = await persistSourcePhoto(body.referenceImageDataUrl, cardId);
       const result = await generateImageFromReference({
         prompt: modelPrompt,
         // Seedream не имеет поля негатива и вклеивает его в инструкцию как
@@ -67,8 +71,8 @@ export async function POST(req: Request) {
       });
       // permanent copies in our S3 + «Мои карточки» records (fal URLs expire)
       for (const img of result.images) {
-        // id задаём сами — фоновый замер допишет сюда реальную цену от fal
-        const cardId = uid("card");
+        // count=1 → ровно одна запись под заранее выданным cardId; фоновый
+        // замер допишет сюда реальную цену от fal
         img.url = await persistGeneration({
           id: cardId,
           email: bill.ctx.email,
@@ -81,6 +85,8 @@ export async function POST(req: Request) {
             purpose: body.purpose,
             scenario: body.scenario,
             photoFix: fix || undefined,
+            // исходное фото клиента — для разбора в админке
+            sourceUrl,
             cardText: body.cardText,
             // для разбора жалоб в админке
             negativePrompt: body.negativePrompt?.slice(0, 500),

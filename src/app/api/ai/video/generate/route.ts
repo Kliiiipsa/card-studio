@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { parseBody, ok, fail } from "@/lib/api";
+import { persistSourcePhoto } from "@/core/storage/source-photo";
 import {
   acquireGenerationSlot,
   releaseGenerationSlot,
@@ -70,6 +71,8 @@ export async function POST(req: Request) {
       const concurrentAtStart = falJobsInFlight();
       const falBalanceBefore = await readFalBalance();
 
+      // исходное фото клиента рядом с задачей — для разбора в админке
+      const sourceUrl = await persistSourcePhoto(body.productImage, jobId);
       const job = await submitVideoJob({
         prompt,
         imageDataUrl: body.productImage,
@@ -93,6 +96,7 @@ export async function POST(req: Request) {
             videoPrompt: prompt,
             userScenario: body.userScenario || undefined,
             customPrompt: Boolean(body.customPrompt),
+            sourceUrl,
             model:
               body.falModel ??
               process.env.FAL_VIDEO_MODEL ??

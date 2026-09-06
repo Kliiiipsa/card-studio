@@ -20,6 +20,7 @@ import {
 import { sessionFromRequest } from "@/core/auth/session";
 import type { InfographicBrief } from "@/core/infographics/types";
 import { validateDataUrl } from "@/lib/image-validation";
+import { persistSourcePhoto } from "@/core/storage/source-photo";
 import { readFalBalance, settleFalCostInBackground, falJobsInFlight } from "@/core/ai/fal-cost";
 
 export const runtime = "nodejs";
@@ -47,9 +48,11 @@ export async function POST(req: Request) {
     const brief = body.brief as unknown as InfographicBrief;
     /**
      * Что кладём в задачу для разбора жалоб («Генерации» в админке): что
-     * человек заполнил и выбрал, прикладывал ли фото/референс и какой промпт
-     * реально ушёл в модель. Сами изображения НЕ сохраняем.
+     * человек заполнил и выбрал, какой промпт реально ушёл в модель и
+     * исходное фото товара (sources/<jobId>, решение 2026-09-06). Референс
+     * стиля не храним — это чужая карточка.
      */
+    const sourceUrl = await persistSourcePhoto(body.productImage, jobId);
     // превью адаптивных сцен: только админ (или env-раскатка INFOGRAPHIC_ADAPTIVE=all)
     const session = await sessionFromRequest(req);
     const previewAdaptive = adaptiveScenesEnabled(session?.role);
@@ -62,6 +65,7 @@ export async function POST(req: Request) {
       styleProfileSource: brief.styleProfile?.source,
       adaptivePreview: previewAdaptive || undefined,
       keepBackground: body.keepBackground,
+      sourceUrl,
     };
     const args: InfographicBaseArgs = {
       brief,

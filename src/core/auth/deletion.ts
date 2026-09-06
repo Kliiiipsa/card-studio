@@ -225,16 +225,19 @@ export async function eraseAccount(emailRaw: string): Promise<void> {
     // ссылки fal, попавшие в базу когда S3 был недоступен) пропускаем.
     if (s3Enabled()) {
       try {
-        const { rows } = await db.query<{ result_url: string | null }>(
-          "select result_url from gen_jobs where email = $1",
+        // результат + исходное фото клиента (payload.sourceUrl, sources/<id>)
+        const { rows } = await db.query<{ result_url: string | null; source_url: string | null }>(
+          "select result_url, payload->>'sourceUrl' as source_url from gen_jobs where email = $1",
           [email],
         );
         for (const r of rows) {
-          const key = r.result_url ? s3KeyFromUrl(r.result_url) : null;
-          if (!key) continue;
-          await s3Delete(key).catch((e) =>
-            console.error(`[deletion] S3 delete failed for ${key}:`, e),
-          );
+          for (const url of [r.result_url, r.source_url]) {
+            const key = url ? s3KeyFromUrl(url) : null;
+            if (!key) continue;
+            await s3Delete(key).catch((e) =>
+              console.error(`[deletion] S3 delete failed for ${key}:`, e),
+            );
+          }
         }
       } catch (e) {
         console.error("[deletion] S3 cleanup failed:", e);
