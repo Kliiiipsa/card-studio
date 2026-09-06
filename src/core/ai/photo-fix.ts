@@ -52,24 +52,30 @@ export function wantsTextOnPhoto(prompt: string, note?: string): boolean {
  */
 export function scenarioDirectives(scenario?: string | null): string {
   switch (scenario) {
+    // A/B 2026-09-06: «only the product remains» убирал модель с платья, а
+    // «cords tucked away» рисовал шнур в углу (запрет = приглашение). Человек
+    // на фото остаётся; про шнуры молчим — «пустая поверхность» их и так убирает.
     case "studio":
       return (
-        "The product itself stays exactly as in the photo (same item, colour, material, details). " +
-        "The whole product fits inside the frame with clear margins on every side. " +
+        `${KEEP} The whole product fits inside the frame with clear margins on every side. ` +
         "The original background is replaced by a clean seamless studio backdrop; the surface " +
-        "under the product is spotless and empty, the product looks freshly cleaned. Only the " +
-        "product remains in the frame: it is shown unplugged, any cords, cables and packaging " +
-        "are tucked away out of frame."
+        "under the product is spotless and empty, the product looks freshly cleaned."
       );
     case "background-swap":
-      return (
-        "The product itself stays exactly as in the photo (same item, colour, material, details, " +
-        "proportions). Only the environment around it changes; the whole product stays inside " +
-        "the frame with margins."
-      );
+      return `${KEEP} Only the environment around it changes; the whole product stays inside the frame with margins.`;
     case "closeup":
-      return "The product itself stays exactly as in the photo; the crop moves closer, the product does not change.";
+      return `${KEEP} The crop moves closer, the product does not change.`;
     default:
-      return "The product itself stays exactly as in the photo (same item, colour, material, details).";
+      return KEEP;
   }
 }
+
+/**
+ * Общая часть: товар (и человек, если он есть на фото) не меняется; надписи
+ * на товаре — только те, что видны на фото (бренд из промпта иначе рисуется
+ * крупной кривой надписью: «Wessgauff» на аэрогриле в A/B).
+ */
+const KEEP =
+  "The product itself, and the person wearing or holding it if there is one, stay exactly as " +
+  "in the photo (same item, colour, material, details, proportions). Markings and lettering on " +
+  "the product are copied exactly from the photo, nothing new is written on it.";
