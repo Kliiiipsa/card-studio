@@ -1199,7 +1199,6 @@ export default function AdminPage() {
                             [
                               ["Людей делали анализ", tgStats.users],
                               ["Анализов сделано", tgStats.checks],
-                              ["Переходов на сайт по ссылке", tgStats.clicks],
                             ] as [string, Tri][]
                           ).map(([label, v]) => (
                             <tr key={label} className="border-b last:border-0">
@@ -1211,15 +1210,11 @@ export default function AdminPage() {
                           ))}
                         </tbody>
                       </table>
-                      <p className="mt-2 text-xs">
-                        Регистраций из бота: <b>{tgStats.registrations.registrations}</b> (подтв.{" "}
-                        {tgStats.registrations.verified}, платящих {tgStats.registrations.paying},
-                        выручка {tgStats.registrations.revenueRub.toLocaleString("ru-RU")} ₽)
-                      </p>
                       <p className="mt-1 text-[11px] leading-4 text-muted-foreground">
-                        Люди считаются по числовому id Telegram, без имён и никнеймов. Переход =
-                        клик по ссылке в ответе бота (kartogen.ru/tg). Регистрации — те же, что
-                        строка «telegram» в источниках выше.
+                        Люди считаются по числовому id Telegram, без имён и никнеймов. В боте
+                        стоит голая ссылка kartogen.ru (решение 06.09: без хвостов, чтобы не
+                        пугать людей), поэтому переходы и регистрации из бота отдельно не
+                        считаются — они попадают в «(без метки)» выше.
                       </p>
                     </div>
                   )}
