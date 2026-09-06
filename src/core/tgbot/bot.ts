@@ -14,7 +14,8 @@ import { PER_USER_PER_DAY, releaseCheckSlot, takeCheckSlot } from "./limits";
  */
 
 const SITE = "https://kartogen.ru";
-const LINK = `${SITE}/?utm_source=telegram&utm_medium=bot&utm_campaign=check`;
+// через /go/tg: считаем переходы, дальше редирект на главную с UTM
+const LINK = `${SITE}/go/tg`;
 const AD = `Хочешь улучшить карточку? Попробуй бесплатно: <a href="${LINK}">kartogen.ru</a> — 20 генов в подарок при регистрации.`;
 
 type TgUser = { id: number; is_bot?: boolean; username?: string; first_name?: string };

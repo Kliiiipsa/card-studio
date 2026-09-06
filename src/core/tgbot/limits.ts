@@ -96,18 +96,88 @@ export async function releaseCheckSlot(userId: number): Promise<void> {
   }
 }
 
-/** Для админки/логов: сколько людей и проверок за период. */
-export async function botStats(days = 30): Promise<{ users: number; checks: number }> {
-  if (!pgOn()) return { users: mem.size, checks: [...mem.values()].reduce((a, b) => a + b, 0) };
+/* ------------------------- клики по ссылке из бота ------------------------- */
+// Ссылка в ответе бота ведёт на /go/tg → счётчик по дням → редирект на сайт с UTM.
+// Персональных данных нет: только число переходов за день.
+
+let clicksReady: Promise<void> | null = null;
+function ensureClicks(): Promise<void> {
+  clicksReady ??= getPool()
+    .query(`create table if not exists tg_clicks (day date primary key, count int not null default 0);`)
+    .then(() => undefined)
+    .catch((e) => {
+      clicksReady = null;
+      throw e;
+    });
+  return clicksReady;
+}
+const memClicks = new Map<string, number>();
+
+export async function recordBotClick(): Promise<void> {
+  const day = today();
+  if (!pgOn()) {
+    memClicks.set(day, (memClicks.get(day) ?? 0) + 1);
+    return;
+  }
+  try {
+    await ensureClicks();
+    await getPool().query(
+      `insert into tg_clicks (day, count) values ($1, 1)
+       on conflict (day) do update set count = tg_clicks.count + 1`,
+      [day],
+    );
+  } catch (e) {
+    console.error("[tgbot] click record failed:", e instanceof Error ? e.message : e);
+  }
+}
+
+export type BotStats = {
+  /** уникальные пользователи Telegram, делавшие проверку */
+  users: { today: number; d30: number; all: number };
+  checks: { today: number; d30: number; all: number };
+  clicks: { today: number; d30: number; all: number };
+};
+
+/** Для админки: люди, проверки и переходы по ссылке — сегодня / 30 дней / всего. */
+export async function botStats(): Promise<BotStats> {
+  const zero = { today: 0, d30: 0, all: 0 };
+  if (!pgOn()) {
+    const day = today();
+    const checksToday = [...mem.entries()].filter(([k]) => k.endsWith(day)).reduce((a, [, v]) => a + v, 0);
+    const checksAll = [...mem.values()].reduce((a, b) => a + b, 0);
+    const usersAll = new Set([...mem.keys()].map((k) => k.split(":")[0])).size;
+    const clicksAll = [...memClicks.values()].reduce((a, b) => a + b, 0);
+    return {
+      users: { today: usersAll, d30: usersAll, all: usersAll },
+      checks: { today: checksToday, d30: checksAll, all: checksAll },
+      clicks: { today: memClicks.get(day) ?? 0, d30: clicksAll, all: clicksAll },
+    };
+  }
   try {
     await ensure();
-    const { rows } = await getPool().query<{ users: string; checks: string }>(
-      `select count(distinct user_id)::text as users, coalesce(sum(count),0)::text as checks
-         from tg_checks where day >= current_date - $1::int`,
-      [days],
+    await ensureClicks();
+    const pool = getPool();
+    const q = async (sql: string) => (await pool.query<{ t: string; d: string; a: string }>(sql)).rows[0];
+    const c = await q(
+      `select coalesce(sum(count) filter (where day = current_date), 0)::text as t,
+              coalesce(sum(count) filter (where day >= current_date - 30), 0)::text as d,
+              coalesce(sum(count), 0)::text as a from tg_checks`,
     );
-    return { users: Number(rows[0]?.users ?? 0), checks: Number(rows[0]?.checks ?? 0) };
-  } catch {
-    return { users: 0, checks: 0 };
+    const u = await q(
+      `select count(distinct user_id) filter (where day = current_date)::text as t,
+              count(distinct user_id) filter (where day >= current_date - 30)::text as d,
+              count(distinct user_id)::text as a from tg_checks`,
+    );
+    const k = await q(
+      `select coalesce(sum(count) filter (where day = current_date), 0)::text as t,
+              coalesce(sum(count) filter (where day >= current_date - 30), 0)::text as d,
+              coalesce(sum(count), 0)::text as a from tg_clicks`,
+    );
+    const n = (r?: { t: string; d: string; a: string }) =>
+      r ? { today: Number(r.t), d30: Number(r.d), all: Number(r.a) } : zero;
+    return { users: n(u), checks: n(c), clicks: n(k) };
+  } catch (e) {
+    console.error("[tgbot] stats failed:", e instanceof Error ? e.message : e);
+    return { users: zero, checks: zero, clicks: zero };
   }
 }

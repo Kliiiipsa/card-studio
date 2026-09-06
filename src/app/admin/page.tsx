@@ -375,6 +375,15 @@ export default function AdminPage() {
   };
   const [report, setReport] = React.useState<CostReport | null>(null);
   const [sources, setSources] = React.useState<SourceRow[] | null>(null);
+  // публичный Telegram-бот: люди / проверки / переходы / регистрации — только цифры
+  type Tri = { today: number; d30: number; all: number };
+  type TgStats = {
+    users: Tri;
+    checks: Tri;
+    clicks: Tri;
+    registrations: { registrations: number; verified: number; paying: number; revenueRub: number };
+  };
+  const [tgStats, setTgStats] = React.useState<TgStats | null>(null);
   const [reportLoading, setReportLoading] = React.useState(false);
   const mskToday = new Date(Date.now() + 3 * 3600_000).toISOString().slice(0, 10);
   const [reportDate, setReportDate] = React.useState(mskToday);
@@ -390,6 +399,10 @@ export default function AdminPage() {
         .then((r) => r.json())
         .then((d) => setSources(Array.isArray(d?.rows) ? d.rows : []))
         .catch(() => setSources(null)),
+      fetch("/api/admin/tgbot")
+        .then((r) => r.json())
+        .then((d) => setTgStats(d?.users ? d : null))
+        .catch(() => setTgStats(null)),
     ]).finally(() => setReportLoading(false));
   }, []);
   const downloadReceipts = async () => {
@@ -1156,6 +1169,57 @@ export default function AdminPage() {
                       <p className="mt-2 text-[11px] leading-4 text-muted-foreground">
                         «(без метки)» — прямые и органические заходы. CAC по каналу = расход
                         канала ÷ число платящих из него.
+                      </p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Telegram-бот «проверь карточку»: только цифры, без персональных данных */}
+              <Card>
+                <CardContent className="space-y-3 p-4">
+                  <p className="text-sm font-medium">Telegram-бот «проверь карточку»</p>
+                  {tgStats === null ? (
+                    <p className="text-xs text-muted-foreground">
+                      {reportLoading ? "Считаем…" : "Нажмите «Обновить» выше."}
+                    </p>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="border-b text-left text-xs text-muted-foreground">
+                            <th className="py-1.5 pr-2 font-medium"></th>
+                            <th className="px-2 py-1.5 text-right font-medium">Сегодня</th>
+                            <th className="px-2 py-1.5 text-right font-medium">30 дней</th>
+                            <th className="py-1.5 pl-2 text-right font-medium">Всего</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {(
+                            [
+                              ["Людей делали анализ", tgStats.users],
+                              ["Анализов сделано", tgStats.checks],
+                              ["Переходов на сайт по ссылке", tgStats.clicks],
+                            ] as [string, Tri][]
+                          ).map(([label, v]) => (
+                            <tr key={label} className="border-b last:border-0">
+                              <td className="py-1.5 pr-2">{label}</td>
+                              <td className="px-2 py-1.5 text-right">{v.today}</td>
+                              <td className="px-2 py-1.5 text-right">{v.d30}</td>
+                              <td className="py-1.5 pl-2 text-right font-medium">{v.all}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                      <p className="mt-2 text-xs">
+                        Регистраций из бота: <b>{tgStats.registrations.registrations}</b> (подтв.{" "}
+                        {tgStats.registrations.verified}, платящих {tgStats.registrations.paying},
+                        выручка {tgStats.registrations.revenueRub.toLocaleString("ru-RU")} ₽)
+                      </p>
+                      <p className="mt-1 text-[11px] leading-4 text-muted-foreground">
+                        Люди считаются по числовому id Telegram, без имён и никнеймов. Переход =
+                        клик по ссылке в ответе бота (kartogen.ru/go/tg). Регистрации — те же, что
+                        строка «telegram» в источниках выше.
                       </p>
                     </div>
                   )}
