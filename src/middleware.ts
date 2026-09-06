@@ -38,6 +38,7 @@ export async function middleware(req: NextRequest) {
     pathname === "/photo" || // SEO-посадочная «фото товара нейросетью»
     pathname === "/check" || // бесплатная экспресс-проверка карточки (лид-магнит)
     pathname === "/api/public/quick-check" || // её API: свои лимиты по IP + дневной потолок
+    pathname === "/api/tg/webhook" || // Telegram-бот: свой секрет в заголовке, без сессии
     pathname === "/blog" ||
     pathname.startsWith("/blog/") || // блог — публичный контент для поиска и нейровыдачи
     pathname.startsWith("/login") ||
