@@ -16,6 +16,9 @@ export type PromptIntent = {
   cardType?: string;
   styleMode?: StyleMode;
   generationMode: GenerationMode;
+  /** не писать бренд/модель в промпт: image-модель рисует их кривой надписью
+   *  («Wessgauff» на аэрогриле в A/B 2026-09-06) */
+  noBrand?: boolean;
 };
 
 /** Result of the prompt pipeline. `generatedPrompt` is Russian (user-editable). */

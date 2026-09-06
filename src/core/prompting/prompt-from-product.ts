@@ -11,6 +11,13 @@ export const PROMPT_RULES = `Правила:
 - Товар не искажать, он главный объект и в фокусе.
 - Премиальный e-commerce вид, аккуратная композиция, мягкий реалистичный свет.`;
 
+/** Дополнение под гейтом photoFix: бренд в промпте = кривая надпись на товаре. */
+export const NO_BRAND_RULE = `- НЕ пиши в промпте названия брендов, моделей и артикулы (Weissgauff, CDT-1711SB и т.п.) — image-модель нарисует их надписью с ошибками. Описывай товар по виду: «чёрный аэрогриль с сенсорной панелью».`;
+
+export function promptRules(intent: { noBrand?: boolean }): string {
+  return intent.noBrand ? `${PROMPT_RULES}\n${NO_BRAND_RULE}` : PROMPT_RULES;
+}
+
 function productBlock(intent: PromptIntent): string {
   return [
     intent.productName && `Товар: ${intent.productName}`,
@@ -40,7 +47,7 @@ export function productPromptMessages(intent: PromptIntent): LLMMessage[] {
   return [
     {
       role: "system",
-      content: `Ты — арт-директор карточек Wildberries. Ты пишешь готовый промпт для image-модели по данным товара.\nКРИТИЧЕСКИ ВАЖНО: промпт должен быть строго про товар «${name}». Нельзя заменять его на другой товар или придумывать иной предмет.\n${PROMPT_RULES}`,
+      content: `Ты — арт-директор карточек Wildberries. Ты пишешь готовый промпт для image-модели по данным товара.\nКРИТИЧЕСКИ ВАЖНО: промпт должен быть строго про товар «${name}». Нельзя заменять его на другой товар или придумывать иной предмет.\n${promptRules(intent)}`,
     },
     {
       role: "user",

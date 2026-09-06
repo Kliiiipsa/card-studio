@@ -1,7 +1,7 @@
 import type { LLMMessage } from "@/core/ai/providers/types";
 import type { PromptIntent } from "./prompt-intent";
 import { styleModeGuidance, cardTypeGuidance } from "./prompt-intent";
-import { PROMPT_RULES } from "./prompt-from-product";
+import { promptRules } from "./prompt-from-product";
 
 function productBlock(intent: PromptIntent): string {
   return [
@@ -35,7 +35,7 @@ export function imagePromptMessages(intent: PromptIntent, imageDataUrl: string):
   return [
     {
       role: "system",
-      content: `Ты — арт-директор карточек Wildberries. Сначала внимательно рассмотри фото товара, затем напиши готовый промпт для image-модели.\nКРИТИЧЕСКИ ВАЖНО: сохрани реальный товар с фото (тип предмета, форма, цвет, материал). Нельзя заменять его на другой предмет. ${PROMPT_RULES}`,
+      content: `Ты — арт-директор карточек Wildberries. Сначала внимательно рассмотри фото товара, затем напиши готовый промпт для image-модели.\nКРИТИЧЕСКИ ВАЖНО: сохрани реальный товар с фото (тип предмета, форма, цвет, материал). Нельзя заменять его на другой предмет. ${promptRules(intent)}`,
     },
     {
       role: "user",

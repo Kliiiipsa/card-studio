@@ -201,6 +201,8 @@ export async function writePrompt(input: {
   styleMode?: string;
   userNote?: string;
   referenceImageDataUrl?: string;
+  /** пакет исправлений «Фото товара» (гейт photoFixEnabled): без брендов в промпте */
+  photoFix?: boolean;
 }): Promise<PromptResult> {
   const product = input.product ?? {};
   const intent: PromptIntent = {
@@ -213,6 +215,7 @@ export async function writePrompt(input: {
     cardType: input.cardType,
     styleMode: (input.styleMode as PromptIntent["styleMode"]) ?? "auto",
     generationMode: input.referenceImageDataUrl ? "image-to-image" : "text-to-image",
+    noBrand: input.photoFix,
   };
 
   const image = input.referenceImageDataUrl
