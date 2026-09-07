@@ -97,6 +97,7 @@ export default function Page() {
         { href: "/wildberries", label: "Карточки для Wildberries с ИИ" },
         { href: "/razmer-kartochki-wildberries", label: "Размер карточки Wildberries 2026" },
         { href: "/trebovaniya-k-foto-ozon", label: "Требования к фото Ozon" },
+        { href: "/blog/kak-sdelat-infografiku-dlya-marketpleysa", label: "Как сделать инфографику самому" },
         { href: "/blog", label: "Разборы карточек в блоге" },
       ]}
       disclaimer="Kartogen — независимый сервис и не аффилирован с Wildberries и Ozon. «Wildberries» и «Ozon» — товарные знаки их правообладателей. Требования площадок периодически меняются: сверяйтесь с правилами в личном кабинете."
