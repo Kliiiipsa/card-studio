@@ -82,6 +82,14 @@ export type LayoutPlan = {
   source: "vision" | "fallback";
   notes?: string;
   art?: ArtDirection;
+  /** что vision увидел на фото; isProduct=false → предупредить до списания генов */
+  photo?: PhotoCheck;
+};
+
+export type PhotoCheck = {
+  isProduct: boolean;
+  /** 3–6 слов по-русски: «лист с текстом и рисунком» */
+  seen?: string;
 };
 
 export type FallbackPlanParams = {
@@ -186,6 +194,28 @@ export function fallbackLayoutPlan(p: FallbackPlanParams): LayoutPlan {
     callouts: [],
     source: "fallback",
   };
+}
+
+/**
+ * Проверка «товар ли на фото». Vision иногда отдаёт isProduct строкой
+ * ("false"/"нет") — приводим к boolean; отсутствие поля = считаем товаром
+ * (не пугать людей из-за пробела в ответе модели).
+ */
+function sanitizePhoto(raw: unknown): PhotoCheck | undefined {
+  if (!raw || typeof raw !== "object") return undefined;
+  const r = raw as { isProduct?: unknown; seen?: unknown };
+  if (r.isProduct === undefined || r.isProduct === null) return undefined;
+  const v = r.isProduct;
+  const isProduct =
+    typeof v === "boolean"
+      ? v
+      : typeof v === "string"
+        ? !/^(false|no|нет|0)$/i.test(v.trim())
+        : typeof v === "number"
+          ? v !== 0
+          : true;
+  const seen = typeof r.seen === "string" && r.seen.trim() ? r.seen.trim().slice(0, 200) : undefined;
+  return { isProduct, seen };
 }
 
 /** Clamp vision art direction to safe sizes; drop it entirely when empty. */
@@ -300,6 +330,7 @@ export function sanitizeLayoutPlan(raw: LayoutPlan, params: FallbackPlanParams):
     source: "vision",
     notes: typeof raw.notes === "string" ? raw.notes.slice(0, 300) : undefined,
     art: sanitizeArt(raw.art),
+    photo: sanitizePhoto((raw as { photo?: unknown }).photo),
   };
 }
 

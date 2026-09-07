@@ -123,6 +123,14 @@ export default function InfographicsPage() {
     }
   };
 
+  // Vision при сборке брифа проверяет, товар ли на фото. Если нет (скан
+  // страницы, скриншот, текст) — до списания генов показываем предупреждение;
+  // без явного «всё равно» кнопка генерации не показывается. Случай
+  // 2026-09-07: лист с заданиями → на карточке оказался мужчина из образца стиля.
+  const [photoAck, setPhotoAck] = React.useState(false);
+  const photoWarning =
+    brief?.layoutPlan?.photo?.isProduct === false && !!reference ? brief.layoutPlan.photo : null;
+
   const handleBrief = async () => {
     if (!product.name.trim()) {
       toast.error("Укажите название товара.");
@@ -133,7 +141,12 @@ export default function InfographicsPage() {
     try {
       const b = await api.infographic.brief(buildInput(), styleProfile ?? undefined);
       setBrief(b);
-      toast.success("Инфографика собрана — проверьте текст");
+      setPhotoAck(false);
+      if (b.layoutPlan?.photo?.isProduct === false) {
+        toast.info("На фото не видно товара — посмотрите предупреждение перед генерацией");
+      } else {
+        toast.success("Инфографика собрана — проверьте текст");
+      }
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Не удалось собрать инфографику");
     } finally {
@@ -476,20 +489,44 @@ export default function InfographicsPage() {
             {brief ? (
               <>
                 <InfographicBriefEditor brief={brief} onChange={handleBriefEdit} />
-                <Button
-                  onClick={handleGenerate}
-                  disabled={generating}
-                  variant="gradient"
-                  size="lg"
-                  className="w-full"
-                >
-                  {generating ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Wand2 className="h-4 w-4" />
-                  )}
-                  Сгенерировать изображение · {PRICES.infographic} {SPARK}
-                </Button>
+                {photoWarning && !photoAck ? (
+                  <div className="space-y-3 rounded-xl border border-amber-500/40 bg-amber-500/5 p-4 text-sm">
+                    <p className="font-medium">На фото не видно товара</p>
+                    <p className="text-muted-foreground">
+                      ИИ видит на фото: <b>{photoWarning.seen || "не товар"}</b>. Инфографика строится
+                      вокруг товара на фото — здесь модели не за что зацепиться, и результат будет
+                      случайным, а гены спишутся. Загрузите фото самого товара (вещь, упаковка,
+                      предмет) или продолжайте на свой риск.
+                    </p>
+                    <div className="flex flex-col gap-2 sm:flex-row">
+                      <Button
+                        variant="gradient"
+                        className="flex-1"
+                        onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+                      >
+                        Заменить фото
+                      </Button>
+                      <Button variant="outline" className="flex-1" onClick={() => setPhotoAck(true)}>
+                        Всё равно сгенерировать
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <Button
+                    onClick={handleGenerate}
+                    disabled={generating}
+                    variant="gradient"
+                    size="lg"
+                    className="w-full"
+                  >
+                    {generating ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Wand2 className="h-4 w-4" />
+                    )}
+                    Сгенерировать изображение · {PRICES.infographic} {SPARK}
+                  </Button>
+                )}
               </>
             ) : (
               <p className="text-center text-xs text-muted-foreground">

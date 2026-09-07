@@ -124,6 +124,14 @@ export const layoutPlanSchema = z
         scenes: z.array(z.string().max(300)).max(6).optional(),
       })
       .optional(),
+    // что на фото: товар или нет (документ/скриншот/текст) — предупреждение
+    // до списания генов (случай 2026-09-07: лист с заданиями → мужчина из образца)
+    photo: z
+      .object({
+        isProduct: z.any().optional(),
+        seen: z.string().max(200).optional(),
+      })
+      .optional(),
   })
   .passthrough();
 

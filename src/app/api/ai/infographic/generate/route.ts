@@ -66,6 +66,8 @@ export async function POST(req: Request) {
       adaptivePreview: previewAdaptive || undefined,
       keepBackground: body.keepBackground,
       sourceUrl,
+      // vision-проверка фото: isProduct=false значит человек нажал «всё равно»
+      photoCheck: brief.layoutPlan?.photo,
     };
     const args: InfographicBaseArgs = {
       brief,
