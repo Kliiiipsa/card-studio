@@ -339,6 +339,9 @@ export default async function PhotoLanding() {
         <nav className="flex flex-wrap justify-center gap-x-4 gap-y-1">
           <Link href="/" className="hover:text-foreground">Главная</Link>
           <Link href="/wildberries" className="hover:text-foreground">Для Wildberries</Link>
+          <Link href="/infografika" className="hover:text-foreground">Инфографика</Link>
+          <Link href="/razmer-kartochki-wildberries" className="hover:text-foreground">Размер карточки WB</Link>
+          <Link href="/trebovaniya-k-foto-ozon" className="hover:text-foreground">Требования к фото Ozon</Link>
           <Link href="/ozon" className="hover:text-foreground">Для Ozon</Link>
           <Link href="/help" className="hover:text-foreground">Как это работает</Link>
           <Link href="/pricing" className="hover:text-foreground">Тарифы</Link>
