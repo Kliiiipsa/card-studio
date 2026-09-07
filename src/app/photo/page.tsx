@@ -90,11 +90,11 @@ const EXAMPLES: ExampleCard[] = [
   { src: "/examples/overalls.jpg", title: "Детский комбинезон", style: "Зимний лес" },
   { src: "/examples/dress.jpg", title: "Платье", style: "Мягкий лайфстайл" },
   { src: "/examples/coat.jpg", title: "Пуховик", style: "Премиум тёмный" },
-  { src: "/examples/thermomug.png", title: "Термокружка", style: "Чистый минимал" },
+  { src: "/examples/thermomug.jpg", title: "Термокружка", style: "Чистый минимал" },
   { src: "/examples/sneakers.jpg", title: "Кроссовки", style: "Яркий акцент" },
   { src: "/examples/humidifier.jpg", title: "Увлажнитель", style: "Бирюзовый фреш" },
   { src: "/examples/cream.jpg", title: "Крем для лица", style: "Мягкий лайфстайл" },
-  { src: "/examples/bedding.png", title: "Постельное бельё", style: "Нежный текстиль" },
+  { src: "/examples/bedding.jpg", title: "Постельное бельё", style: "Нежный текстиль" },
   { src: "/examples/suitcase.jpg", title: "Чемодан", style: "Солнечный промо" },
 ];
 

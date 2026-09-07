@@ -41,8 +41,8 @@ const EXAMPLES = [
   { src: "/examples/thermos.jpg", title: "Термос", style: "Сцена-история" },
   { src: "/examples/overalls.jpg", title: "Детский комбинезон", style: "Бирюзовый фреш" },
   { src: "/examples/sneakers.jpg", title: "Кроссовки", style: "Яркий акцент" },
-  { src: "/examples/catfood.png", title: "Корм для кошек", style: "Доверие и состав" },
-  { src: "/examples/thermomug.png", title: "Термокружка", style: "Чистый минимал" },
+  { src: "/examples/catfood.jpg", title: "Корм для кошек", style: "Доверие и состав" },
+  { src: "/examples/thermomug.jpg", title: "Термокружка", style: "Чистый минимал" },
 ];
 
 const FAQ: Faq[] = [

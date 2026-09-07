@@ -186,7 +186,7 @@ export const POSTS: BlogPost[] = [
       "Понятные размеры и состав напрямую снижают возвраты. Разбираем, как выносить габариты, таблицу размеров и материалы на карточку, чтобы у покупателя не осталось вопросов.",
     category: "Как сделать",
     date: "2026-08-27",
-    cover: "/examples/catfood.png",
+    cover: "/examples/catfood.jpg",
     readingMinutes: 7,
     faq: [
       {
@@ -258,7 +258,7 @@ export const POSTS: BlogPost[] = [
       "Товары для дома продаёт польза в быту и вписанность в интерьер. Разбираем, как показать функции, материалы, размеры и сценарии использования в карточке.",
     category: "Ниши",
     date: "2026-08-27",
-    cover: "/examples/organizer.png",
+    cover: "/examples/organizer.jpg",
     readingMinutes: 7,
     faq: [
       {
@@ -306,7 +306,7 @@ export const POSTS: BlogPost[] = [
       "Разбираем, какие надписи и элементы на изображениях карточки приводят к отклонению на Wildberries: запрещённые обещания, чужие бренды, ложные скидки и нечитаемый текст.",
     category: "Требования площадок",
     date: "2026-08-27",
-    cover: "/examples/shampoo.png",
+    cover: "/examples/shampoo.jpg",
     readingMinutes: 6,
     faq: [
       {
@@ -338,7 +338,7 @@ export const POSTS: BlogPost[] = [
       "Главное фото решает, кликнут ли по карточке, и первым проходит модерацию. Разбираем требования Wildberries и Ozon к обложке: фон, чистота кадра, текст и запреты.",
     category: "Требования площадок",
     date: "2026-08-27",
-    cover: "/examples/pan.png",
+    cover: "/examples/pan.jpg",
     readingMinutes: 7,
     faq: [
       {
