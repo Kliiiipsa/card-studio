@@ -145,6 +145,12 @@ export function Markdown({ md }: { md: string }) {
     <article className="space-y-4 text-[15px] leading-7 text-foreground/90">
       {blocks.map((b, i) => {
         switch (b.kind) {
+          // Обычный абзац. БЫЛ ПОТЕРЯН до 2026-09-07: в switch не было ветки
+          // "p", и весь текст между заголовками, списками и таблицами молча
+          // выбрасывался во ВСЕХ постах блога — статьи выходили без связного
+          // текста. Не удалять.
+          case "p":
+            return <p key={i}>{inline(b.text)}</p>;
           case "h1":
             return (
               <h1 key={i} className="pt-2 text-2xl font-bold tracking-tight sm:text-3xl [text-wrap:balance]">
