@@ -130,6 +130,9 @@ export async function analyzeLayout(args: {
   hasSubheadline: boolean;
   /** адаптивные сцены (превью): попросить у vision ещё и art-дирекшн под товар */
   wantArt?: boolean;
+  /** как пользователь назвал товар — чтобы постер/картина считались товаром */
+  productName?: string;
+  category?: string;
 }): Promise<LayoutPlan> {
   const params = {
     benefitCount: args.benefitCount,
@@ -167,7 +170,11 @@ export async function analyzeLayout(args: {
 7) fontScale (доля высоты): заголовок 0.05–0.09, преимущества 0.02–0.035.
 8) Соблюдай safeMargins (~4% от краёв).
 9) callouts добавляй только если видны конкретные детали для выноски (воротник, ткань, фурнитура): anchor — точка на детали, label — место подписи.
-10) Поле photo — честная проверка: isProduct=true, если на фото ТОВАР (вещь, упаковка, предмет, одежда на модели, еда, техника — что угодно, что продают); isProduct=false, если это документ, скан страницы, текст, скриншот интерфейса, таблица, презентация, пустой фон или неразборчивое изображение. seen — что именно на фото, 3–6 слов по-русски.${
+10) Поле photo — честная проверка: isProduct=true, если на фото ТОВАР (вещь, упаковка, предмет, одежда на модели, еда, техника — что угодно, что продают)${
+            args.productName
+              ? `; пользователь называет товар «${args.productName.slice(0, 80)}»${args.category ? `, категория «${args.category.slice(0, 60)}»` : ""} — если само изображение и есть товар (постер, картина, фотопечать, обои, принт, чехол с рисунком), это isProduct=true`
+              : ""
+          }; isProduct=false, если это документ, скан страницы, текст, скриншот интерфейса, таблица, презентация, пустой фон или неразборчивое изображение. seen — что именно на фото, 3–6 слов по-русски.${
             args.wantArt
               ? `
 11) Поле art — арт-дирекшн ИМЕННО под этот товар: mood — короткое настроение по-английски; productColors — до 3 доминирующих цветов товара (hex или английские названия); scenes — 2–3 РАЗНЫХ варианта уместного окружения/фона для этого конкретного товара, по-английски, каждый одним конкретным предложением (поверхность, место, свет; без людей и без текста). Варианты должны заметно отличаться друг от друга. НЕ предлагай шаблонную «белую студию с растением в горшке».`
@@ -237,6 +244,8 @@ export async function buildInfographicBrief(
         mode: styleProfile?.mode,
         hasSubheadline: !!(input.category || input.targetAudience),
         wantArt: opts?.adaptiveArt,
+        productName: input.productName,
+        category: input.category,
       })
     : Promise.resolve(undefined);
 
@@ -438,9 +447,15 @@ function buildBaseRequest(args: InfographicBaseArgs, bake: boolean): BuiltReques
   // Кто дал референс: пользовательский (авторитет дизайна) или библиотечный
   // образец (в адаптивном режиме — только мягкий якорь стиля).
   const userSuppliedRef = !!args.styleReferenceImage;
+  // Если vision не увидел на фото товара (скан, пейзаж-постер, скриншот),
+  // библиотечный образец картинкой НЕ отдаём: модели не за что зацепиться в
+  // фото, и она берёт героя с образца (2026-09-07: лист с заданиями и горный
+  // пейзаж превратились в мужчину в клетчатой рубашке из «Премиум тёмного»).
+  // Стиль в этом случае идёт словами из профиля (палитра, плашки, свет).
+  const photoIsProduct = args.brief.layoutPlan?.photo?.isProduct !== false;
   const styleReferenceImage =
     args.styleReferenceImage ??
-    (args.productImage && args.brief.styleProfile?.source === "library"
+    (args.productImage && photoIsProduct && args.brief.styleProfile?.source === "library"
       ? STYLE_REF_IMAGES[args.brief.styleProfile.id]
       : undefined);
   const refKind: "user" | "library" | undefined = userSuppliedRef
@@ -480,9 +495,9 @@ function buildBaseRequest(args: InfographicBaseArgs, bake: boolean): BuiltReques
     // и НЕ окружение (иначе один образец штампует одинаковые карточки).
     const adaptiveNote =
       adaptive && bake && keepBg
-        ? ` Two images are provided. The FIRST image is the user's product photo — keep its product AND its background, scene, surfaces and lighting completely untouched. The SECOND image is a STYLE REFERENCE for the GRAPHIC LAYER ONLY: borrow its plate/panel treatment, typography style, palette and decorative language for the overlaid graphics, but do NOT copy its environment, background, furniture, plants or props, and do NOT reuse its product, model, photo or text. CRITICAL: every word, number, price or badge visible in the reference belongs to a DIFFERENT product — none of it may appear on this card. Use ONLY the Russian texts listed in this prompt.`
+        ? ` Two images are provided. The FIRST image is the user's product photo — keep its product AND its background, scene, surfaces and lighting completely untouched. The SECOND image is a STYLE REFERENCE for the GRAPHIC LAYER ONLY: borrow its plate/panel treatment, typography style, palette and decorative language for the overlaid graphics, but do NOT copy its environment, background, furniture, plants or props, and do NOT reuse its product, model, photo or text. The only people, animals and objects on this card are the ones visible in the FIRST image — the reference's person and product never appear. CRITICAL: every word, number, price or badge visible in the reference belongs to a DIFFERENT product — none of it may appear on this card. Use ONLY the Russian texts listed in this prompt.`
         : adaptive && bake && refKind === "library"
-          ? ` Two images are provided. The FIRST image is the user's product — keep THAT exact product (same garment, colors, materials, person/identity). The SECOND image is a soft STYLE REFERENCE: borrow ONLY its palette, plate/panel treatment, typography style and decorative language. Do NOT copy its composition or layout, its environment, background, furniture, plants or props, its product, its model or its text — follow the composition and environment instructions in this prompt instead. CRITICAL: every word, number, price or badge visible in the reference belongs to a DIFFERENT product — none of it may appear on this card. Use ONLY the Russian texts listed in this prompt.`
+          ? ` Two images are provided. The FIRST image is the user's product — keep THAT exact product (same garment, colors, materials, person/identity). The SECOND image is a soft STYLE REFERENCE: borrow ONLY its palette, plate/panel treatment, typography style and decorative language. Do NOT copy its composition or layout, its environment, background, furniture, plants or props, its product, its model or its text — follow the composition and environment instructions in this prompt instead. The only people, animals and objects on this card are the ones visible in the FIRST image — the reference's person and product never appear. CRITICAL: every word, number, price or badge visible in the reference belongs to a DIFFERENT product — none of it may appear on this card. Use ONLY the Russian texts listed in this prompt.`
           : undefined;
     const twoImageNote = adaptiveNote ?? (bake
       ? ` Two images are provided. The FIRST image is the user's product — keep THAT exact product (same garment, colors, materials, person/identity). The SECOND image is a STYLE REFERENCE ONLY: take its composition, layout rhythm, palette, typography and decorative language, but DO NOT reuse its product, its model, its photo or its text. CRITICAL: every word, number, price, sales figure, size range, feature claim or badge text visible in the reference belongs to a DIFFERENT product — none of it may appear on this card. Recreate the reference's TEXT STYLE (lettering, plates, effects) using ONLY the Russian texts listed in this prompt; if the reference has more text blocks than provided texts, leave those blocks out rather than inventing or copying content. Aim for a card in the same style family — clearly similar, not an exact replica.`
