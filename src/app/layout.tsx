@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import localFont from "next/font/local";
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
 import { YandexMetrica } from "@/components/analytics/yandex-metrica";
@@ -7,7 +7,16 @@ import { VkPixel } from "@/components/analytics/vk-pixel";
 import { AttributionCapture } from "@/components/analytics/attribution-capture";
 import { OAuthRegisterPing } from "@/components/analytics/oauth-register-ping";
 
-const inter = Inter({ subsets: ["latin", "cyrillic"], variable: "--font-inter" });
+// Шрифт лежит в репозитории (Inter 4.1 variable, latin+cyrillic), а не тянется с
+// Google при сборке: 2026-09-07 сборка на Timeweb трижды упала на
+// fonts.gstatic.com («request failed»), и деплой встал. Локальный файл —
+// ноль внешних зависимостей у билда.
+const inter = localFont({
+  src: "./fonts/InterVariable.woff2",
+  weight: "100 900",
+  display: "swap",
+  variable: "--font-inter",
+});
 
 const SITE_URL = process.env.SITE_URL || "https://kliiiipsa-card-studio-30da.twc1.net";
 // В title намеренно оставлены названия площадок: это поисковые запросы, по
