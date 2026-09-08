@@ -19,6 +19,8 @@ export type PromptIntent = {
   /** не писать бренд/модель в промпт: image-модель рисует их кривой надписью
    *  («Wessgauff» на аэрогриле в A/B 2026-09-06) */
   noBrand?: boolean;
+  /** v2 «Подсказать задание»: написать, ЧТО ИЗМЕНИТЬ на фото, а не описать его */
+  taskMode?: boolean;
 };
 
 /** Result of the prompt pipeline. `generatedPrompt` is Russian (user-editable). */

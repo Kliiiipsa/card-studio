@@ -182,6 +182,8 @@ export const generateImageRequestSchema = z.object({
   purpose: z.enum(["photo", "improve"]).optional(),
   /** сценарий раздела «Фото товара» — сервер дописывает конкретику под него */
   scenario: z.string().max(40).optional(),
+  /** название + категория товара: по ним «Студийный фон» v2 выбирает постановку */
+  productHint: z.string().max(300).optional(),
 });
 
 export const scoreRequestSchema = z.object({

@@ -203,6 +203,8 @@ export async function writePrompt(input: {
   referenceImageDataUrl?: string;
   /** пакет исправлений «Фото товара» (гейт photoFixEnabled): без брендов в промпте */
   photoFix?: boolean;
+  /** v2 «Подсказать задание»: инструкция «что изменить на фото», а не описание */
+  taskMode?: boolean;
 }): Promise<PromptResult> {
   const product = input.product ?? {};
   const intent: PromptIntent = {
@@ -216,6 +218,7 @@ export async function writePrompt(input: {
     styleMode: (input.styleMode as PromptIntent["styleMode"]) ?? "auto",
     generationMode: input.referenceImageDataUrl ? "image-to-image" : "text-to-image",
     noBrand: input.photoFix,
+    taskMode: input.taskMode,
   };
 
   const image = input.referenceImageDataUrl

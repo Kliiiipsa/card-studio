@@ -319,6 +319,8 @@ export const api = {
     cardText?: string;
     purpose?: "photo" | "improve";
     scenario?: string;
+    /** название + категория: «Студийный фон» v2 подбирает по ним постановку */
+    productHint?: string;
   }) => post<ImageResult>("/api/ai/generate/image", args),
 
   score: (args: { imageDataUrl: string; product?: Partial<ProductInfo>; cardType?: string }) =>

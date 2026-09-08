@@ -12,6 +12,8 @@ type ProfileState = {
   balance: number | null;
   /** пакет исправлений «Фото товара» включён для этого аккаунта (гейт на сервере) */
   photoFix: boolean;
+  /** вторая волна «Фото товара» (гейт на сервере): задание вместо описания, плашки-задачи */
+  photoV2: boolean;
   loaded: boolean;
   fetchMe: () => Promise<void>;
   setBalance: (balance: number) => void;
@@ -23,6 +25,7 @@ export const useProfileStore = create<ProfileState>((set, get) => ({
   role: null,
   balance: null,
   photoFix: false,
+  photoV2: false,
   loaded: false,
   fetchMe: async () => {
     try {
@@ -33,12 +36,14 @@ export const useProfileStore = create<ProfileState>((set, get) => ({
         role: "admin" | "user";
         balance: number | null;
         photoFix?: boolean;
+        photoV2?: boolean;
       };
       set({
         email: data.email,
         role: data.role,
         balance: data.balance,
         photoFix: !!data.photoFix,
+        photoV2: !!data.photoV2,
         loaded: true,
       });
     } catch {
@@ -48,5 +53,6 @@ export const useProfileStore = create<ProfileState>((set, get) => ({
   setBalance: (balance) => {
     if (get().loaded) set({ balance });
   },
-  reset: () => set({ email: null, role: null, balance: null, photoFix: false, loaded: false }),
+  reset: () =>
+    set({ email: null, role: null, balance: null, photoFix: false, photoV2: false, loaded: false }),
 }));

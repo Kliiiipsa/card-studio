@@ -172,6 +172,10 @@ export function useCardGeneration() {
               // генерация, там ни сценария, ни требования сохранить товар
               purpose: freeMode ? undefined : "photo",
               scenario: scenario?.id,
+              productHint: freeMode
+                ? undefined
+                : [s.product.name, s.product.category].filter(Boolean).join(" ").slice(0, 300) ||
+                  undefined,
             })
           : await api.generateText({
               prompt: finalPrompt,

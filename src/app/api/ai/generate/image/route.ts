@@ -12,7 +12,7 @@ import { generateImageFromReference } from "@/core/ai/service";
 import { validateDataUrl } from "@/lib/image-validation";
 import { readFalBalance, settleFalCostInBackground, falJobsInFlight } from "@/core/ai/fal-cost";
 import { sanitizeImagePrompt, sanitizeImagePromptV2 } from "@/core/ai/improve-prompt";
-import { photoFixEnabled, scenarioDirectives } from "@/core/ai/photo-fix";
+import { photoFixEnabled, photoV2Enabled, scenarioDirectives } from "@/core/ai/photo-fix";
 import { uid } from "@/lib/utils";
 import { persistSourcePhoto } from "@/core/storage/source-photo";
 
@@ -48,10 +48,21 @@ export async function POST(req: Request) {
       // Под гейтом к сценарию дописываем конкретику (товар целиком в кадре,
       // чистая поверхность, фон заменён) — иначе Seedream оставляет пыль и
       // кабели с исходного фото. Английский: этот кусок переводчику не нужен.
+      // v2 (2026-09-08): «Студийный фон» переосвещаем, а не «вырезаем на белый»;
+      // для этого сценария сила правки не ниже 0.55 — на 0.45 модель меняет
+      // минимум и свет на товаре остаётся от исходной съёмки.
+      const v2 = fix && photoV2Enabled(bill.ctx.role);
       const modelPrompt =
         fix && body.purpose === "photo"
-          ? `${safePrompt}\n\n${scenarioDirectives(body.scenario)}`
+          ? `${safePrompt}\n\n${scenarioDirectives(body.scenario, {
+              v2,
+              productHint: `${body.productHint ?? ""} ${body.prompt}`,
+            })}`
           : safePrompt;
+      const strength =
+        v2 && body.purpose === "photo" && body.scenario === "studio"
+          ? Math.max(body.strength ?? 0.55, 0.55)
+          : body.strength;
       // id результата задаём заранее: исходник ложится рядом под тем же id
       const cardId = uid("card");
       const sourceUrl = await persistSourcePhoto(body.referenceImageDataUrl, cardId);
@@ -62,7 +73,7 @@ export async function POST(req: Request) {
         // приглашение» под гейтом негатив в «Фото товара» не передаём
         negativePrompt: fix && body.purpose === "photo" ? undefined : body.negativePrompt,
         referenceImageDataUrl: body.referenceImageDataUrl,
-        strength: body.strength,
+        strength,
         aspectRatio: body.aspectRatio,
         // одно изображение за одно списание (аудит 2026-08-26); count из тела
         // не масштабируем — иначе 4 картинки по цене одной
@@ -85,13 +96,14 @@ export async function POST(req: Request) {
             purpose: body.purpose,
             scenario: body.scenario,
             photoFix: fix || undefined,
+            photoV2: v2 || undefined,
             // исходное фото клиента — для разбора в админке
             sourceUrl,
             cardText: body.cardText,
             // для разбора жалоб в админке
             negativePrompt: body.negativePrompt?.slice(0, 500),
             aspectRatio: body.aspectRatio,
-            strength: body.strength,
+            strength,
             mode: "по фото",
           },
         });

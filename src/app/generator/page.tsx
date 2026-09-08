@@ -33,6 +33,22 @@ import { uid } from "@/lib/utils";
 import { useProfileStore } from "@/store/profile-store";
 import { wantsTextOnPhoto } from "@/core/ai/photo-fix";
 
+/**
+ * Готовые задачи под полем (v2, 2026-09-08): человек собирает запрос из
+ * кубиков, а не пишет промпт. Клик дописывает фразу в поле. Формулировки
+ * позитивные и про фото, не про товар — товар модель не трогает.
+ */
+const TASK_CHIPS: string[] = [
+  "Убери лишние предметы с фона",
+  "Сделай фон чистым и светлым",
+  "Добавь мягкую тень под товаром",
+  "Сделай свет ровнее и ярче",
+  "Покажи товар крупнее",
+  "Покажи товар с другого ракурса",
+  "Покажи товар на модели",
+  "Убери блики и отражения",
+];
+
 const STYLE_MODES: { id: StyleMode; label: string }[] = [
   { id: "auto", label: "Авто" },
   { id: "minimal", label: "Минимал" },
@@ -61,6 +77,13 @@ function GeneratorInner() {
   // журнале просили преимущества/надписи, раздел этого не делает, а модель
   // рисовала английскую кашу за гены. Показываем один раз на промпт.
   const photoFix = useProfileStore((p) => p.photoFix);
+  // v2: «Подсказать задание» вместо «Написать промпт» + плашки готовых задач
+  const photoV2 = useProfileStore((p) => p.photoV2);
+  const addTask = (t: string) => {
+    const cur = s.userPrompt.trim();
+    if (cur.includes(t)) return;
+    s.setField("userPrompt", cur ? `${cur.replace(/[.\s]+$/, "")}. ${t}` : t);
+  };
   const [textWarn, setTextWarn] = React.useState<null | string>(null); // промпт, на который согласились
   const textIntent = photoFix && !freeMode && wantsTextOnPhoto(s.userPrompt, s.userNote);
   const [showTextWarn, setShowTextWarn] = React.useState(false);
@@ -350,7 +373,7 @@ function GeneratorInner() {
               ) : (
                 <Sparkles className="h-4 w-4" />
               )}
-              Написать промпт
+              {photoV2 ? "Подсказать задание" : "Написать промпт"}
             </Button>
             )}
 
@@ -360,10 +383,28 @@ function GeneratorInner() {
               placeholder={
                 freeMode
                   ? "Опишите картинку своими словами, по-русски. Например: уютная кухня в скандинавском стиле, утренний свет, на столе чашка кофе"
-                  : "Нажмите «Написать промпт» — ИИ опишет карточку по фото и данным товара. Текст можно отредактировать."
+                  : photoV2
+                    ? "Что изменить на фото? Например: убери коробку слева, сделай фон светлее. Или выберите задачи ниже — либо нажмите «Подсказать задание», и ИИ предложит, что поправить."
+                    : "Нажмите «Написать промпт» — ИИ опишет карточку по фото и данным товара. Текст можно отредактировать."
               }
               className="min-h-[160px]"
             />
+
+            {photoV2 && !freeMode && (
+              <div className="flex flex-wrap gap-1.5">
+                {TASK_CHIPS.map((t) => (
+                  <button
+                    key={t}
+                    type="button"
+                    onClick={() => addTask(t)}
+                    disabled={busy}
+                    className="rounded-full border border-border/70 bg-muted/40 px-2.5 py-1 text-xs text-muted-foreground transition-colors hover:border-primary/50 hover:bg-primary/5 hover:text-foreground"
+                  >
+                    + {t}
+                  </button>
+                ))}
+              </div>
+            )}
 
             <div className="flex gap-2">
               {!freeMode && (

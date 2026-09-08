@@ -2,7 +2,7 @@ import { ok, fail } from "@/lib/api";
 import { AppError } from "@/lib/errors";
 import { sessionFromRequest } from "@/core/auth/session";
 import { billingEnabled, getBalance } from "@/core/billing/billing";
-import { photoFixEnabled } from "@/core/ai/photo-fix";
+import { photoFixEnabled, photoV2Enabled } from "@/core/ai/photo-fix";
 
 export const runtime = "nodejs";
 
@@ -19,6 +19,8 @@ export async function GET(req: Request) {
       balance,
       // клиентские фичи под гейтом (сейчас — пакет исправлений «Фото товара»)
       photoFix: photoFixEnabled(session.role),
+      // вторая волна «Фото товара»: «Подсказать задание» + готовые задачи
+      photoV2: photoV2Enabled(session.role),
     });
   } catch (err) {
     return fail(err);
