@@ -28,6 +28,7 @@ import {
   fallbackPrompt,
 } from "@/core/prompting/prompt-composer";
 import type { PromptIntent, PromptResult } from "@/core/prompting/prompt-intent";
+import { DEFAULT_NEGATIVE_RU } from "@/core/prompting/constants";
 import type {
   AnalysisReport,
   CardIdea,
@@ -256,6 +257,9 @@ export async function writePrompt(input: {
       // предложения кодом — это единственное, что срабатывает всегда.
       const kept = stripRemovePersonSentences(parsed.generatedPrompt);
       if (kept) parsed.generatedPrompt = kept;
+      // негатив в «Фото товара» в модель не уходит, а в журнале «модель,
+      // человек, руки» только пугает — оставляем стандартный
+      parsed.negativePrompt = DEFAULT_NEGATIVE_RU;
     }
     return parsed ?? fallbackPrompt(intent);
   } catch {
