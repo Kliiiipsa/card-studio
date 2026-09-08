@@ -62,7 +62,9 @@ function taskMessages(intent: PromptIntent, imageDataUrl: string): LLMMessage[] 
     },
     {
       role: "user",
-      content: `${who}\n\n${productBlock(intent)}\n\n${TASK_SHAPE}`,
+      content:
+        `${who} Если товар на человеке или в руке — человек остаётся в кадре, задание про него не пишем.\n\n` +
+        `${productBlock(intent)}\n\n${TASK_SHAPE}`,
       imageDataUrl,
     },
   ];

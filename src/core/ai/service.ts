@@ -195,6 +195,21 @@ export async function scoreGeneratedCard(args: {
 /*  Prompt authoring ("Написать промпт")                                      */
 /* -------------------------------------------------------------------------- */
 
+/**
+ * Убирает из задания предложения, которые просят убрать/заменить человека,
+ * на котором или в руках у которого товар («убери модель», «оставь только
+ * рубашку на манекене», «без рук»). Возвращает пустую строку, если не осталось
+ * ничего — тогда вызывающий оставляет текст как есть.
+ */
+export function stripRemovePersonSentences(text: string): string {
+  const PERSON =
+    /(модел[ьи]|человек|люд[ей]|девушк|женщин|мужчин|парн[яе]|ребён|детей|рук[иау]|ног[иау]|лиц[оа]|манекен)/iu;
+  const REMOVE = /(убер|удал|замен|скро|спрят|исключ|без\s|оставь\s+только|вместо)/iu;
+  const sentences = text.split(/(?<=[.!?])\s+/);
+  const kept = sentences.filter((s) => !(PERSON.test(s) && REMOVE.test(s)));
+  return kept.join(" ").trim();
+}
+
 export async function writePrompt(input: {
   product?: Partial<ProductInfo>;
   cardType?: string;
@@ -235,6 +250,13 @@ export async function writePrompt(input: {
       messages: buildPromptMessages(intent, image),
     });
     const parsed = parsePromptResult(safeJson(result.text));
+    if (parsed && input.taskMode) {
+      // LLM дважды проигнорировал правило «человека не убирать» (тест
+      // 2026-09-08: «Убери модель и оставь только рубашку»). Режем такие
+      // предложения кодом — это единственное, что срабатывает всегда.
+      const kept = stripRemovePersonSentences(parsed.generatedPrompt);
+      if (kept) parsed.generatedPrompt = kept;
+    }
     return parsed ?? fallbackPrompt(intent);
   } catch {
     // never block the user — fall back to the deterministic prompt
