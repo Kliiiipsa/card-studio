@@ -5,6 +5,7 @@
  * (the domain CARD_TYPES stay — analysis/ideas still use them).
  */
 export type PhotoScenarioId =
+  | "as-is"
   | "studio"
   | "background-swap"
   | "lifestyle"
@@ -23,6 +24,19 @@ export interface PhotoScenario {
 }
 
 export const PHOTO_SCENARIOS: PhotoScenario[] = [
+  // Значение ПО УМОЛЧАНИЮ с 2026-09-08. Раньше по умолчанию стоял «Студийный
+  // фон», и человек, попросивший «поменяй позу», молча получал ещё и замену
+  // фона: сценарий дописывает в промпт «the original background is replaced».
+  // Теперь фон меняется только тогда, когда его смену выбрали сознательно.
+  {
+    id: "as-is",
+    title: "Оставить как есть",
+    description: "Фон и сцена с исходного фото не меняются",
+    promptHint:
+      "the original background, lighting and setting are kept as they are in the photo",
+    guidance:
+      "фон, свет и окружение с исходного фото сохранить без изменений; описывать только то, о чём просит пользователь",
+  },
   {
     id: "studio",
     title: "Студийный фон",

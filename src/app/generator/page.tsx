@@ -466,17 +466,13 @@ function GeneratorInner() {
 
             {selected && (
               <div className="space-y-3 border-t pt-4">
+                {/* Только кнопки скачивания: размер задан до генерации, текст
+                    поверх фото — это раздел «Инфографика» (2026-09-08). */}
                 <ExportPanel
                   src={selected.url}
                   variants={s.variants}
                   item={freeMode ? "photo" : "card"}
-                  allowOriginal={freeMode}
-                  overlay={{
-                    headline:
-                      s.overlayHeadline || s.product.benefits[0] || s.product.name || undefined,
-                    benefits: s.product.benefits.slice(0, 3),
-                    scrim: true,
-                  }}
+                  minimal
                 />
                 <Button variant="outline" className="w-full" onClick={() => toInfographic()}>
                   <LayoutGrid className="h-4 w-4" />

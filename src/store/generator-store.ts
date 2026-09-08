@@ -76,7 +76,8 @@ export const DEFAULT_NEGATIVE =
 export const useGeneratorStore = create<GeneratorState>((set) => ({
   product: { ...EMPTY_PRODUCT },
   genMode: "market",
-  cardType: "studio",
+  // «Оставить как есть»: фон меняем только по сознательному выбору (2026-09-08)
+  cardType: "as-is",
   style: "premium-minimal",
   styleMode: "auto",
   aspectRatio: "3:4",

@@ -33,6 +33,7 @@ export function ExportPanel({
   overlay,
   item = "card",
   allowOriginal = false,
+  minimal = false,
 }: {
   src?: string | null;
   variants?: ExportVariant[];
@@ -41,6 +42,13 @@ export function ExportPanel({
   item?: "card" | "photo";
   /** показать вариант «Как у исходного» (родное разрешение, без кропа) */
   allowOriginal?: boolean;
+  /**
+   * Только кнопки скачивания (2026-09-08, решение владельца). В «Фото товара»
+   * размер уже выбран ДО генерации, а поверх фото ничего не пишем — выбор
+   * размера/формата и переключатель заголовка после генерации только путали.
+   * Файл отдаём в родном разрешении PNG, без кропа и наложений.
+   */
+  minimal?: boolean;
 }) {
   // склонения под контекст: «Скачать фото» / «Фото скачано» vs карточка
   const noun = item === "photo"
@@ -55,7 +63,7 @@ export function ExportPanel({
   const [busy, setBusy] = React.useState(false);
 
   const preset = EXPORT_PRESETS.find((p) => p.id === presetId) ?? EXPORT_PRESETS[0];
-  const hasOverlay = !!(overlay?.headline || overlay?.benefits?.length);
+  const hasOverlay = !minimal && !!(overlay?.headline || overlay?.benefits?.length);
   const activeOverlay = withText && hasOverlay ? overlay : undefined;
   const allVariants: ExportVariant[] = variants?.length
     ? variants
@@ -67,7 +75,7 @@ export function ExportPanel({
     if (!src) return;
     setBusy(true);
     try {
-      if (presetId === ORIGINAL) {
+      if (minimal || presetId === ORIGINAL) {
         // родное разрешение сгенерированного фото, без кропа и без наложения текста
         await exportCardNatural(src, format);
       } else {
@@ -85,7 +93,16 @@ export function ExportPanel({
     if (!allVariants.length) return;
     setBusy(true);
     try {
-      await exportAllVariants(allVariants, EXPORT_PRESETS, format, { overlay: activeOverlay });
+      if (minimal) {
+        for (let i = 0; i < allVariants.length; i++) {
+          // eslint-disable-next-line no-await-in-loop
+          await exportCardNatural(allVariants[i].url, format, {
+            baseName: `kartogen-photo-${i + 1}`,
+          });
+        }
+      } else {
+        await exportAllVariants(allVariants, EXPORT_PRESETS, format, { overlay: activeOverlay });
+      }
       toast.success("Все варианты скачаны");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Ошибка экспорта");
@@ -96,7 +113,7 @@ export function ExportPanel({
 
   return (
     <div className="space-y-3">
-      <div className="grid grid-cols-2 gap-2">
+      <div className="grid grid-cols-2 gap-2" hidden={minimal}>
         <div className="space-y-1.5">
           <Label className="text-xs">Размер</Label>
           <Select value={presetId} onValueChange={setPresetId}>

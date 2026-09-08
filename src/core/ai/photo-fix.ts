@@ -52,6 +52,9 @@ export function wantsTextOnPhoto(prompt: string, note?: string): boolean {
  */
 export function scenarioDirectives(scenario?: string | null): string {
   switch (scenario) {
+    // Сценарий по умолчанию: ничего сверх просьбы человека не трогаем.
+    case "as-is":
+      return `${KEEP} The background, lighting and setting stay as in the photo; only what the request asks for changes.`;
     // A/B 2026-09-06: «only the product remains» убирал модель с платья, а
     // «cords tucked away» рисовал шнур в углу (запрет = приглашение). Человек
     // на фото остаётся; про шнуры молчим — «пустая поверхность» их и так убирает.
