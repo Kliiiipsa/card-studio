@@ -101,7 +101,8 @@ function studioV2(productHint?: string): string {
     "The setting becomes a professional photo studio: the product is lit anew by soft, even " +
     "studio light that matches the new backdrop, with a soft natural contact shadow under it. " +
     "The backdrop is seamless light-grey studio paper with a gentle gradient, slightly darker " +
-    "toward the floor; the surface under the product is spotless and empty.";
+    "toward the floor; the surface under the product is spotless and empty. The product keeps " +
+    "the exact colour and surface finish it has in the photo (matte stays matte).";
   return `${base} ${studioTail(productHint)}`;
 }
 
@@ -109,9 +110,13 @@ function studioV2(productHint?: string): string {
 function studioTail(hint?: string): string {
   const h = (hint ?? "").toLowerCase();
   if (/одежд|плать|куртк|пальт|костюм|рубаш|брюк|джинс|футболк|худи|свитер|юбк|шорт|комбинезон|бель|пиджак|жилет|блуз|кардиган|плащ|пуховик|штан/.test(h)) {
+    // Тест 2026-09-08: «visible head to toe» на платье БЕЗ модели дорисовал
+    // модель (упоминание = приглашение). Подача остаётся как на фото: на
+    // человеке, на вешалке или в раскладке.
     return (
-      "Fashion e-commerce look: even frontal light with no harsh shadows on the face or fabric, " +
-      "the full outfit visible head to toe, the floor and backdrop merge into one even grey."
+      "Fashion e-commerce look: even frontal light with soft shadows on the fabric, the garment " +
+      "shown whole and presented exactly as in the photo (on the person, on a hanger or laid " +
+      "flat), the floor and backdrop merge into one even grey."
     );
   }
   if (/обув|кроссов|ботин|туфл|сапог|кед|сандал|босонож|тапоч|лофер/.test(h)) {
