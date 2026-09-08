@@ -69,9 +69,8 @@ function RouteTracker() {
       first.current = false;
       return;
     }
-    const ym = (window as unknown as { ym?: (...args: unknown[]) => void }).ym;
     try {
-      ym?.(Number(YM_ID), "hit", window.location.href, { referer: document.referrer });
+      ymQueue()(Number(YM_ID), "hit", window.location.href, { referer: document.referrer });
     } catch {
       // аналитика никогда не должна ломать навигацию
     }
@@ -86,12 +85,37 @@ function RouteTracker() {
  */
 export function reachGoal(goal: string, params?: Record<string, unknown>): void {
   if (typeof window === "undefined" || !YM_ID) return;
-  const ym = (window as unknown as { ym?: (...args: unknown[]) => void }).ym;
   try {
-    ym?.(Number(YM_ID), "reachGoal", goal, params);
+    ymQueue()(Number(YM_ID), "reachGoal", goal, params);
   } catch {
     // аналитика никогда не должна ломать основной сценарий
   }
+}
+
+type YmFn = ((...args: unknown[]) => void) & { a?: unknown[]; l?: number };
+
+/**
+ * Возвращает `window.ym`, а если счётчик ещё не загрузился — ставит тот же
+ * стаб-очередь, что и официальный сниппет (`m[i]=m[i]||function(){(m[i].a=
+ * m[i].a||[]).push(arguments)}`): сниппет при загрузке видит уже существующий
+ * `ym` с очередью и отдаёт её tag.js. Раньше здесь было `ym?.(...)` —
+ * вызов до загрузки счётчика молча терялся. Так пропадала цель REGISTER у всех
+ * регистраций через Яндекс ID: OAuthRegisterPing срабатывает на первом рендере
+ * /dashboard, когда до счётчика ещё не дошла очередь (2026-09-08, разрыв 11
+ * регистраций в админке против 4 в Метрике).
+ */
+function ymQueue(): YmFn {
+  const w = window as unknown as { ym?: YmFn };
+  if (!w.ym) {
+    // именно `arguments`, как в сниппете: tag.js разбирает очередь через apply
+    const stub: YmFn = function () {
+      // eslint-disable-next-line prefer-rest-params
+      (stub.a = stub.a || []).push(arguments);
+    };
+    stub.l = Date.now();
+    w.ym = stub;
+  }
+  return w.ym;
 }
 
 /** Цели, которые считаем: воронка от регистрации до оплаты. */

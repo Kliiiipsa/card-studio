@@ -7,6 +7,11 @@ import { reachGoal, GOALS } from "./yandex-metrica";
  * /dashboard?welcome=1. Server-side колбэк сам Метрику дёрнуть не может,
  * поэтому цель «Регистрация» отправляем здесь, на клиенте, увидев флаг —
  * и сразу чистим URL, чтобы при перезагрузке цель не задвоилась.
+ *
+ * Этот эффект срабатывает РАНЬШЕ загрузки счётчика (компонент стоит в layout
+ * перед <YandexMetrica/>), поэтому reachGoal обязан уметь ставить вызов в
+ * очередь — см. ymQueue в yandex-metrica.tsx. До 2026-09-08 цель здесь молча
+ * терялась у каждой регистрации через Яндекс ID.
  */
 export function OAuthRegisterPing() {
   React.useEffect(() => {
