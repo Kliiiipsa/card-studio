@@ -3,6 +3,7 @@ import { parseBody, ok, fail } from "@/lib/api";
 import { AppError } from "@/lib/errors";
 import { analyzeProductCard } from "@/core/ai/service";
 import { validateDataUrl } from "@/lib/image-validation";
+import { WELCOME_SPARKS } from "@/core/billing/prices";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -46,7 +47,7 @@ function checkLimits(ip: string): void {
   const used = ipCounts.get(ip) ?? 0;
   if (used >= PER_IP_PER_DAY) {
     throw new AppError(
-      "Лимит бесплатных проверок на сегодня исчерпан (3 в день). Зарегистрируйтесь — внутри полный разбор и 20 генов в подарок.",
+      `Лимит бесплатных проверок на сегодня исчерпан (3 в день). Зарегистрируйтесь — внутри полный разбор и ${WELCOME_SPARKS} генов в подарок.`,
       429,
     );
   }

@@ -22,7 +22,7 @@ import { Badge } from "@/components/ui/badge";
 import { type ExampleCard } from "@/components/landing/examples-gallery";
 import { ExamplesMarquee } from "@/components/landing/examples-marquee";
 import { JsonLd } from "@/components/seo/json-ld";
-import { PRICES } from "@/core/billing/prices";
+import { PRICES, WELCOME_SPARKS } from "@/core/billing/prices";
 
 /* ------------------------------------------------------------------ */
 /* SEO-посадочная под запросы «генерация/создание карточек для          */
@@ -35,7 +35,7 @@ const SITE = "https://kartogen.ru";
 export const metadata: Metadata = {
   title: "Генерация карточек для Wildberries с ИИ — Kartogen",
   description:
-    "Создание карточек товара для Wildberries с помощью нейросети: фото товара, инфографика с русским текстом и плашками, SEO-название и описание, анализ карточки. За минуты, без дизайнера. 20 генов в подарок.",
+    `Создание карточек товара для Wildberries с помощью нейросети: фото товара, инфографика с русским текстом и плашками, SEO-название и описание, анализ карточки. За минуты, без дизайнера. ${WELCOME_SPARKS} генов в подарок.`,
   keywords: [
     "генерация карточек Wildberries",
     "карточки для WB",
@@ -118,7 +118,7 @@ const FAQ: { q: string; a: string }[] = [
   },
   {
     q: "Сколько стоит сделать карточку для Wildberries?",
-    a: `1 ген = 1 ₽. Инфографика — ${PRICES.infographic} 🧬, фото товара — ${PRICES.generate} 🧬, SEO-тексты — ${PRICES.seo} 🧬, анализ карточки — ${PRICES.analyze} 🧬. Все текстовые помощники (заполнение по фото, промпт, идеи) бесплатны. При регистрации начисляется 20 генов в подарок.`,
+    a: `1 ген = 1 ₽. Инфографика — ${PRICES.infographic} 🧬, фото товара — ${PRICES.generate} 🧬, SEO-тексты — ${PRICES.seo} 🧬, анализ карточки — ${PRICES.analyze} 🧬. Все текстовые помощники (заполнение по фото, промпт, идеи) бесплатны. При регистрации начисляется ${WELCOME_SPARKS} генов в подарок.`,
   },
   {
     q: "Нужны ли навыки дизайнера или фотостудия?",
@@ -223,7 +223,7 @@ export default async function WildberriesLanding() {
         {!authed && (
           <p className="mt-3 flex items-center gap-1.5 text-sm text-muted-foreground">
             <Dna className="h-4 w-4 text-primary" />
-            20 генов в подарок при регистрации — хватит на первые карточки
+            {WELCOME_SPARKS} генов в подарок при регистрации — хватит на первые карточки
           </p>
         )}
 
@@ -323,7 +323,7 @@ export default async function WildberriesLanding() {
             Соберите первую карточку для Wildberries
           </h2>
           <p className="mx-auto mt-3 max-w-xl text-white/85">
-            Регистрация за минуту, 20 генов в подарок. Тексты, идеи и анализ фото — бесплатно, платите
+            Регистрация за минуту, {WELCOME_SPARKS} генов в подарок. Тексты, идеи и анализ фото — бесплатно, платите
             только за готовые изображения.
           </p>
           <Button asChild size="lg" variant="secondary" className="mt-8">

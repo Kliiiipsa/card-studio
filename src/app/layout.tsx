@@ -6,6 +6,7 @@ import { YandexMetrica } from "@/components/analytics/yandex-metrica";
 import { VkPixel } from "@/components/analytics/vk-pixel";
 import { AttributionCapture } from "@/components/analytics/attribution-capture";
 import { OAuthRegisterPing } from "@/components/analytics/oauth-register-ping";
+import { WELCOME_SPARKS } from "@/core/billing/prices";
 
 // Шрифт лежит в репозитории (Inter 4.1 variable, latin+cyrillic), а не тянется с
 // Google при сборке: 2026-09-07 сборка на Timeweb трижды упала на
@@ -23,7 +24,7 @@ const SITE_URL = process.env.SITE_URL || "https://kliiiipsa-card-studio-30da.twc
 // которым нас ищут селлеры. В интерфейсе везде — нейтральное «маркетплейсы».
 const TITLE = "Kartogen — AI-карточки и инфографика для маркетплейсов (Wildberries, Ozon)";
 const DESCRIPTION =
-  "Фото товара, готовая инфографика с русским текстом, видео и анализ карточек — за минуты. 20 генов в подарок при регистрации.";
+  `Фото товара, готовая инфографика с русским текстом, видео и анализ карточек — за минуты. ${WELCOME_SPARKS} генов в подарок при регистрации.`;
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),

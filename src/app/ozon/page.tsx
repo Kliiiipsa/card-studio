@@ -22,7 +22,7 @@ import { Badge } from "@/components/ui/badge";
 import { type ExampleCard } from "@/components/landing/examples-gallery";
 import { ExamplesMarquee } from "@/components/landing/examples-marquee";
 import { JsonLd } from "@/components/seo/json-ld";
-import { PRICES } from "@/core/billing/prices";
+import { PRICES, WELCOME_SPARKS } from "@/core/billing/prices";
 
 /* ------------------------------------------------------------------ */
 /* SEO-посадочная под запросы «карточки/инфографика для Ozon» — по      */
@@ -35,7 +35,7 @@ const SITE = "https://kartogen.ru";
 export const metadata: Metadata = {
   title: "Генерация карточек для Ozon с ИИ — Kartogen",
   description:
-    "Создание карточек товара для Ozon с помощью нейросети: фото товара под требования площадки, инфографика с русским текстом, SEO-тексты и анализ карточки. Вертикаль 3:4, за минуты, без дизайнера. 20 генов в подарок.",
+    `Создание карточек товара для Ozon с помощью нейросети: фото товара под требования площадки, инфографика с русским текстом, SEO-тексты и анализ карточки. Вертикаль 3:4, за минуты, без дизайнера. ${WELCOME_SPARKS} генов в подарок.`,
   keywords: [
     "генерация карточек Ozon",
     "карточки для Озон",
@@ -118,7 +118,7 @@ const FAQ: { q: string; a: string }[] = [
   },
   {
     q: "Сколько стоит сделать карточку для Ozon?",
-    a: `1 ген = 1 ₽. Инфографика — ${PRICES.infographic} 🧬, фото товара — ${PRICES.generate} 🧬, SEO-тексты — ${PRICES.seo} 🧬, анализ карточки — ${PRICES.analyze} 🧬. Текстовые помощники (заполнение по фото, идеи) бесплатны. При регистрации — 20 генов в подарок.`,
+    a: `1 ген = 1 ₽. Инфографика — ${PRICES.infographic} 🧬, фото товара — ${PRICES.generate} 🧬, SEO-тексты — ${PRICES.seo} 🧬, анализ карточки — ${PRICES.analyze} 🧬. Текстовые помощники (заполнение по фото, идеи) бесплатны. При регистрации — ${WELCOME_SPARKS} генов в подарок.`,
   },
   {
     q: "Спишутся ли гены, если результат не понравился?",
@@ -224,7 +224,7 @@ export default async function OzonLanding() {
         {!authed && (
           <p className="mt-3 flex items-center gap-1.5 text-sm text-muted-foreground">
             <Dna className="h-4 w-4 text-primary" />
-            20 генов в подарок при регистрации — хватит на первые карточки
+            {WELCOME_SPARKS} генов в подарок при регистрации — хватит на первые карточки
           </p>
         )}
 
@@ -325,7 +325,7 @@ export default async function OzonLanding() {
             Соберите первую карточку для Ozon
           </h2>
           <p className="mx-auto mt-3 max-w-xl text-white/85">
-            Регистрация за минуту, 20 генов в подарок. Тексты, идеи и заполнение по фото — бесплатно,
+            Регистрация за минуту, {WELCOME_SPARKS} генов в подарок. Тексты, идеи и заполнение по фото — бесплатно,
             платите только за готовые изображения.
           </p>
           <Button asChild size="lg" variant="secondary" className="mt-8">

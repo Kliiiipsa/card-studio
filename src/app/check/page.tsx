@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ImageUploader } from "@/components/media/image-uploader";
 import { toast } from "@/components/ui/toaster";
+import { WELCOME_SPARKS } from "@/core/billing/prices";
 
 /**
  * ПУБЛИЧНАЯ страница «Бесплатная проверка карточки» — лид-магнит: гость получает
@@ -174,7 +175,7 @@ export default function QuickCheckPage() {
             <Button asChild className="w-full" variant="gradient">
               <Link href="/register">
                 <Sparkles className="h-4 w-4" />
-                Открыть полный разбор — 20 генов в подарок
+                Открыть полный разбор — {WELCOME_SPARKS} генов в подарок
               </Link>
             </Button>
             <p className="text-center text-xs text-muted-foreground">

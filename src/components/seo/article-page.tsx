@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { JsonLd } from "@/components/seo/json-ld";
 import { SESSION_COOKIE, verifySessionToken } from "@/core/auth/session";
+import { WELCOME_SPARKS } from "@/core/billing/prices";
 
 /**
  * Каркас справочной SEO-страницы («размер карточки WB», «требования к фото
@@ -142,7 +143,7 @@ export async function ArticlePage(props: {
             {!authed && (
               <p className="mt-3 flex items-center justify-center gap-1.5 text-sm text-white/80">
                 <Dna className="h-4 w-4" />
-                20 генов в подарок при регистрации
+                {WELCOME_SPARKS} генов в подарок при регистрации
               </p>
             )}
           </div>

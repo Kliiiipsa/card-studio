@@ -2,6 +2,7 @@ import "server-only";
 import { analyzeProductCard } from "@/core/ai/service";
 import { sendMessage, sendTyping, tg, tgFileDataUrl } from "./api";
 import { PER_USER_PER_DAY, releaseCheckSlot, takeCheckSlot } from "./limits";
+import { WELCOME_SPARKS } from "@/core/billing/prices";
 
 /**
  * Публичный Telegram-бот «проверь карточку» — лид-магнит для рассылки по чатам
@@ -21,7 +22,7 @@ const SITE = "https://kartogen.ru";
 // Цена: переходы из бота не считаются, регистрации из него не размечаются.
 // (/tg с редиректом и счётчиком оставлен на случай, если передумаем.)
 const LINK = SITE;
-const AD = `Хочешь улучшить карточку? Попробуй бесплатно: ${LINK} — 20 генов в подарок при регистрации.`;
+const AD = `Хочешь улучшить карточку? Попробуй бесплатно: ${LINK} — ${WELCOME_SPARKS} генов в подарок при регистрации.`;
 
 type TgUser = { id: number; is_bot?: boolean; username?: string; first_name?: string };
 type TgChat = { id: number; type: "private" | "group" | "supergroup" | "channel" };
@@ -131,7 +132,7 @@ export async function handleUpdate(update: TgUpdate): Promise<void> {
       slot.globalFull
         ? `Сегодня бесплатные проверки в боте закончились — попробуйте завтра. Полный разбор без очереди: ${LINK}.`
         : `На сегодня ${PER_USER_PER_DAY} бесплатные проверки использованы, завтра можно снова.\n\n` +
-            `Полный разбор без лимита и готовые тексты для карточки — на ${LINK}, 20 генов в подарок при регистрации.`,
+            `Полный разбор без лимита и готовые тексты для карточки — на ${LINK}, ${WELCOME_SPARKS} генов в подарок при регистрации.`,
     );
     return;
   }

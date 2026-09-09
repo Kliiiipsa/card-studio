@@ -103,8 +103,14 @@ export const FAL_COST_PER_GENE = {
   typical: 0.45, // инфографика: ~5,3 ₽ / 12 генов
 } as const;
 
-/** starter balance granted once per account on signup */
-export const WELCOME_SPARKS = 20;
+/**
+ * starter balance granted once per account on signup.
+ * 20 → 25 (2026-09-09, решение владельца): хватает на две карточки вместо
+ * одной, человек успевает попробовать и фото, и инфографику.
+ * ВАЖНО: число упоминается в текстах на сайте, в llms.txt и в TG-боте —
+ * подставляйте эту константу, а не цифру, иначе они разъедутся.
+ */
+export const WELCOME_SPARKS = 25;
 
 export type TopupPackage = { id: string; sparks: number; bonus: number; priceRub: number };
 

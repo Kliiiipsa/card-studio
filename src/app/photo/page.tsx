@@ -22,7 +22,7 @@ import { Badge } from "@/components/ui/badge";
 import { type ExampleCard } from "@/components/landing/examples-gallery";
 import { ExamplesMarquee } from "@/components/landing/examples-marquee";
 import { JsonLd } from "@/components/seo/json-ld";
-import { PRICES } from "@/core/billing/prices";
+import { PRICES, WELCOME_SPARKS } from "@/core/billing/prices";
 
 /* ------------------------------------------------------------------ */
 /* SEO-посадочная под запросы «фото товара нейросетью / предметная      */
@@ -34,7 +34,7 @@ const SITE = "https://kartogen.ru";
 export const metadata: Metadata = {
   title: "Фото товара нейросетью — предметная съёмка без студии | Kartogen",
   description:
-    "Профессиональное фото товара для маркетплейсов с помощью ИИ: новый фон и свет по вашему снимку, лайфстайл-сцены, чистая студия под главное фото WB и Ozon. Без фотографа, за минуту. 20 генов в подарок.",
+    `Профессиональное фото товара для маркетплейсов с помощью ИИ: новый фон и свет по вашему снимку, лайфстайл-сцены, чистая студия под главное фото WB и Ozon. Без фотографа, за минуту. ${WELCOME_SPARKS} генов в подарок.`,
   keywords: [
     "фото товара нейросеть",
     "предметная съёмка ИИ",
@@ -117,7 +117,7 @@ const FAQ: { q: string; a: string }[] = [
   },
   {
     q: "Сколько стоит фото товара?",
-    a: `1 ген = 1 ₽. Фото товара — ${PRICES.generate} 🧬 за генерацию, инфографика — ${PRICES.infographic} 🧬, видео товара — ${PRICES.video} 🧬. Гены списываются только за успешный результат; при регистрации — 20 генов в подарок.`,
+    a: `1 ген = 1 ₽. Фото товара — ${PRICES.generate} 🧬 за генерацию, инфографика — ${PRICES.infographic} 🧬, видео товара — ${PRICES.video} 🧬. Гены списываются только за успешный результат; при регистрации — ${WELCOME_SPARKS} генов в подарок.`,
   },
   {
     q: "Сколько времени занимает генерация?",
@@ -222,7 +222,7 @@ export default async function PhotoLanding() {
         {!authed && (
           <p className="mt-3 flex items-center gap-1.5 text-sm text-muted-foreground">
             <Dna className="h-4 w-4 text-primary" />
-            20 генов в подарок при регистрации — первое фото бесплатно
+            {WELCOME_SPARKS} генов в подарок при регистрации — первое фото бесплатно
           </p>
         )}
 
@@ -323,7 +323,7 @@ export default async function PhotoLanding() {
             Сделайте первое фото товара
           </h2>
           <p className="mx-auto mt-3 max-w-xl text-white/85">
-            Регистрация за минуту, 20 генов в подарок — первое фото бесплатно. Платите только за
+            Регистрация за минуту, {WELCOME_SPARKS} генов в подарок — первое фото бесплатно. Платите только за
             готовые изображения.
           </p>
           <Button asChild size="lg" variant="secondary" className="mt-8">
