@@ -22,6 +22,7 @@ import {
   Download,
   Megaphone,
   Mail,
+  Bell,
 } from "lucide-react";
 import { Markdown } from "@/components/blog/markdown";
 import { AppShell } from "@/components/layout/app-shell";
@@ -37,6 +38,7 @@ import type { SparkTransaction } from "@/core/billing/billing";
 import { cn } from "@/lib/utils";
 import { ALL_VIDEO_PRESETS } from "@/core/video/presets";
 import { PromoManager, type PromoRedemption } from "@/components/admin/promo-manager";
+import { NoticeManager } from "@/components/admin/notice-manager";
 import { INFOGRAPHIC_TYPES, INFOGRAPHIC_STYLES } from "@/core/infographics/types";
 
 type AdminUser = {
@@ -657,6 +659,9 @@ export default function AdminPage() {
             <TabsTrigger value="promo" className="gap-1.5">
               <Ticket className="h-4 w-4" /> Промокоды
             </TabsTrigger>
+            <TabsTrigger value="notices" className="gap-1.5">
+              <Bell className="h-4 w-4" /> Уведомления
+            </TabsTrigger>
             <TabsTrigger value="reports" className="gap-1.5">
               <FileSpreadsheet className="h-4 w-4" /> Отчёты
             </TabsTrigger>
@@ -988,6 +993,11 @@ export default function AdminPage() {
           {/* PROMO */}
           <TabsContent value="promo">
             <PromoManager />
+          </TabsContent>
+
+          {/* NOTICES — колокольчик в шапке студии: акции, техработы, новости */}
+          <TabsContent value="notices">
+            <NoticeManager />
           </TabsContent>
 
           {/* REPORTS — выгрузка чеков за день + аналитика «надо ли пополнять fal» */}

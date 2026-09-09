@@ -6,6 +6,7 @@ import { ThemeToggle } from "./theme-toggle";
 import { ProviderBadge } from "./provider-badge";
 import { MobileNav } from "./mobile-nav";
 import { ProfileMenu } from "./profile-menu";
+import { NoticeBell } from "./notice-bell";
 
 export function Topbar({ title }: { title?: string }) {
   return (
@@ -14,6 +15,7 @@ export function Topbar({ title }: { title?: string }) {
       <h1 className="min-w-0 truncate text-base font-semibold sm:text-lg">{title}</h1>
       <div className="ml-auto flex shrink-0 items-center gap-1.5 sm:gap-3">
         <ProviderBadge />
+        <NoticeBell />
         <ThemeToggle />
         <Button asChild variant="gradient" size="sm">
           <Link href="/infographics" aria-label="Новая карточка">

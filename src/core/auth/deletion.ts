@@ -254,6 +254,10 @@ export async function eraseAccount(emailRaw: string): Promise<void> {
     await db
       .query("delete from billing_balance where email = $1", [email])
       .catch(swallow("billing_balance"));
+    // отметки «прочитал уведомление сервиса» — тоже привязаны к почте
+    await db
+      .query("delete from notice_reads where email = $1", [email])
+      .catch(swallow("notice_reads"));
 
     // Платёжный след обезличиваем: почту — на псевдоним; в reference почта
     // встречается в welcome:<email> и promo:<code>:<email> — заменяем и
