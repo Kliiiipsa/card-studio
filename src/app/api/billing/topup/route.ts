@@ -5,7 +5,7 @@ import { sessionFromRequest } from "@/core/auth/session";
 import { billingEnabled, applyTx } from "@/core/billing/billing";
 import { TOPUP_PACKAGES, CUSTOM_TOPUP, customTopup, gens } from "@/core/billing/prices";
 import { yookassaConfigured, createPayment } from "@/core/billing/yookassa";
-import { consumeTopupBonus, releaseTopupBonus } from "@/core/billing/promo";
+import { peekTopupBonus } from "@/core/billing/promo";
 import { uid } from "@/lib/utils";
 
 export const runtime = "nodejs";
@@ -48,9 +48,10 @@ export async function POST(req: Request) {
       const origin = process.env.CANONICAL_HOST
         ? `https://${process.env.CANONICAL_HOST}`
         : new URL(req.url).origin;
-      // ожидающий промокод на бонус: забираем его сейчас, чтобы он попал в
-      // metadata платежа и зачислился вместе с оплатой
-      const promo = await consumeTopupBonus(session.email);
+      // ожидающий промокод на бонус кладём в metadata платежа, но НЕ расходуем:
+      // человек мог открыть окно оплаты и уйти — бонус должен остаться при нём.
+      // Списывается он при фактическом зачислении (markTopupBonusUsed).
+      const promo = await peekTopupBonus(session.email);
       const promoBonus = promo ? Math.round((pack.sparks * promo.percent) / 100) : 0;
       const bonus = pack.bonus + promoBonus;
       try {
@@ -70,8 +71,7 @@ export async function POST(req: Request) {
         });
         return ok({ paymentId: id, confirmationUrl, promoBonus: promoBonus || undefined });
       } catch (e) {
-        // платёж не создался — возвращаем промокод пользователю
-        if (promo) await releaseTopupBonus(session.email, promo.code);
+        // возвращать промокод больше не нужно: он и не расходовался
         throw e;
       }
     }

@@ -57,6 +57,12 @@ export default function BillingPage() {
     usesLeft: number | null;
   } | null>(null);
   const customPack = customTopup(Number(customAmount));
+  // Сколько добавит действующий промокод к конкретному пакету. Раньше человек
+  // видел в окне оплаты только «1000 генов» и не понимал, начислится ли бонус
+  // вообще (замечание владельца 09.09.2026) — теперь показываем весь расклад.
+  const promoPercent = perks?.pendingBonusPercent ?? 0;
+  const promoFor = (sparks: number) =>
+    promoPercent ? Math.round((sparks * promoPercent) / 100) : 0;
   const [history, setHistory] = React.useState<SparkTransaction[] | null>(null);
 
   const loadHistory = React.useCallback(() => {
@@ -235,7 +241,14 @@ export default function BillingPage() {
                     <Dna className="h-5 w-5 text-primary" />
                     {p.sparks}
                   </p>
-                  <p className="text-sm text-muted-foreground">{p.priceRub} ₽</p>
+                  <div className="space-y-0.5">
+                    <p className="text-sm text-muted-foreground">{p.priceRub} ₽</p>
+                    {promoFor(p.sparks) > 0 && (
+                      <p className="text-xs font-medium text-emerald-600 dark:text-emerald-400">
+                        С промокодом: {p.sparks + p.bonus + promoFor(p.sparks)} генов
+                      </p>
+                    )}
+                  </div>
                   <Button
                     variant={PACK_BUTTON[p.id]?.variant ?? "outline"}
                     className={cn("w-full", PACK_BUTTON[p.id]?.className)}
@@ -271,6 +284,11 @@ export default function BillingPage() {
                   />
                   <span className="text-sm text-muted-foreground">₽</span>
                 </div>
+                {customPack && promoFor(customPack.sparks) > 0 && (
+                  <p className="text-xs font-medium text-emerald-600 dark:text-emerald-400">
+                    С промокодом: {customPack.sparks + promoFor(customPack.sparks)} генов
+                  </p>
+                )}
                 <Button
                   variant="outline"
                   className="w-full"
@@ -445,9 +463,25 @@ export default function BillingPage() {
               <div className="mt-4 space-y-4">
                 <div className="rounded-xl border bg-card/60 p-4 text-sm">
                   <div className="flex justify-between">
-                    <span className="text-muted-foreground">Пакет</span>
-                    <span className="font-medium">
-                      {gens(buying.sparks)}{buying.bonus ? ` + ${buying.bonus} бонусом` : ""}
+                    <span className="text-muted-foreground">Гены за оплату</span>
+                    <span className="font-medium">{buying.sparks}</span>
+                  </div>
+                  {buying.bonus > 0 && (
+                    <div className="mt-1.5 flex justify-between text-emerald-600 dark:text-emerald-400">
+                      <span>Бонус пакета</span>
+                      <span className="font-medium">+{buying.bonus}</span>
+                    </div>
+                  )}
+                  {promoFor(buying.sparks) > 0 && (
+                    <div className="mt-1.5 flex justify-between text-emerald-600 dark:text-emerald-400">
+                      <span>Промокод {perks?.pendingBonusCode} · {promoPercent}%</span>
+                      <span className="font-medium">+{promoFor(buying.sparks)}</span>
+                    </div>
+                  )}
+                  <div className="mt-2 flex justify-between border-t pt-2">
+                    <span className="text-muted-foreground">Зачислим</span>
+                    <span className="font-semibold">
+                      {gens(buying.sparks + buying.bonus + promoFor(buying.sparks))}
                     </span>
                   </div>
                   <div className="mt-1.5 flex justify-between">

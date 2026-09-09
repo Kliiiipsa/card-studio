@@ -130,6 +130,9 @@ function ensureSchema(): Promise<void> {
           on promo_redemptions (code, email);
         create index if not exists promo_redemptions_email_idx
           on promo_redemptions (email, redeemed_at desc);
+        -- каким платежом бонус израсходован: без этого повторный вызов
+        -- зачисления (вебхук + возврат на страницу) считал бонус «уже чужим»
+        alter table promo_redemptions add column if not exists used_payment text;
       `);
     })().catch((e) => {
       schemaReady = null;
@@ -514,30 +517,64 @@ export async function consumePriceListUse(email: string, code: string): Promise<
  * использованным. Вызывается в момент СОЗДАНИЯ платежа, чтобы бонус попал в
  * metadata и зачислился вместе с оплатой.
  */
-export async function consumeTopupBonus(
+/**
+ * Посмотреть ожидающий бонус, НЕ расходуя его.
+ *
+ * Раньше здесь было списание в момент СОЗДАНИЯ платежа: человек открывал окно
+ * оплаты, закрывал его не заплатив — и промокод сгорал молча (проверено на
+ * проде 09.09.2026: KG-M4US9 стоял bonus_used=true без единого платежа).
+ * Теперь бонус помечается использованным только при фактическом зачислении,
+ * см. markTopupBonusUsed.
+ */
+export async function peekTopupBonus(
   email: string,
 ): Promise<{ percent: number; code: string } | null> {
   if (!promoEnabled()) return null;
   try {
     await ensureSchema();
     const { rows } = await getPool().query(
-      `update promo_redemptions
-          set bonus_used = true
-        where id = (
-          select id from promo_redemptions
-           where email = $1 and type = 'topup_bonus' and bonus_used = false and revoked = false
-           order by redeemed_at asc limit 1
-           for update skip locked
-        )
-        and bonus_used = false
-        returning code, bonus_percent`,
+      `select code, bonus_percent from promo_redemptions
+        where email = $1 and type = 'topup_bonus' and bonus_used = false and revoked = false
+        order by redeemed_at asc limit 1`,
       [email],
     );
     if (!rows[0]?.bonus_percent) return null;
     return { percent: Number(rows[0].bonus_percent), code: rows[0].code };
   } catch (e) {
-    console.error("[promo] bonus consume failed:", e);
+    console.error("[promo] bonus peek failed:", e);
     return null;
+  }
+}
+
+/**
+ * Пометить бонус израсходованным конкретным платежом. Возвращает true, если
+ * этот платёж вправе начислить бонус.
+ *
+ * Идемпотентно и защищено от гонки: условие `bonus_used = false OR
+ * used_payment = $3` даёт true и первому вызову, и повторному от ТОГО ЖЕ
+ * платежа (зачисление дёргают дважды — вебхук и возврат на страницу), но
+ * false — второму платежу, если человек открыл два окна оплаты.
+ */
+export async function markTopupBonusUsed(
+  email: string,
+  code: string,
+  paymentId: string,
+): Promise<boolean> {
+  if (!promoEnabled()) return false;
+  try {
+    await ensureSchema();
+    const { rows } = await getPool().query(
+      `update promo_redemptions
+          set bonus_used = true, used_payment = $3
+        where email = $1 and code = $2 and type = 'topup_bonus' and revoked = false
+          and (bonus_used = false or used_payment = $3)
+        returning id`,
+      [email, code, paymentId],
+    );
+    return rows.length > 0;
+  } catch (e) {
+    console.error("[promo] bonus mark failed:", e);
+    return false;
   }
 }
 
