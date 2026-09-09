@@ -22,6 +22,7 @@ type Notice = {
   title: string;
   body: string;
   url: string | null;
+  banner: boolean;
   active: boolean;
   createdAt: string;
   expiresAt: string | null;
@@ -43,6 +44,7 @@ export function NoticeManager() {
   const [body, setBody] = React.useState("");
   const [url, setUrl] = React.useState("");
   const [expires, setExpires] = React.useState("");
+  const [banner, setBanner] = React.useState(false);
 
   const load = React.useCallback(async () => {
     setLoading(true);
@@ -77,6 +79,7 @@ export function NoticeManager() {
           title: title.trim(),
           body: body.trim(),
           url: url.trim() || null,
+          banner,
           expiresAt: expires ? new Date(expires).toISOString() : null,
         }),
       });
@@ -87,6 +90,7 @@ export function NoticeManager() {
       setBody("");
       setUrl("");
       setExpires("");
+      setBanner(false);
       await load();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Ошибка");
@@ -188,6 +192,22 @@ export function NoticeManager() {
             </div>
           </div>
 
+          <label className="flex cursor-pointer items-start gap-2 rounded-lg border bg-muted/30 px-3 py-2.5">
+            <input
+              type="checkbox"
+              checked={banner}
+              onChange={(e) => setBanner(e.target.checked)}
+              className="mt-0.5 h-4 w-4 accent-[hsl(var(--primary))]"
+            />
+            <span className="text-xs leading-4">
+              <b className="text-sm font-medium">Показать полосой вверху страницы</b>
+              <br />
+              Уведомление будет видно всем поверх студии, пока человек не закроет его крестиком.
+              Для техработ и крупных акций — обычные новости так показывать не стоит, к полосе
+              быстро привыкают и перестают её замечать.
+            </span>
+          </label>
+
           <Button onClick={publish} disabled={busy} variant="gradient" className="w-full sm:w-auto">
             {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
             Опубликовать
@@ -236,6 +256,7 @@ export function NoticeManager() {
                       </div>
                     </div>
                     <div className="flex items-center gap-1.5">
+                      {n.banner && <Badge variant="outline">полосой</Badge>}
                       <Badge variant={n.active && !expired ? "default" : "secondary"}>
                         {expired ? "истекло" : n.active ? "показывается" : "скрыто"}
                       </Badge>

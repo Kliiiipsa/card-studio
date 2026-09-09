@@ -3,27 +3,18 @@ import * as React from "react";
 import Link from "next/link";
 import { Bell, Megaphone, Info, Wrench, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useNoticeStore, type Notice } from "@/store/notice-store";
 
 /**
  * «Колокольчик» уведомлений сервиса: акции, технические работы, новые функции.
- * Красная точка — есть непрочитанные; открыли панель — точка гаснет (отметку
- * шлём на сервер, она пер-аккаунт, а не в localStorage: человек заходит с
- * телефона и с компьютера).
  *
- * Список приходит из /api/notices, который сам решает, показывать ли что-то
- * (гейт noticeBellEnabled: сейчас админ, потом env NOTICES=all). Если список
- * пуст, кнопки нет вовсе — лишний неработающий значок в шапке не нужен.
+ * Заметность (2026-09-09): одной красной точки в шапке мало — рядом яркая
+ * кнопка «Новая карточка» и зелёный бейдж, глаз уходит на них. Поэтому при
+ * непрочитанном рядом появляется ПЛАШКА С ТЕКСТОМ («1 новое»), а сама кнопка
+ * получает цветной фон. Прочитал — всё гаснет, шапка снова спокойная.
+ *
+ * Данные и отметки о прочтении — в общем сторе с полосой под шапкой.
  */
-
-type Notice = {
-  id: number;
-  kind: "info" | "promo" | "maintenance";
-  title: string;
-  body: string;
-  url: string | null;
-  createdAt: string;
-  read: boolean;
-};
 
 const ICON = { info: Info, promo: Megaphone, maintenance: Wrench } as const;
 const TONE = {
@@ -44,28 +35,24 @@ function when(iso: string): string {
   return d.toLocaleDateString("ru-RU", { day: "numeric", month: "long" });
 }
 
+/** «1 новое» / «2 новых» / «5 новых» */
+function newWord(n: number): string {
+  const t = n % 100;
+  if (t >= 11 && t <= 14) return "новых";
+  return n % 10 === 1 ? "новое" : "новых";
+}
+
 export function NoticeBell() {
-  const [notices, setNotices] = React.useState<Notice[]>([]);
+  const { notices, loaded, fetchNotices, markRead } = useNoticeStore();
   const [open, setOpen] = React.useState(false);
   const rootRef = React.useRef<HTMLDivElement>(null);
 
-  const load = React.useCallback(async () => {
-    try {
-      const res = await fetch("/api/notices");
-      if (!res.ok) return;
-      const data = (await res.json()) as { notices?: Notice[] };
-      setNotices(data.notices ?? []);
-    } catch {
-      // аналитика шапки не должна ломать страницу
-    }
-  }, []);
-
   React.useEffect(() => {
-    void load();
+    if (!loaded) void fetchNotices();
     // раз в 5 минут: акцию и «техработы» человек должен увидеть, не перезагружая
-    const t = setInterval(() => void load(), 5 * 60 * 1000);
+    const t = setInterval(() => void fetchNotices(), 5 * 60 * 1000);
     return () => clearInterval(t);
-  }, [load]);
+  }, [loaded, fetchNotices]);
 
   React.useEffect(() => {
     if (!open) return;
@@ -76,37 +63,40 @@ export function NoticeBell() {
     return () => document.removeEventListener("mousedown", close);
   }, [open]);
 
-  const unread = notices.filter((n) => !n.read);
+  const unread = notices.filter((n: Notice) => !n.read);
 
   const toggle = async () => {
     const next = !open;
     setOpen(next);
-    if (!next || !unread.length) return;
-    // гасим точку сразу, не дожидаясь сервера
-    setNotices((list) => list.map((n) => ({ ...n, read: true })));
-    await fetch("/api/notices", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ ids: unread.map((n) => n.id) }),
-    }).catch(() => undefined);
+    if (next && unread.length) await markRead(unread.map((n) => n.id));
   };
 
   if (!notices.length) return null;
 
   return (
-    <div ref={rootRef} className="relative">
+    <div ref={rootRef} className="relative flex items-center">
       <button
         type="button"
         onClick={toggle}
         aria-label={unread.length ? `Уведомления: ${unread.length} новых` : "Уведомления"}
-        className="relative flex h-9 w-9 items-center justify-center rounded-lg text-foreground/70 transition-colors hover:bg-accent hover:text-foreground"
+        className={cn(
+          "relative flex h-9 items-center gap-1.5 rounded-lg px-2 transition-colors",
+          unread.length
+            ? "bg-primary/10 text-primary hover:bg-primary/15"
+            : "text-foreground/70 hover:bg-accent hover:text-foreground",
+        )}
       >
-        <Bell className="h-[18px] w-[18px]" />
+        <Bell className={cn("h-[18px] w-[18px]", unread.length && "animate-wiggle")} />
         {unread.length > 0 && (
-          <span className="absolute right-1.5 top-1.5 flex h-2.5 w-2.5">
-            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-500 opacity-60" />
-            <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-red-500 ring-2 ring-background" />
-          </span>
+          <>
+            <span className="text-xs font-semibold">
+              {unread.length} {newWord(unread.length)}
+            </span>
+            <span className="absolute left-3 top-1.5 flex h-2 w-2">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-500 opacity-60" />
+              <span className="relative inline-flex h-2 w-2 rounded-full bg-red-500 ring-2 ring-background" />
+            </span>
+          </>
         )}
       </button>
 

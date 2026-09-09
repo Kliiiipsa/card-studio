@@ -23,6 +23,8 @@ export type Notice = {
   body: string;
   /** необязательная ссылка «Подробнее» — только внутренний путь вида /billing */
   url: string | null;
+  /** показывать полосой во всю ширину под шапкой — для важного (техработы, акция) */
+  banner: boolean;
   active: boolean;
   createdAt: string;
   expiresAt: string | null;
@@ -72,6 +74,7 @@ function ensureSchema(): Promise<void> {
           expires_at timestamptz
         );
         create index if not exists notices_active_idx on notices (active, created_at desc);
+        alter table notices add column if not exists banner boolean not null default false;
         create table if not exists notice_reads (
           email text not null,
           notice_id bigint not null references notices (id) on delete cascade,
@@ -93,6 +96,7 @@ type Row = {
   title: string;
   body: string;
   url: string | null;
+  banner: boolean;
   active: boolean;
   created_at: Date;
   expires_at: Date | null;
@@ -105,6 +109,7 @@ function toNotice(r: Row): Notice {
     title: r.title,
     body: r.body,
     url: r.url,
+    banner: r.banner,
     active: r.active,
     createdAt: r.created_at.toISOString(),
     expiresAt: r.expires_at ? r.expires_at.toISOString() : null,
@@ -157,17 +162,19 @@ export async function createNotice(args: {
   title: string;
   body: string;
   url?: string | null;
+  banner?: boolean;
   expiresAt?: string | null;
 }): Promise<Notice> {
   await ensureSchema();
   const { rows } = await getPool().query<Row>(
-    `insert into notices (kind, title, body, url, expires_at)
-     values ($1, $2, $3, $4, $5) returning *`,
+    `insert into notices (kind, title, body, url, banner, expires_at)
+     values ($1, $2, $3, $4, $5, $6) returning *`,
     [
       args.kind,
       args.title.slice(0, 120),
       args.body.slice(0, 2000),
       args.url?.slice(0, 300) || null,
+      args.banner ?? false,
       args.expiresAt || null,
     ],
   );

@@ -45,6 +45,7 @@ const createSchema = z.object({
     .regex(/^\/[A-Za-z0-9/_\-?=&.]*$/, "Ссылка — внутренний путь, например /billing")
     .nullable()
     .optional(),
+  banner: z.boolean().optional(),
   expiresAt: z.string().nullable().optional(),
 });
 

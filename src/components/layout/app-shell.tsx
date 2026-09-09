@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Sidebar } from "./sidebar";
 import { Topbar } from "./topbar";
 import { UpdateNotifier } from "./update-notifier";
+import { NoticeBanner } from "./notice-banner";
 
 const LEGAL_LINKS = [
   { href: "/pricing", label: "Тарифы" },
@@ -16,6 +17,7 @@ export function AppShell({ title, children }: { title?: string; children: React.
       <Sidebar />
       <div className="flex min-w-0 flex-1 flex-col">
         <Topbar title={title} />
+        <NoticeBanner />
         <UpdateNotifier />
         <main className="flex-1 p-4 sm:p-6">{children}</main>
         {/* Legal links reachable from every studio page — not just the landing.
