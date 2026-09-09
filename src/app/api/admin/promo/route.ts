@@ -8,6 +8,7 @@ import {
   setCodeActive,
   listRedemptions,
   revokeRedemption,
+  releaseTopupBonus,
   promoEnabled,
   type PromoGroup,
 } from "@/core/billing/promo";
@@ -93,6 +94,8 @@ const patchSchema = z.object({
   /** отменить конкретное применение */
   redemptionId: z.number().int().optional(),
   clawback: z.boolean().optional(),
+  /** вернуть человеку неизрасходованный бонус к пополнению */
+  releaseBonus: z.boolean().optional(),
 });
 
 /** Выключить код или отменить применение у пользователя. */
@@ -101,6 +104,11 @@ export async function PATCH(req: Request) {
     await requireAdmin(req);
     const body = await parseBody(req, patchSchema);
 
+    if (typeof body.redemptionId === "number" && body.releaseBonus) {
+      const res = await releaseTopupBonus(body.redemptionId);
+      if (!res.ok) throw new AppError("Бонус уже свободен или применение отменено.");
+      return ok({ released: true, code: res.code });
+    }
     if (typeof body.redemptionId === "number") {
       const res = await revokeRedemption(body.redemptionId, { clawback: body.clawback });
       if (!res.ok) throw new AppError("Это применение уже отменено.");

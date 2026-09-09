@@ -578,18 +578,26 @@ export async function markTopupBonusUsed(
   }
 }
 
-/** Вернуть бонус обратно, если платёж не состоялся. */
-export async function releaseTopupBonus(email: string, code: string): Promise<void> {
-  if (!promoEnabled()) return;
-  try {
-    await getPool().query(
-      `update promo_redemptions set bonus_used = false
-        where email = $1 and code = $2 and type = 'topup_bonus' and revoked = false`,
-      [email, code],
-    );
-  } catch (e) {
-    console.error("[promo] bonus release failed:", e);
-  }
+/**
+ * Вернуть человеку неиспользованный бонус к пополнению.
+ *
+ * Нужно, когда бонус помечен израсходованным, а зачисления не было: до
+ * 09.09.2026 так сгорал промокод у каждого, кто открыл окно оплаты и передумал
+ * (сама причина устранена, но пострадавшим бонус надо вернуть). Также это
+ * инструмент поддержки на случай спорных платежей.
+ */
+export async function releaseTopupBonus(
+  redemptionId: number,
+): Promise<{ ok: boolean; code?: string; email?: string }> {
+  if (!promoEnabled()) return { ok: false };
+  await ensureSchema();
+  const { rows } = await getPool().query<{ code: string; email: string }>(
+    `update promo_redemptions set bonus_used = false, used_payment = null
+      where id = $1 and type = 'topup_bonus' and revoked = false and bonus_used = true
+      returning code, email`,
+    [redemptionId],
+  );
+  return rows[0] ? { ok: true, ...rows[0] } : { ok: false };
 }
 
 /** Сводка по коду для админки: сколько применено и сколько генов роздано. */

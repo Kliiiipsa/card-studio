@@ -502,6 +502,25 @@ export default function AdminPage() {
       .catch(() => undefined);
   }, []);
 
+  /** Вернуть человеку бонус к пополнению, если он помечен использованным зря. */
+  const releaseBonus = async (r: PromoRedemption) => {
+    if (!window.confirm(`Вернуть ${r.email} бонус по коду ${r.code}? Он снова сработает при следующем пополнении.`))
+      return;
+    try {
+      const res = await fetch("/api/admin/promo", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ redemptionId: r.id, releaseBonus: true }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Не удалось вернуть");
+      toast.success(`Бонус по ${r.code} возвращён`);
+      loadPromoUses();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Ошибка");
+    }
+  };
+
   const revokePromo = async (r: PromoRedemption) => {
     const clawback =
       r.type === "sparks" && r.sparksGranted
@@ -890,6 +909,16 @@ export default function AdminPage() {
                                         >
                                           {r.code}
                                         </span>
+                                        {!r.revoked && r.type === "topup_bonus" && r.bonusUsed && (
+                                          <button
+                                            type="button"
+                                            onClick={() => releaseBonus(r)}
+                                            className="text-[11px] text-muted-foreground hover:text-primary"
+                                            title="Бонус помечен использованным — вернуть его человеку"
+                                          >
+                                            вернуть бонус
+                                          </button>
+                                        )}
                                         {!r.revoked && (
                                           <button
                                             type="button"
