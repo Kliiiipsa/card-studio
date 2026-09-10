@@ -15,6 +15,8 @@ export default function robots(): MetadataRoute.Robots {
           "/ozon",
           "/photo",
           "/infografika",
+          "/neuroset-infografika",
+          "/infografika-marketplace",
           "/razmer-kartochki-wildberries",
           "/trebovaniya-k-foto-ozon",
           "/check",
