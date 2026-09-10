@@ -18,26 +18,33 @@ export async function GET(req: Request) {
     return ok({
       // turnkey parents are progress containers — their items are already
       // recorded individually as infographic/generator cards
-      cards: jobs.filter((j) => j.kind !== "turnkey").map((j) => {
-        const payload = (j.payload ?? {}) as {
-          brief?: { headline?: string };
-          prompt?: string;
-          cardText?: string;
-          productName?: string;
-        };
-        return {
-          id: j.id,
-          kind: j.kind,
-          url: j.resultUrl,
-          title:
-            payload.brief?.headline ||
-            payload.cardText ||
-            payload.productName ||
-            payload.prompt?.slice(0, 60) ||
-            null,
-          createdAt: j.createdAt,
-        };
-      }),
+      cards: jobs
+        .filter((j) => j.kind !== "turnkey")
+        .map((j) => {
+          const payload = (j.payload ?? {}) as {
+            brief?: { headline?: string };
+            prompt?: string;
+            cardText?: string;
+            productName?: string;
+            // «Рекламные креативы»: свои поля — без них подпись выходила «null»
+            headline?: string;
+            subject?: string;
+          };
+          return {
+            id: j.id,
+            kind: j.kind,
+            url: j.resultUrl,
+            title:
+              payload.brief?.headline ||
+              payload.headline ||
+              payload.cardText ||
+              payload.productName ||
+              payload.subject ||
+              payload.prompt?.slice(0, 60) ||
+              null,
+            createdAt: j.createdAt,
+          };
+        }),
     });
   } catch (err) {
     return fail(err);

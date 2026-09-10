@@ -21,6 +21,7 @@ const KIND_LABEL: Record<string, string> = {
   infographic: "Инфографика",
   improve: "Улучшение",
   video: "Видео",
+  banner: "Реклама",
 };
 
 export default function MyCardsPage() {
