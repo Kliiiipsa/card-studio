@@ -1,26 +1,26 @@
 import { getCreativeType, getFormat } from "./formats";
+import { orientationOf, pickVariants } from "./composition-variants";
 import type { BannerLook, CreativeTypeId } from "./types";
 
 /**
  * Промпт креатива для gpt-image (кириллицу он печатает сам).
  *
- * Отличия от промпта инфографики:
- *  1. Это РЕКЛАМА, а не слайд карточки: постановочная сцена, энергия промо.
- *  2. Раскладка диктуется под пропорцию — иначе на широком кадре модель рисует
- *     маленький остров по центру и оставляет края пустыми (проверено).
- *  3. Весь текст, включая цену, кнопку, телефон и домен, печёт модель. Проверено
- *     на «+7 495 123-45-67» и «kartogen.ru» — выходит буква в букву, и выглядит
- *     это несравнимо лучше канвасной полосы.
- *  4. Логотип модели НЕ отдаём: она перерисует его по мотивам. Просим оставить
- *     под него чистый угол, а сам знак кладём поверх точными пикселями.
+ * Ключевое устройство: раскладка, типографика, декор и место контактов НЕ
+ * зашиты, а берутся из четырёх независимых пулов (composition-variants.ts).
+ * Стартовая связка определяется предметом рекламы, каждая перегенерация
+ * сдвигает сид. Первая версия имела по одному варианту на пропорцию — и все
+ * креативы выходили на один шаблон «фото справа, текст слева».
+ *
+ * Логотип модели НЕ отдаём: она перерисует его по мотивам. Просим оставить под
+ * него чистый угол, а сам знак кладём поверх точными пикселями.
  */
 
 const LOOK_SPEC: Record<Exclude<BannerLook, "adaptive">, string> = {
   light:
-    "Light, airy commercial look: clean bright backdrop in soft neutral or pastel tones, generous daylight, gentle gradients and soft shadows. Calm and premium, never washed out.",
-  dark: "Dark premium look: deep near-black or rich dark backdrop, dramatic directional light sculpting the subject, subtle glow and reflections. High contrast, expensive and confident.",
+    "Light, airy commercial look: clean bright ground in soft neutral or pastel tones, generous daylight, gentle gradients and soft shadows. Calm and premium, never washed out.",
+  dark: "Dark premium look: deep near-black or rich dark ground, dramatic directional light sculpting the subject, subtle glow and reflections. High contrast, expensive and confident.",
   bright:
-    "Bold vivid promo look: saturated confident colour backdrop with energetic contrast, crisp graphic shapes, punchy lighting. Attention-grabbing but tidy — never noisy or cluttered.",
+    "Bold vivid promo look: saturated confident colour ground with energetic contrast, crisp graphic shapes, punchy lighting. Attention-grabbing but tidy — never noisy.",
   premium:
     "Luxury look: deep charcoal or near-black ground with warm gold and champagne accents, thin elegant rules, soft specular highlights. Restrained, expensive, unhurried.",
   warm: "Warm human look: sand, terracotta and cream tones, soft late-afternoon light, natural textures like wood, linen and paper. Friendly and grounded.",
@@ -28,22 +28,13 @@ const LOOK_SPEC: Record<Exclude<BannerLook, "adaptive">, string> = {
 };
 
 /**
- * «Адаптивный стиль»: оформление не задано, модель выбирает его сама под
- * предмет рекламы. Тот же приём, что с адаптивными сценами в инфографике —
- * решение принимает модель, но рамки задаём мы, иначе получим случайность.
+ * «Адаптивный стиль»: оформление выбирает модель под предмет рекламы. Рамки
+ * задаём мы, иначе получим случайность вместо решения.
  */
 const ADAPTIVE_SPEC =
-  "ART DIRECTION IS YOURS: choose the palette, the lighting and the backdrop that genuinely fit THIS subject and its audience — a dental clinic, a tractor rental and a perfume each deserve a different world. " +
-  "Commit to ONE clear idea rather than hedging: pick a dominant colour, one accent that fights it, and stick to them across the frame. " +
-  "Decide deliberately whether to keep the photo's own environment or rebuild it, and say it with the light: real direction, real shadows, real depth. " +
+  "ART DIRECTION IS YOURS: choose the palette, the lighting and the ground that genuinely fit THIS subject and its audience — a dental clinic, a tractor rental and a perfume each deserve a different world. " +
+  "Commit to ONE clear idea rather than hedging: pick a dominant colour, one accent that fights it, and hold them across the frame. " +
   "Avoid the safe default of a grey studio backdrop unless the subject truly calls for one.";
-
-/** Общая для всех типов спецификация подачи текста — то, ради чего всё затевалось. */
-const TYPOGRAPHY_SPEC = [
-  "POSTER-GRADE TYPOGRAPHY: the headline is the loudest element — very large, heavy bold sans-serif, set in 2–3 size steps with the key word largest. Give ONE word of the headline an accent colour or a different weight so the eye lands on it first.",
-  "Letterforms keep NATURAL, optically correct proportions — never stretch, squeeze, condense or expand letters to fill space. Scale comes from font SIZE only; if a word does not fit, make it smaller or break the line.",
-  "Correct Russian spelling is MANDATORY — no gibberish, no invented or duplicated words.",
-].join(" ");
 
 export type BannerPromptArgs = {
   creativeType: CreativeTypeId;
@@ -58,17 +49,30 @@ export type BannerPromptArgs = {
   phone?: string;
   site?: string;
   hasProductImage: boolean;
-  /** сверху ляжет настоящий логотип — просим оставить угол чистым */
   logoCorner?: "top-left" | "top-right";
+  /** растёт на каждой перегенерации → следующая связка вариантов */
+  variantSeed?: number;
+  /** ручной выбор композиции из списка, если человек его сделал */
+  compositionId?: string;
 };
 
 export function buildBannerPrompt(args: BannerPromptArgs): {
   prompt: string;
   negativePrompt: string;
+  /** какие варианты выпали — пишем в журнал, чтобы понимать разбор жалоб */
+  variants: { composition: string; typography: string; decor: string; contacts: string };
 } {
   const type = getCreativeType(args.creativeType);
   const fmt = getFormat(args.creativeType, args.format);
   const subject = args.subject.trim() || "the subject";
+
+  const orientation = orientationOf(fmt.width, fmt.height);
+  const v = pickVariants({
+    subject,
+    orientation,
+    variantSeed: args.variantSeed ?? 0,
+    compositionId: args.compositionId,
+  });
 
   const base = args.hasProductImage
     ? `Using the provided photo, create a FINISHED ${type.intent} for ${subject}. Keep the photographed subject photorealistic and unchanged: same shape, colour, material, finish, proportions and any branding visible on it.`
@@ -77,8 +81,8 @@ export function buildBannerPrompt(args: BannerPromptArgs): {
   // Для рекламы сцена собирается заново — в отличие от инфографики, где фон
   // клиента бережём: постановочный кадр здесь и есть продукт услуги.
   const scene = args.hasProductImage
-    ? "Rebuild the environment around the subject into a purposeful advertising scene that suits it — a believable surface, gentle depth, restrained props that support the story. Keep it photographic and dimensional; do not place the subject on a flat empty backdrop, and do not default to a generic white studio with a potted plant."
-    : "Build a purposeful advertising scene that suits this specific subject — believable surfaces, gentle depth, restrained supporting props, photographic and dimensional.";
+    ? "Rebuild the environment around the subject into a purposeful advertising scene that suits it. Keep the subject photographic and dimensional; do not place it on a flat empty backdrop, and do not default to a generic white studio with a potted plant."
+    : "Build a purposeful advertising scene that suits this specific subject — believable surfaces, gentle depth, restrained supporting props.";
 
   /**
    * Закрытый список текстов. Он же защита от «двух кнопок»: если не перечислить
@@ -100,16 +104,29 @@ export function buildBannerPrompt(args: BannerPromptArgs): {
       `• A rounded call-to-action button, clearly a button, with exactly this label: «${args.cta.trim()}»`,
     );
   }
-  if (args.phone?.trim()) {
-    texts.push(`• A phone number, exactly: «${args.phone.trim()}»`);
-  }
-  if (args.site?.trim()) {
-    texts.push(`• A website address, exactly: «${args.site.trim()}»`);
-  }
+  if (args.phone?.trim()) texts.push(`• A phone number, exactly: «${args.phone.trim()}»`);
+  if (args.site?.trim()) texts.push(`• A website address, exactly: «${args.site.trim()}»`);
+
+  /**
+   * Перечисляем ТОЛЬКО реально заданные элементы. Если написать в промпте
+   * «расположи цену, кнопку, телефон и сайт» когда кнопки нет, модель кнопку
+   * дорисует — проверено 2026-09-10: три кадра из четырёх получили выдуманную
+   * кнопку (пустую, со стрелкой, с курсором).
+   */
+  const secondaryItems = [
+    args.price?.trim() ? "the price" : "",
+    args.cta?.trim() ? "the button" : "",
+    args.phone?.trim() ? "the phone number" : "",
+    args.site?.trim() ? "the website address" : "",
+  ].filter(Boolean);
+  const itemsList =
+    secondaryItems.length > 1
+      ? `${secondaryItems.slice(0, -1).join(", ")} and ${secondaryItems[secondaryItems.length - 1]}`
+      : (secondaryItems[0] ?? "");
 
   const exactness =
     args.phone?.trim() || args.site?.trim() || args.price?.trim()
-      ? "Every digit and every latin character must be rendered EXACTLY as written above, letter for letter — a wrong phone number or a wrong website address makes the whole creative useless."
+      ? "Every digit and every latin character must be rendered EXACTLY as written above, letter for letter — a wrong phone number or website address makes the whole creative useless."
       : "";
 
   // Логотип кладём поверх сами: модель фирменный знак не копирует, а
@@ -121,17 +138,32 @@ export function buildBannerPrompt(args: BannerPromptArgs): {
   const prompt = [
     base,
     `Format: ${fmt.label} (${fmt.width}×${fmt.height}).`,
-    fmt.layout,
+    // Композиция из пула — главное, что делает креативы непохожими друг на друга
+    `COMPOSITION: ${v.composition.describe}`,
+    "Use the whole frame: no dead margins, no small island of content floating in empty space.",
+    // Жёсткие требования формата идут ПОСЛЕ композиции и перебивают её
+    fmt.constraint ? `FORMAT REQUIREMENT (overrides the composition above): ${fmt.constraint}` : "",
     args.look === "adaptive" ? ADAPTIVE_SPEC : LOOK_SPEC[args.look],
     scene,
+    `DECORATION: ${v.decor.describe}`,
     "Render the following RUSSIAN text directly inside the image as designed advertising typography — integrated into the composition, not pasted on as flat stickers:",
     ...texts,
-    TYPOGRAPHY_SPEC,
+    `HEADLINE TREATMENT: ${v.typography.describe}`,
+    "Letterforms keep NATURAL, optically correct proportions — never stretch, squeeze, condense or expand letters to fill space. Scale comes from font SIZE only; if a word does not fit, make it smaller or break the line.",
+    "The headline must stay high-contrast and readable at a glance, including at small preview size.",
+    "Correct Russian spelling is MANDATORY — no gibberish, no invented or duplicated words.",
     exactness,
-    "Arrange the secondary elements — price, button, phone, website — as a deliberate, tidy group with consistent alignment, clearly subordinate to the headline. They must not collide with the subject or with each other.",
+    itemsList
+      ? `SECONDARY ELEMENTS: ${v.contacts.describe.replace("{items}", itemsList)} They stay clearly subordinate to the headline and must not collide with the subject or with each other.`
+      : "",
+    // Кнопка появляется ТОЛЬКО если её заказали. Без этой строки модель
+    // дорисовывала пустую кнопку со стрелкой «для красоты».
+    args.cta?.trim()
+      ? ""
+      : "There is NO call-to-action button in this creative: do not draw any button, pill, arrow badge or clickable-looking shape.",
     logoRoom,
     "Use ONLY the Russian text listed above. Do not add any other words, and do not invent numbers, prices, percentages, sizes, ratings, guarantees or specifications of any kind.",
-    "The result must look like a professional advertising creative: cohesive, confident, and built around one subject and one message.",
+    "The result must look like a professional advertising creative designed by a human: cohesive, confident, and built around one subject and one message.",
   ]
     .filter(Boolean)
     .join(" ");
@@ -141,5 +173,14 @@ export function buildBannerPrompt(args: BannerPromptArgs): {
     "duplicated words, wrong digits, stretched letters, distorted subject, changed product colour, " +
     "extra objects, cluttered layout, text touching the frame edge, low quality, blurry";
 
-  return { prompt, negativePrompt };
+  return {
+    prompt,
+    negativePrompt,
+    variants: {
+      composition: v.composition.id,
+      typography: v.typography.id,
+      decor: v.decor.id,
+      contacts: v.contacts.id,
+    },
+  };
 }

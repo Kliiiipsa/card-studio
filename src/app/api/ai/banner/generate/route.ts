@@ -57,6 +57,8 @@ export async function POST(req: Request) {
         site: body.site,
         productImage: body.productImage,
         logoCorner: body.logoCorner,
+        variantSeed: body.variantSeed,
+        compositionId: body.compositionId,
       });
 
       /**
@@ -76,6 +78,9 @@ export async function POST(req: Request) {
         height: result.height,
         hasProductPhoto: Boolean(body.productImage),
         hasLogo: Boolean(body.logoCorner),
+        // какие варианты оформления выпали — без этого «почему опять так же?» не разобрать
+        variants: result.variants,
+        variantSeed: body.variantSeed ?? 0,
         hasPhone: Boolean(body.phone),
         imagePrompt: redactPhone(result.prompt, body.phone).slice(0, 2000),
         userInput: {

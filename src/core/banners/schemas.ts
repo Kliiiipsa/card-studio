@@ -62,6 +62,10 @@ export const bannerGenerateSchema = z.object({
   /** угол под настоящий логотип — сам знак накладывается на клиенте */
   logoCorner: z.enum(["top-left", "top-right"]).optional(),
   benefit: z.string().max(300).optional(),
+  /** сдвиг связки вариантов оформления — растёт на каждой перегенерации */
+  variantSeed: z.number().int().min(0).max(9999).optional(),
+  /** ручной выбор композиции из списка */
+  compositionId: z.string().max(40).optional(),
 });
 
 export const bannerStatusSchema = z.object({

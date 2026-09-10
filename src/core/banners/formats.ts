@@ -23,11 +23,15 @@ export type BannerFormat = {
   width: number;
   height: number;
   /**
-   * Раскладка под пропорцию — словами для модели. Без неё на широком кадре
-   * gpt-image рисует композицию по центру и оставляет края пустыми
-   * (проверено на 1200×400).
+   * ЖЁСТКИЕ требования формата — то, что нельзя нарушать ни при какой
+   * композиции: безопасная зона YouTube, поля под подрезку у визитки.
+   *
+   * Художественную раскладку задаёт пул вариантов (composition-variants.ts).
+   * Раньше она была зашита ЗДЕСЬ, по одной штуке на пропорцию, — и все
+   * креативы выходили на один шаблон «фото справа, текст слева». Владелец
+   * увидел это на своих тестах 2026-09-10. Не возвращать сюда раскладку.
    */
-  layout: string;
+  constraint?: string;
 };
 
 export type CreativeType = {
@@ -38,13 +42,6 @@ export type CreativeType = {
   intent: string;
   formats: BannerFormat[];
 };
-
-const WIDE_LAYOUT =
-  "Wide horizontal composition: split the frame into two halves — the subject fills one side edge-to-edge, the text block is set large on the other side and vertically centred. Use the FULL width; never centre a small island of content with empty space at the left and right edges.";
-const SQUARE_LAYOUT =
-  "Square composition: the subject is the hero slightly off-centre, the text block occupies the upper third in large type. Balance mass across the frame — no large empty corners.";
-const TALL_LAYOUT =
-  "Tall vertical composition: stack the frame — text across the upper area, the subject large in the middle, breathing room below. Use the full height; never leave the top third empty.";
 
 export const CREATIVE_TYPES: CreativeType[] = [
   {
@@ -60,7 +57,6 @@ export const CREATIVE_TYPES: CreativeType[] = [
         hint: "Универсальный, лента соцсетей",
         width: 1024,
         height: 1024,
-        layout: SQUARE_LAYOUT,
       },
       {
         id: "wide",
@@ -68,7 +64,6 @@ export const CREATIVE_TYPES: CreativeType[] = [
         hint: "Шапка сайта, широкие места",
         width: 1280,
         height: 720,
-        layout: WIDE_LAYOUT,
       },
       {
         id: "story",
@@ -76,7 +71,6 @@ export const CREATIVE_TYPES: CreativeType[] = [
         hint: "Сторис и вертикальные места",
         width: 1008,
         height: 1792,
-        layout: TALL_LAYOUT,
       },
     ],
   },
@@ -93,7 +87,6 @@ export const CREATIVE_TYPES: CreativeType[] = [
         hint: "Классический пост",
         width: 1024,
         height: 1024,
-        layout: SQUARE_LAYOUT,
       },
       {
         id: "post-portrait",
@@ -101,7 +94,6 @@ export const CREATIVE_TYPES: CreativeType[] = [
         hint: "Занимает больше экрана в ленте",
         width: 1024,
         height: 1280,
-        layout: TALL_LAYOUT,
       },
       {
         id: "post-story",
@@ -109,7 +101,6 @@ export const CREATIVE_TYPES: CreativeType[] = [
         hint: "На весь экран телефона",
         width: 1008,
         height: 1792,
-        layout: TALL_LAYOUT,
       },
     ],
   },
@@ -129,7 +120,7 @@ export const CREATIVE_TYPES: CreativeType[] = [
         // У YouTube всё, кроме центральной полосы, обрезается на телефонах.
         // Проверено 2026-09-10: общей формулировки «средние 30 % высоты» модели
         // мало — заголовок вылезал выше полосы. Полосу называем в пикселях.
-        layout:
+        constraint:
           "Wide 16:9 cover. CRITICAL SAFE AREA: the frame is 2560×1440, but on phones only a centred rectangle of 1546×423 pixels stays visible — that is the middle 60% of the width and just the middle 29% of the height, roughly from y=509 to y=932. EVERY piece of text, the logo area and the subject's face must fit ENTIRELY inside that centred rectangle; scale the whole text block down if needed. Outside it put background only — it will be cropped away.",
       },
       {
@@ -138,7 +129,7 @@ export const CREATIVE_TYPES: CreativeType[] = [
         hint: "Шапка сайта и большинство обложек",
         width: 1536,
         height: 512,
-        layout:
+        constraint:
           "Very wide 3:1 banner strip. Spread the composition across the FULL width: subject on one side, text on the other, both vertically centred. Never leave the left and right thirds empty.",
       },
     ],
@@ -156,7 +147,7 @@ export const CREATIVE_TYPES: CreativeType[] = [
         hint: "1104 × 640 — 90 × 50 мм с полями под подрезку",
         width: 1104,
         height: 640,
-        layout:
+        constraint:
           "Business card layout: a calm, uncluttered surface. Keep ALL text and marks well inside the frame — at least 6% margin from every edge, because the printer trims the outer border. Restrained composition, generous empty space, no busy scene. Do NOT draw a decorative border or frame running along the edges: the printer trims 2 mm unevenly and a border comes out crooked.",
       },
       {
@@ -165,7 +156,7 @@ export const CREATIVE_TYPES: CreativeType[] = [
         hint: "640 × 1104 — тот же размер, повёрнутый",
         width: 640,
         height: 1104,
-        layout:
+        constraint:
           "Vertical business card layout: a calm, uncluttered surface, elements stacked. Keep ALL text and marks at least 6% away from every edge — the printer trims the outer border. Restrained, generous empty space. Do NOT draw a decorative border or frame running along the edges: the printer trims 2 mm unevenly and a border comes out crooked.",
       },
     ],

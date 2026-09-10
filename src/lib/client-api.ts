@@ -235,6 +235,8 @@ type BannerGenerateArgs = {
   site?: string;
   productImage?: string;
   logoCorner?: "top-left" | "top-right";
+  variantSeed?: number;
+  compositionId?: string;
 };
 
 type BannerStart =

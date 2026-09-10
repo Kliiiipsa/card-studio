@@ -229,11 +229,29 @@ export type BannerBaseArgs = {
   site?: string;
   productImage?: string;
   logoCorner?: "top-left" | "top-right";
+  /** растёт на каждой перегенерации → следующая связка вариантов оформления */
+  variantSeed?: number;
+  /** ручной выбор композиции из списка */
+  compositionId?: string;
 };
 
 export type BannerSubmit =
-  | { kind: "queued"; job: ImageJobHandle; width: number; height: number; prompt: string }
-  | { kind: "done"; imageUrl: string; width: number; height: number; prompt: string };
+  | {
+      kind: "queued";
+      job: ImageJobHandle;
+      width: number;
+      height: number;
+      prompt: string;
+      variants: Record<string, string>;
+    }
+  | {
+      kind: "done";
+      imageUrl: string;
+      width: number;
+      height: number;
+      prompt: string;
+      variants: Record<string, string>;
+    };
 
 /**
  * Ставит генерацию в очередь fal. Размер запрашивается ТОЧНЫЙ — gpt-image
@@ -249,7 +267,7 @@ export async function submitBannerBase(args: BannerBaseArgs): Promise<BannerSubm
   const sizeProblem = checkSize(width, height);
   if (sizeProblem) throw new AppError(sizeProblem);
 
-  const { prompt, negativePrompt } = buildBannerPrompt({
+  const { prompt, negativePrompt, variants } = buildBannerPrompt({
     creativeType: args.creativeType,
     format: args.format,
     look: args.look,
@@ -263,6 +281,8 @@ export async function submitBannerBase(args: BannerBaseArgs): Promise<BannerSubm
     site: args.site,
     hasProductImage: Boolean(args.productImage),
     logoCorner: args.logoCorner,
+    variantSeed: args.variantSeed,
+    compositionId: args.compositionId,
   });
 
   const provider = getBannerImageProvider();
@@ -276,21 +296,35 @@ export async function submitBannerBase(args: BannerBaseArgs): Promise<BannerSubm
   if (args.productImage) {
     const req: I2IRequest = { ...common, referenceImageDataUrl: args.productImage };
     if (provider.supportsAsync && provider.submitImageToImage) {
-      return { kind: "queued", job: await provider.submitImageToImage(req), width, height, prompt };
+      return {
+        kind: "queued",
+        job: await provider.submitImageToImage(req),
+        width,
+        height,
+        prompt,
+        variants,
+      };
     }
     const res = await provider.imageToImage(req);
     const url = res.images[0]?.url;
     if (!url) throw new ProviderError("Не удалось создать креатив.", "empty i2i result");
-    return { kind: "done", imageUrl: url, width, height, prompt };
+    return { kind: "done", imageUrl: url, width, height, prompt, variants };
   }
 
   if (provider.supportsAsync && provider.submitTextToImage) {
-    return { kind: "queued", job: await provider.submitTextToImage(common), width, height, prompt };
+    return {
+      kind: "queued",
+      job: await provider.submitTextToImage(common),
+      width,
+      height,
+      prompt,
+      variants,
+    };
   }
   const res = await provider.textToImage(common);
   const url = res.images[0]?.url;
   if (!url) throw new ProviderError("Не удалось создать креатив.", "empty t2i result");
-  return { kind: "done", imageUrl: url, width, height, prompt };
+  return { kind: "done", imageUrl: url, width, height, prompt, variants };
 }
 
 export async function pollBannerJob(job: ImageJobHandle): Promise<ImageJobStatus> {

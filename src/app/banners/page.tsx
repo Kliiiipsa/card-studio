@@ -1,6 +1,16 @@
 "use client";
 import * as React from "react";
-import { Loader2, Sparkles, Download, Images, Megaphone, Lock, Plus, X } from "lucide-react";
+import {
+  Loader2,
+  Sparkles,
+  Download,
+  Images,
+  Megaphone,
+  Lock,
+  Plus,
+  X,
+  Shuffle,
+} from "lucide-react";
 import { AppShell } from "@/components/layout/app-shell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -15,6 +25,11 @@ import { reachGoal, GOALS } from "@/components/analytics/yandex-metrica";
 import { PRICES, SPARK, gens } from "@/core/billing/prices";
 import { useProfileStore } from "@/store/profile-store";
 import { CREATIVE_TYPES, getCreativeType, getFormat } from "@/core/banners/formats";
+import {
+  compositionsFor,
+  orientationOf,
+  COMPOSITION_LABELS,
+} from "@/core/banners/composition-variants";
 import {
   CTA_PRESETS,
   LOOK_LABELS,
@@ -109,6 +124,10 @@ export default function BannersPage() {
   const [logoCorner, setLogoCorner] = React.useState<"top-left" | "top-right">("top-left");
 
   const [look, setLook] = React.useState<BannerLook>("adaptive");
+  /** пустая строка = композицию выбирает сид по предмету рекламы */
+  const [compositionId, setCompositionId] = React.useState("");
+  /** сдвиг связки вариантов; растёт по кнопке «Другая композиция» */
+  const [variantSeed, setVariantSeed] = React.useState(0);
 
   const [generating, setGenerating] = React.useState(false);
   const generatingRef = React.useRef(false);
@@ -217,16 +236,19 @@ export default function BannersPage() {
     }
   };
 
-  const handleGenerate = async () => {
+  const handleGenerate = async (seedOverride?: number) => {
     if (generatingRef.current) return;
     if (!subject.trim() || !headline.trim()) {
       toast.error("Нужны предмет рекламы и заголовок.");
       return;
     }
+    const seed = seedOverride ?? variantSeed;
     generatingRef.current = true;
     setGenerating(true);
     try {
       const r = await api.banner.generate({
+        variantSeed: seed,
+        compositionId: compositionId || undefined,
         creativeType,
         format,
         look,
@@ -635,6 +657,27 @@ export default function BannersPage() {
                   </Chip>
                 ))}
               </div>
+
+              <div className="space-y-1.5 pt-2">
+                <Label htmlFor="bcomp">Композиция</Label>
+                <select
+                  id="bcomp"
+                  value={compositionId}
+                  onChange={(e) => setCompositionId(e.target.value)}
+                  className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+                >
+                  <option value="">Автоматически — своя под каждый предмет</option>
+                  {compositionsFor(orientationOf(fmt.width, fmt.height)).map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {COMPOSITION_LABELS[c.id] ?? c.id}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-[11px] leading-relaxed text-muted-foreground">
+                  На автомате раскладка, типографика и декор подбираются под предмет рекламы, а
+                  кнопка «Другая композиция» под результатом сдвигает их на следующий вариант.
+                </p>
+              </div>
             </Step>
           ) : null}
         </div>
@@ -669,7 +712,7 @@ export default function BannersPage() {
                   Всё это нейросеть напечатает прямо в картинке. Поменять текст потом можно только
                   новой генерацией за {gens(priceTag)} — проверьте телефон и адрес сейчас.
                 </p>
-                <Button className="w-full" onClick={handleGenerate} disabled={generating}>
+                <Button className="w-full" onClick={() => handleGenerate()} disabled={generating}>
                   {generating ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
                   ) : (
@@ -705,6 +748,29 @@ export default function BannersPage() {
                   <Download className="h-4 w-4" />
                   Скачать PNG {result.width} × {result.height}
                 </Button>
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  disabled={generating || Boolean(compositionId)}
+                  onClick={() => {
+                    const next = variantSeed + 1;
+                    setVariantSeed(next);
+                    void handleGenerate(next);
+                  }}
+                >
+                  {generating ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Shuffle className="h-4 w-4" />
+                  )}
+                  Другая композиция — {priceTag} {SPARK}
+                </Button>
+                {compositionId ? (
+                  <p className="text-[11px] text-muted-foreground">
+                    Композиция выбрана вручную — чтобы перебирать варианты, верните «Автоматически»
+                    в шаге 6.
+                  </p>
+                ) : null}
                 <p className="text-[11px] leading-relaxed text-muted-foreground">
                   Тот же файл лежит в «Моих карточках».
                 </p>
