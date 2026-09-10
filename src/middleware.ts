@@ -37,6 +37,8 @@ export async function middleware(req: NextRequest) {
     pathname === "/ozon" || // SEO-посадочная под запросы про карточки Ozon
     pathname === "/photo" || // SEO-посадочная «фото товара нейросетью»
     pathname === "/infografika" || // SEO: «инфографика для карточки wildberries»
+    pathname === "/neuroset-infografika" || // SEO: «нейросеть для инфографики»
+    pathname === "/infografika-marketplace" || // SEO: «инфографика для маркетплейсов»
     pathname === "/razmer-kartochki-wildberries" || // SEO-справочник: размер фото WB
     pathname === "/trebovaniya-k-foto-ozon" || // SEO-справочник: требования к фото Ozon
     pathname === "/check" || // бесплатная экспресс-проверка карточки (лид-магнит)

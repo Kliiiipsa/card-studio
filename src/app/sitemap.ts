@@ -16,6 +16,8 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: `${SITE_URL}/ozon`, changeFrequency: "monthly", priority: 0.8 },
     { url: `${SITE_URL}/photo`, changeFrequency: "monthly", priority: 0.8 },
     { url: `${SITE_URL}/infografika`, changeFrequency: "monthly", priority: 0.8 },
+    { url: `${SITE_URL}/neuroset-infografika`, changeFrequency: "monthly", priority: 0.8 },
+    { url: `${SITE_URL}/infografika-marketplace`, changeFrequency: "monthly", priority: 0.8 },
     { url: `${SITE_URL}/razmer-kartochki-wildberries`, changeFrequency: "monthly", priority: 0.7 },
     { url: `${SITE_URL}/trebovaniya-k-foto-ozon`, changeFrequency: "monthly", priority: 0.7 },
     { url: `${SITE_URL}/check`, changeFrequency: "monthly", priority: 0.8 },
