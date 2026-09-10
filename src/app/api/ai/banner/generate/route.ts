@@ -19,7 +19,7 @@ import { bannersEnabled, submitBannerBase } from "@/core/banners/banner-service"
 
 export const runtime = "nodejs";
 // Роут только СТАВИТ задачу в очередь fal и отдаёт handle — ждать многоминутную
-// генерацию здесь нельзя (см. тот же приём в инфографике).
+// генерацию здесь нельзя (тот же приём, что в инфографике).
 export const maxDuration = 120;
 
 export async function POST(req: Request) {
@@ -44,28 +44,47 @@ export async function POST(req: Request) {
       const falBalanceBefore = await readFalBalance();
 
       const result = await submitBannerBase({
-        productName: body.productName,
+        creativeType: body.creativeType,
+        format: body.format,
+        look: body.look,
+        subject: body.subject,
         headline: body.headline,
         subheadline: body.subheadline,
-        look: body.look,
-        format: body.format,
+        price: body.price,
+        oldPrice: body.oldPrice,
+        cta: body.cta,
+        phone: body.phone,
+        site: body.site,
         productImage: body.productImage,
-        reserveBand: body.reserveBand,
+        logoCorner: body.logoCorner,
       });
 
-      /** что показать в админке («Генерации») при разборе жалобы */
+      /**
+       * Снимок для разбора жалоб («Генерации» в админке).
+       * ТЕЛЕФОН СЮДА НЕ КЛАДЁМ: для разбора он не нужен, а это личный контакт
+       * клиента — незачем держать его в журнале. В промпте он есть по делу,
+       * но промпт мы режем до 2000 символов и телефон из него вычищаем.
+       */
       const debug = {
-        productName: body.productName,
+        subject: body.subject,
         headline: body.headline,
         subheadline: body.subheadline,
-        look: body.look,
+        creativeType: body.creativeType,
         format: body.format,
+        look: body.look,
         width: result.width,
         height: result.height,
         hasProductPhoto: Boolean(body.productImage),
-        reserveBand: body.reserveBand,
-        imagePrompt: result.prompt.slice(0, 2000),
-        userInput: body.userInput,
+        hasLogo: Boolean(body.logoCorner),
+        hasPhone: Boolean(body.phone),
+        imagePrompt: redactPhone(result.prompt, body.phone).slice(0, 2000),
+        userInput: {
+          benefit: body.benefit,
+          price: body.price,
+          oldPrice: body.oldPrice,
+          cta: body.cta,
+          site: body.site,
+        },
         sourceUrl,
       };
 
@@ -128,4 +147,10 @@ export async function POST(req: Request) {
   } finally {
     releaseGenerationSlot();
   }
+}
+
+/** Вырезает телефон из сохраняемого промпта — в журнале ему не место. */
+function redactPhone(prompt: string, phone?: string): string {
+  if (!phone?.trim()) return prompt;
+  return prompt.split(phone.trim()).join("<телефон скрыт>");
 }

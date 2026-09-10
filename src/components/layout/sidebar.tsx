@@ -36,7 +36,7 @@ export const NAV = [
  * пункт меню появляется только у тех, кому раздел реально доступен. Настоящая
  * защита — на сервере: без неё ссылку можно было бы просто угадать.
  */
-const BANNERS_ITEM = { href: "/banners", label: "Рекламные баннеры", icon: Megaphone };
+const BANNERS_ITEM = { href: "/banners", label: "Рекламные креативы", icon: Megaphone };
 
 export function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();

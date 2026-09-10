@@ -10,8 +10,8 @@ export const maxDuration = 60;
 
 /**
  * Три варианта заголовка ДО генерации. Бесплатно (текстовая модель стоит
- * копейки) — смысл в том, чтобы человек утвердил текст заранее: заголовок
- * запекается в картинку, и его правка стоит новой генерации.
+ * копейки), и смысл в том, чтобы человек утвердил текст заранее: заголовок
+ * запекается в картинку, и его правка стоит новой платной генерации.
  */
 export async function POST(req: Request) {
   try {
@@ -19,7 +19,6 @@ export async function POST(req: Request) {
     if (!bannersEnabled(session?.role)) {
       throw new AppError("Раздел ещё не открыт.", 403);
     }
-    // бесплатное действие, но лимит частоты и рубильник раздела — общие
     await requireSparks(req, "brief");
     const offer = await parseBody(req, bannerHeadlineRequestSchema);
     const options = await suggestHeadlines(offer);

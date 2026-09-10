@@ -6,21 +6,18 @@ import type {
   I2IRequest,
   T2IRequest,
 } from "@/core/ai/providers/types";
-import { ProviderError } from "@/lib/errors";
+import { AppError, ProviderError } from "@/lib/errors";
 import { buildBannerPrompt } from "./banner-prompt-builder";
-import { getBannerFormat, snapTo16 } from "./formats";
-import type { BannerFormatId, BannerLook, BannerOffer } from "./types";
+import { getFormat, checkSize, snapTo16, CREATIVE_TYPES } from "./formats";
+import type { BannerLook, CreativeTypeId, OptionalFieldId } from "./types";
 
 /**
- * Раздел «Рекламные баннеры» под гейтом: пока его видит только админ.
- * Раскатка на всех — переменной BANNERS=all на проде (как PHOTO_V2 и NOTICES),
- * без выкладки кода.
+ * Раздел под гейтом: пока его видит только админ. Раскатка на всех —
+ * переменной BANNERS=all на проде, без выкладки кода.
  */
 export function bannersEnabled(role?: string | null): boolean {
   return role === "admin" || process.env.BANNERS === "all";
 }
-
-/* --------------------------- заголовки (бесплатно) --------------------------- */
 
 function safeJson(text: string): unknown {
   const cleaned = text
@@ -41,47 +38,157 @@ function safeJson(text: string): unknown {
   }
 }
 
+/* --------------------- разбор свободного описания --------------------- */
+
 export type HeadlineOption = { headline: string; subheadline?: string };
 
-/** Запасные варианты, если модель недоступна — человек всё равно должен ехать дальше. */
-function fallbackHeadlines(offer: BannerOffer): HeadlineOption[] {
-  const name = offer.productName.trim() || "Ваш товар";
-  const benefit = offer.benefit?.trim();
-  return [
-    { headline: name, subheadline: benefit || undefined },
-    benefit ? { headline: benefit, subheadline: name } : { headline: name },
-    { headline: name, subheadline: offer.price?.trim() ? `от ${offer.price.trim()}` : undefined },
-  ];
+export type CreativePlan = {
+  creativeType: CreativeTypeId;
+  subject: string;
+  benefit?: string;
+  /** какие необязательные поля стоит показать под эту задачу */
+  fields: OptionalFieldId[];
+  headlines: HeadlineOption[];
+  /**
+   * Текстовая модель не ответила, и это черновик «на глазок». Интерфейс обязан
+   * сказать об этом вслух: молча подсунуть плохой заголовок хуже, чем честно
+   * попросить вписать его руками — заголовок ведь запекается в картинку.
+   */
+  degraded?: boolean;
+};
+
+const TYPE_IDS = CREATIVE_TYPES.map((t) => t.id);
+const FIELD_IDS: OptionalFieldId[] = ["benefit", "price", "oldPrice", "phone", "site", "logo"];
+
+/**
+ * Черновик, когда модель не ответила. Заголовок НЕ выдумываем и целиком описание
+ * в него не суём: длинная фраза, запечённая в картинку, выглядит как ошибка и
+ * стоит человеку 15 генов. Даём короткую заготовку и честный флаг degraded.
+ */
+function fallbackPlan(description: string): CreativePlan {
+  const words = description.trim().split(/\s+/).filter(Boolean);
+  const subject =
+    words
+      .slice(0, 4)
+      .join(" ")
+      .replace(/[.,;:!?]+$/, "") || "Ваше предложение";
+  return {
+    creativeType: "banner",
+    subject,
+    fields: ["benefit", "price", "site"],
+    headlines: [{ headline: subject }],
+    degraded: true,
+  };
 }
 
 /**
- * Три варианта заголовка ДО генерации (решение владельца 2026-09-10): человек
- * утверждает текст заранее, потому что запечённый заголовок правится только
- * новой платной генерацией. Действие бесплатное — это текстовая модель.
+ * Человек пишет свободным текстом, что ему нужно, — модель понимает задачу и
+ * заполняет форму черновиком.
+ *
+ * ВАЖНО: модель выбирает ИЗ ФИКСИРОВАННОГО списка типов и полей, а не выдумывает
+ * свои. Иначе при одинаковом вводе интерфейс каждый раз разный, и разбирать
+ * жалобу «у меня пропало поле цены» невозможно.
  */
-export async function suggestHeadlines(offer: BannerOffer): Promise<HeadlineOption[]> {
+export async function planCreative(description: string): Promise<CreativePlan> {
   try {
     const llm = getLLMProvider();
     const res = await llm.complete({
       task: "write-prompt",
       json: true,
-      context: { intent: { productName: offer.productName } },
+      context: { intent: { description } },
       messages: [
         {
           role: "system",
-          content: `Ты — копирайтер рекламных баннеров. Пишешь короткий продающий текст для баннера, который ведёт на сайт.
+          content: `Ты — рекламный директор. Человек описал своими словами, что ему нужно. Разбери задачу и заполни форму.
+
+Ответ строго JSON:
+{"creativeType":"banner|social-post|profile-header|business-card",
+ "subject":"что рекламируем, 2-6 слов",
+ "benefit":"главное преимущество одной строкой или пустая строка",
+ "fields":["benefit","price","oldPrice","phone","site","logo"],
+ "headlines":[{"headline":"...","subheadline":"..."}]}
+
 Правила:
-— заголовок 2-5 слов, бьёт в главную выгоду, читается за секунду;
-— вторая строка (subheadline) до 6 слов, уточняет; можно опустить;
-— пиши по-русски, без канцелярита, без восклицательных знаков подряд;
-— НИКОГДА не выдумывай цифры, цены, проценты, сроки, гарантии и характеристики: используй только то, что дал пользователь;
-— не повторяй одно и то же в заголовке и во второй строке;
-— три варианта должны реально отличаться подходом, а не порядком слов.
-Ответ строго JSON: {"options":[{"headline":"...","subheadline":"..."},…]} ровно три штуки.`,
+— creativeType выбирай ТОЛЬКО из четырёх значений выше: баннер для рекламы, пост в соцсети, шапка канала, визитка;
+— fields — какие поля реально нужны этой задаче. Визитке нужны телефон и сайт, распродаже — цена и старая цена, шапке канала цена обычно не нужна. Только значения из списка;
+— headlines — ровно три РАЗНЫХ по подходу варианта, заголовок 2-5 слов, вторая строка до 6 слов и может отсутствовать;
+— пиши по-русски, без канцелярита;
+— НИКОГДА не выдумывай цифры, цены, проценты, сроки, гарантии и характеристики: бери только то, что человек написал сам.`,
+        },
+        { role: "user", content: description.slice(0, 1500) },
+      ],
+    });
+    const p = safeJson(res.text) as Partial<CreativePlan> | null;
+    if (!p) return fallbackPlan(description);
+
+    const creativeType = TYPE_IDS.includes(p.creativeType as CreativeTypeId)
+      ? (p.creativeType as CreativeTypeId)
+      : "banner";
+    const fields = Array.isArray(p.fields)
+      ? p.fields.filter((f): f is OptionalFieldId => FIELD_IDS.includes(f as OptionalFieldId))
+      : [];
+    const headlines = (Array.isArray(p.headlines) ? p.headlines : [])
+      .filter((h) => typeof h?.headline === "string" && h.headline.trim().length > 1)
+      .slice(0, 3)
+      .map((h) => ({
+        headline: h.headline.trim(),
+        subheadline:
+          typeof h.subheadline === "string" && h.subheadline.trim()
+            ? h.subheadline.trim()
+            : undefined,
+      }));
+
+    // Если модель ответила, но заголовков не дала — это тоже деградация:
+    // чем подсунуть заготовку молча, честнее сказать «впишите сами».
+    if (!headlines.length) return { ...fallbackPlan(description), creativeType, fields };
+
+    return {
+      creativeType,
+      subject:
+        (typeof p.subject === "string" && p.subject.trim()) || fallbackPlan(description).subject,
+      benefit: typeof p.benefit === "string" && p.benefit.trim() ? p.benefit.trim() : undefined,
+      fields: fields.length ? fields : ["benefit", "price", "site"],
+      headlines,
+    };
+  } catch (e) {
+    console.error("[banners] plan failed:", e);
+    return fallbackPlan(description);
+  }
+}
+
+/* --------------------------- заголовки (бесплатно) --------------------------- */
+
+/**
+ * Три варианта заголовка по заполненным полям. Отдельно от planCreative —
+ * нужен, когда человек поправил форму и хочет свежие варианты. Бесплатно.
+ */
+export async function suggestHeadlines(offer: {
+  subject: string;
+  benefit?: string;
+  price?: string;
+  oldPrice?: string;
+}): Promise<HeadlineOption[]> {
+  const fallback: HeadlineOption[] = [
+    { headline: offer.subject.trim() || "Ваше предложение", subheadline: offer.benefit?.trim() },
+  ];
+  try {
+    const llm = getLLMProvider();
+    const res = await llm.complete({
+      task: "write-prompt",
+      json: true,
+      context: { intent: { productName: offer.subject } },
+      messages: [
+        {
+          role: "system",
+          content: `Ты — копирайтер рекламных креативов. Пишешь короткий текст для баннера, который ведёт на сайт.
+Правила: заголовок 2-5 слов, бьёт в главную выгоду; вторая строка до 6 слов, уточняет, можно опустить;
+по-русски, без канцелярита; НИКОГДА не выдумывай цифры, цены, сроки и гарантии — только данные пользователя;
+не дублируй заголовок во второй строке; три варианта отличаются подходом, а не порядком слов.
+Ответ строго JSON: {"options":[{"headline":"...","subheadline":"..."}]} ровно три штуки.`,
         },
         {
           role: "user",
-          content: `Товар: ${offer.productName}
+          content: `Что рекламируем: ${offer.subject}
 Главное преимущество: ${offer.benefit?.trim() || "-"}
 Цена: ${offer.price?.trim() || "-"}
 Старая цена: ${offer.oldPrice?.trim() || "-"}`,
@@ -99,24 +206,29 @@ export async function suggestHeadlines(offer: BannerOffer): Promise<HeadlineOpti
             ? o.subheadline.trim()
             : undefined,
       }));
-    return options.length ? options : fallbackHeadlines(offer);
+    return options.length ? options : fallback;
   } catch (e) {
     console.error("[banners] headline suggestion failed:", e);
-    return fallbackHeadlines(offer);
+    return fallback;
   }
 }
 
 /* ------------------------------ генерация ------------------------------ */
 
 export type BannerBaseArgs = {
-  productName: string;
+  creativeType: CreativeTypeId;
+  format: string;
+  look: BannerLook;
+  subject: string;
   headline: string;
   subheadline?: string;
-  look: BannerLook;
-  format: BannerFormatId;
+  price?: string;
+  oldPrice?: string;
+  cta?: string;
+  phone?: string;
+  site?: string;
   productImage?: string;
-  /** внизу будет накладка сайта — резервируем спокойную полосу */
-  reserveBand: boolean;
+  logoCorner?: "top-left" | "top-right";
 };
 
 export type BannerSubmit =
@@ -124,31 +236,39 @@ export type BannerSubmit =
   | { kind: "done"; imageUrl: string; width: number; height: number; prompt: string };
 
 /**
- * Ставит генерацию баннера в очередь fal (или выполняет сразу на синхронном
- * провайдере — mock в тестах). Размер запрашивается ТОЧНЫЙ: gpt-image принимает
- * {width,height}, поэтому экспорту потом нечего пересчитывать и нечего обрезать.
+ * Ставит генерацию в очередь fal. Размер запрашивается ТОЧНЫЙ — gpt-image
+ * принимает {width,height} и отдаёт ровно его, поэтому экспорту нечего
+ * пересчитывать и нечего обрезать.
  */
 export async function submitBannerBase(args: BannerBaseArgs): Promise<BannerSubmit> {
-  const fmt = getBannerFormat(args.format);
-  // формат уже кратен 16, snap — страховка на случай будущих правок таблицы
+  const fmt = getFormat(args.creativeType, args.format);
   const width = snapTo16(fmt.width);
   const height = snapTo16(fmt.height);
 
+  // Внятный отказ ДО резерва генов лучше, чем невнятная ошибка от модели после.
+  const sizeProblem = checkSize(width, height);
+  if (sizeProblem) throw new AppError(sizeProblem);
+
   const { prompt, negativePrompt } = buildBannerPrompt({
-    productName: args.productName,
+    creativeType: args.creativeType,
+    format: args.format,
+    look: args.look,
+    subject: args.subject,
     headline: args.headline,
     subheadline: args.subheadline,
-    look: args.look,
-    format: args.format,
+    price: args.price,
+    oldPrice: args.oldPrice,
+    cta: args.cta,
+    phone: args.phone,
+    site: args.site,
     hasProductImage: Boolean(args.productImage),
-    reserveBand: args.reserveBand,
+    logoCorner: args.logoCorner,
   });
 
   const provider = getBannerImageProvider();
   const common: T2IRequest = {
     prompt,
     negativePrompt,
-    aspectRatio: fmt.ratio,
     pixelSize: { width, height },
     count: 1,
   };
@@ -160,7 +280,7 @@ export async function submitBannerBase(args: BannerBaseArgs): Promise<BannerSubm
     }
     const res = await provider.imageToImage(req);
     const url = res.images[0]?.url;
-    if (!url) throw new ProviderError("Не удалось создать баннер.", "empty i2i result");
+    if (!url) throw new ProviderError("Не удалось создать креатив.", "empty i2i result");
     return { kind: "done", imageUrl: url, width, height, prompt };
   }
 
@@ -169,7 +289,7 @@ export async function submitBannerBase(args: BannerBaseArgs): Promise<BannerSubm
   }
   const res = await provider.textToImage(common);
   const url = res.images[0]?.url;
-  if (!url) throw new ProviderError("Не удалось создать баннер.", "empty t2i result");
+  if (!url) throw new ProviderError("Не удалось создать креатив.", "empty t2i result");
   return { kind: "done", imageUrl: url, width, height, prompt };
 }
 

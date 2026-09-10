@@ -112,11 +112,7 @@ export async function createJob(args: {
  * Дописать в payload реальную стоимость у провайдера (jsonb-слияние, чтобы не
  * перетереть остальные поля задачи).
  */
-export async function setJobCost(
-  id: string,
-  usd: number | null,
-  exact: boolean,
-): Promise<void> {
+export async function setJobCost(id: string, usd: number | null, exact: boolean): Promise<void> {
   if (usd === null) return;
   await ensureSchema();
   await getPool().query(
@@ -136,7 +132,11 @@ export async function updateJobPayload(id: string, payload: unknown): Promise<vo
   ]);
 }
 
-export async function completeJob(id: string, resultUrl: string, sizeBytes?: number): Promise<void> {
+export async function completeJob(
+  id: string,
+  resultUrl: string,
+  sizeBytes?: number,
+): Promise<void> {
   await ensureSchema();
   await getPool().query(
     `update gen_jobs set status = 'completed', result_url = $2, size_bytes = $3, finished_at = now()
@@ -158,7 +158,14 @@ export async function insertCompletedJob(args: {
   await getPool().query(
     `insert into gen_jobs (id, email, kind, status, payload, result_url, size_bytes, finished_at)
      values ($1, $2, $3, 'completed', $4, $5, $6, now()) on conflict (id) do nothing`,
-    [args.id, args.email, args.kind, JSON.stringify(args.payload), args.resultUrl, args.sizeBytes ?? null],
+    [
+      args.id,
+      args.email,
+      args.kind,
+      JSON.stringify(args.payload),
+      args.resultUrl,
+      args.sizeBytes ?? null,
+    ],
   );
 }
 
@@ -289,4 +296,25 @@ export async function processingJobs(limit = 50): Promise<GenJob[]> {
     [limit],
   );
   return rows.map(toJob);
+}
+
+/**
+ * Заменить сохранённый файл готовой генерации (тот же id — тот же ключ в S3).
+ * Нужен «Рекламным баннерам»: логотип накладывается на клиенте точными
+ * пикселями, и без этой дозаписи в «Моих карточках» лежал бы кадр без него —
+ * то есть две разные версии одного креатива.
+ */
+export async function replaceJobResult(
+  id: string,
+  email: string,
+  resultUrl: string,
+  sizeBytes?: number,
+): Promise<boolean> {
+  await ensureSchema();
+  const { rowCount } = await getPool().query(
+    `update gen_jobs set result_url = $3, size_bytes = $4
+      where id = $1 and email = $2 and status = 'completed'`,
+    [id, email, resultUrl, sizeBytes ?? null],
+  );
+  return (rowCount ?? 0) > 0;
 }

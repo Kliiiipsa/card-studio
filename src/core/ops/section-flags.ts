@@ -13,7 +13,7 @@ import type { SparkAction } from "@/core/billing/prices";
 export const SWITCHABLE_SECTIONS: { action: SparkAction; label: string }[] = [
   { action: "generate", label: "Фото товара" },
   { action: "infographic", label: "Инфографика" },
-  { action: "banner", label: "Рекламные баннеры" },
+  { action: "banner", label: "Рекламные креативы" },
   { action: "video", label: "Видео товара" },
   { action: "seo", label: "SEO-тексты" },
   { action: "analyze", label: "Анализ карточки" },

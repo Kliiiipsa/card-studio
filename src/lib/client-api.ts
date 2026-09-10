@@ -17,6 +17,7 @@ import type {
   StyleProfile,
 } from "@/core/infographics/types";
 import type { ImageJobHandle } from "@/core/ai/providers/types";
+import type { BannerLook, CreativeTypeId } from "@/core/banners/types";
 import { USER_ERRORS } from "@/lib/user-messages";
 
 /** Paid endpoints return the fresh sparks balance — mirror it into the profile store. */
@@ -220,21 +221,33 @@ async function generateInfographic(
 /* ------------------------------- баннеры ------------------------------- */
 
 type BannerGenerateArgs = {
-  productName: string;
+  creativeType: CreativeTypeId;
+  format: string;
+  look: BannerLook;
+  subject: string;
   headline: string;
   subheadline?: string;
-  look: "light" | "dark" | "bright";
-  format: "square" | "wide" | "story";
+  benefit?: string;
+  price?: string;
+  oldPrice?: string;
+  cta?: string;
+  phone?: string;
+  site?: string;
   productImage?: string;
-  reserveBand: boolean;
-  userInput?: Record<string, unknown>;
+  logoCorner?: "top-left" | "top-right";
 };
 
 type BannerStart =
   | { done: true; imageUrl: string; width: number; height: number }
   | { done: false; jobId?: string; job: ImageJobHandle; width: number; height: number };
 
-export type BannerGenerateResult = { imageUrl: string; width: number; height: number };
+export type BannerGenerateResult = {
+  imageUrl: string;
+  width: number;
+  height: number;
+  /** id задачи — по нему дозаписываем кадр с логотипом поверх сохранённого */
+  jobId?: string;
+};
 
 /**
  * Баннер: отправили задачу — опрашиваем короткими запросами. Один и тот же
@@ -256,7 +269,7 @@ async function generateBanner(args: BannerGenerateArgs): Promise<BannerGenerateR
   if (jobId) {
     const finished = await pollTrackedJob(jobId);
     if (finished.status === "completed" && finished.resultUrl) {
-      return { imageUrl: finished.resultUrl, width, height };
+      return { imageUrl: finished.resultUrl, width, height, jobId };
     }
     throw new Error(finished.error ?? USER_ERRORS.unexpected);
   }
@@ -426,18 +439,31 @@ export const api = {
   },
 
   banner: {
-    /** три варианта заголовка до генерации — бесплатно */
-    headlines: (args: {
-      productName: string;
-      benefit?: string;
-      price?: string;
-      oldPrice?: string;
-    }) =>
+    /** свободное описание задачи → тип креатива, поля и черновик текстов; бесплатно */
+    plan: (description: string) =>
+      post<{
+        creativeType: CreativeTypeId;
+        subject: string;
+        benefit?: string;
+        fields: string[];
+        headlines: { headline: string; subheadline?: string }[];
+        /** модель не ответила — черновик «на глазок», надо сказать об этом вслух */
+        degraded?: boolean;
+      }>("/api/ai/banner/plan", { description }),
+    /** три варианта заголовка по заполненным полям — бесплатно */
+    headlines: (args: { subject: string; benefit?: string; price?: string; oldPrice?: string }) =>
       post<{ options: { headline: string; subheadline?: string }[] }>(
         "/api/ai/banner/headline",
         args,
       ),
     generate: (args: BannerGenerateArgs) => generateBanner(args),
+    /**
+     * Дозапись готового кадра с наложенным логотипом поверх сохранённого файла.
+     * Без неё в «Моих карточках» лежала бы версия без логотипа — на такой
+     * рассинхронизации мы уже обожглись с накладной полосой 10.09.2026.
+     */
+    finalize: (jobId: string, image: string) =>
+      post<{ replaced: boolean; url?: string }>("/api/ai/banner/finalize", { jobId, image }),
     latestJob: async (): Promise<TrackedJob | null> => {
       const res = await fetch("/api/jobs/latest?kind=banner");
       if (!res.ok) return null;
