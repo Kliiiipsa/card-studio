@@ -1,4 +1,5 @@
 "use client";
+import * as React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -12,8 +13,10 @@ import {
   CircleHelp,
   Clapperboard,
   Scale,
+  Megaphone,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useProfileStore } from "@/store/profile-store";
 
 // «Карточка под ключ» (/turnkey) временно скрыта из меню — дорабатываем качество пакета
 export const NAV = [
@@ -28,11 +31,27 @@ export const NAV = [
   { href: "/help", label: "Как это работает", icon: CircleHelp },
 ];
 
+/**
+ * «Рекламные баннеры» пока закрыты гейтом (админ или BANNERS=all), поэтому
+ * пункт меню появляется только у тех, кому раздел реально доступен. Настоящая
+ * защита — на сервере: без неё ссылку можно было бы просто угадать.
+ */
+const BANNERS_ITEM = { href: "/banners", label: "Рекламные баннеры", icon: Megaphone };
+
 export function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
+  const banners = useProfileStore((s) => s.banners);
+  const items = React.useMemo(() => {
+    if (!banners) return NAV;
+    // рядом с «Инфографикой» — соседняя по смыслу услуга
+    const at = NAV.findIndex((i) => i.href === "/infographics");
+    const next = [...NAV];
+    next.splice(at + 1, 0, BANNERS_ITEM);
+    return next;
+  }, [banners]);
   return (
     <>
-      {NAV.map((item) => {
+      {items.map((item) => {
         const active = pathname === item.href || pathname.startsWith(item.href + "/");
         const Icon = item.icon;
         return (

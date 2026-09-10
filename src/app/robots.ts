@@ -32,6 +32,7 @@ export default function robots(): MetadataRoute.Robots {
           "/dashboard",
           "/generator",
           "/infographics",
+          "/banners",
           "/analysis",
           "/cards",
           "/billing",

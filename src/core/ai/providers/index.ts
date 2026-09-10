@@ -83,10 +83,25 @@ export function getInfographicImageProvider(): ImageProvider {
   return imageProviderFor(infographicImageChoice());
 }
 
+/**
+ * Провайдер для «Рекламных баннеров». Баннеру нужна та же способность, что и
+ * инфографике — печатать кириллицу прямо в картинку, — поэтому по умолчанию он
+ * идёт за настройкой инфографики. Отдельная переменная оставлена, чтобы можно
+ * было увести баннеры на другую модель, не трогая рабочую инфографику.
+ */
+function bannerImageChoice(): string {
+  return (process.env.AI_BANNER_IMAGE_PROVIDER ?? infographicImageChoice()).toLowerCase();
+}
+
+export function getBannerImageProvider(): ImageProvider {
+  return imageProviderFor(bannerImageChoice());
+}
+
 export function providerStatus() {
   return {
     llm: llmChoice(),
     image: imageChoice(),
     infographicImage: infographicImageChoice(),
+    bannerImage: bannerImageChoice(),
   };
 }

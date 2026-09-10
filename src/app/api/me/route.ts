@@ -3,6 +3,7 @@ import { AppError } from "@/lib/errors";
 import { sessionFromRequest } from "@/core/auth/session";
 import { billingEnabled, getBalance } from "@/core/billing/billing";
 import { photoFixEnabled, photoV2Enabled } from "@/core/ai/photo-fix";
+import { bannersEnabled } from "@/core/banners/banner-service";
 
 export const runtime = "nodejs";
 
@@ -21,6 +22,8 @@ export async function GET(req: Request) {
       photoFix: photoFixEnabled(session.role),
       // вторая волна «Фото товара»: «Подсказать задание» + готовые задачи
       photoV2: photoV2Enabled(session.role),
+      // «Рекламные баннеры» — новый раздел, пока только админ (BANNERS=all раскатает)
+      banners: bannersEnabled(session.role),
     });
   } catch (err) {
     return fail(err);

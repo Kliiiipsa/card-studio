@@ -10,7 +10,7 @@ import { uid } from "@/lib/utils";
  */
 export async function persistGeneration(args: {
   email: string;
-  kind: "generator" | "infographic" | "improve" | "video";
+  kind: "generator" | "infographic" | "improve" | "video" | "banner";
   sourceUrl: string;
   payload: unknown;
   /** можно задать снаружи, чтобы потом дописать в эту запись цену от fal */

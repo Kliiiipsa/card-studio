@@ -78,6 +78,23 @@ export async function middleware(req: NextRequest) {
   const session = await verifySessionToken(secret, token);
 
   if (session) {
+    /**
+     * «Рекламные баннеры» ещё не открыты: раздел виден только админу (или всем,
+     * когда на проде выставят BANNERS=all). Пункт меню и так прячется, но адрес
+     * можно набрать руками — поэтому гейт стоит и здесь. Настоящая защита от
+     * списания генов — на самих роутах: bannersEnabled() в /api/ai/banner/*.
+     */
+    if (
+      (pathname === "/banners" || pathname.startsWith("/banners/")) &&
+      session.role !== "admin" &&
+      process.env.BANNERS !== "all"
+    ) {
+      const url = req.nextUrl.clone();
+      url.pathname = "/dashboard";
+      url.search = "";
+      return NextResponse.redirect(url);
+    }
+
     const isAdminArea = pathname.startsWith("/admin") || pathname.startsWith("/api/admin");
     if (isAdminArea && session.role !== "admin") {
       if (pathname.startsWith("/api")) {

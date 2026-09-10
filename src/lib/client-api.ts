@@ -168,10 +168,10 @@ async function generateInfographic(
       return { baseImageUrl: done.resultUrl, overlayPlan, brief, textBaked };
     }
     // failed (e.g. moderation) → server renders a Flux base synchronously
-    const fb = await post<Extract<GenerateStart, { done: true }>>(
-      "/api/ai/infographic/generate",
-      { ...args, forceFallback: true },
-    );
+    const fb = await post<Extract<GenerateStart, { done: true }>>("/api/ai/infographic/generate", {
+      ...args,
+      forceFallback: true,
+    });
     return {
       baseImageUrl: fb.baseImageUrl,
       overlayPlan: fb.overlayPlan,
@@ -214,6 +214,73 @@ async function generateInfographic(
       };
     }
     // pending → keep polling
+  }
+}
+
+/* ------------------------------- баннеры ------------------------------- */
+
+type BannerGenerateArgs = {
+  productName: string;
+  headline: string;
+  subheadline?: string;
+  look: "light" | "dark" | "bright";
+  format: "square" | "wide" | "story";
+  productImage?: string;
+  reserveBand: boolean;
+  userInput?: Record<string, unknown>;
+};
+
+type BannerStart =
+  | { done: true; imageUrl: string; width: number; height: number }
+  | { done: false; jobId?: string; job: ImageJobHandle; width: number; height: number };
+
+export type BannerGenerateResult = { imageUrl: string; width: number; height: number };
+
+/**
+ * Баннер: отправили задачу — опрашиваем короткими запросами. Один и тот же
+ * приём, что в инфографике и видео: длинный HTTP-запрос не пережил бы ни
+ * таймаут функции, ни закрытие вкладки.
+ *
+ * Отката на Flux здесь НЕТ намеренно: Flux не умеет кириллицу, а весь смысл
+ * баннера — в запечённом заголовке. Если gpt-image отказал (например,
+ * модерация), честнее вернуть ошибку и вернуть гены, чем отдать картинку с
+ * нечитаемыми буквами.
+ */
+async function generateBanner(args: BannerGenerateArgs): Promise<BannerGenerateResult> {
+  const started = await post<BannerStart>("/api/ai/banner/generate", args);
+  if (started.done) {
+    return { imageUrl: started.imageUrl, width: started.width, height: started.height };
+  }
+  const { job, jobId, width, height } = started;
+
+  if (jobId) {
+    const finished = await pollTrackedJob(jobId);
+    if (finished.status === "completed" && finished.resultUrl) {
+      return { imageUrl: finished.resultUrl, width, height };
+    }
+    throw new Error(finished.error ?? USER_ERRORS.unexpected);
+  }
+
+  // без Postgres — опрашиваем очередь fal напрямую
+  const deadline = Date.now() + 300_000;
+  let failures = 0;
+  for (;;) {
+    await delay(2500);
+    if (Date.now() > deadline) throw new Error(USER_ERRORS.timeout);
+    let status: JobStatus;
+    try {
+      status = await post<JobStatus>("/api/ai/banner/generate/status", { job });
+      failures = 0;
+    } catch (e) {
+      if (++failures >= 5) throw e;
+      continue;
+    }
+    if (status.status === "completed" && status.images?.length) {
+      return { imageUrl: status.images[0].url, width, height };
+    }
+    if (status.status === "failed") {
+      throw new Error(status.error ?? USER_ERRORS.unexpected);
+    }
   }
 }
 
@@ -355,6 +422,28 @@ export const api = {
       return data.job ?? null;
     },
     /** re-attach to a job started earlier (e.g. before the tab was closed) */
+    resumeJob: (jobId: string) => pollTrackedJob(jobId),
+  },
+
+  banner: {
+    /** три варианта заголовка до генерации — бесплатно */
+    headlines: (args: {
+      productName: string;
+      benefit?: string;
+      price?: string;
+      oldPrice?: string;
+    }) =>
+      post<{ options: { headline: string; subheadline?: string }[] }>(
+        "/api/ai/banner/headline",
+        args,
+      ),
+    generate: (args: BannerGenerateArgs) => generateBanner(args),
+    latestJob: async (): Promise<TrackedJob | null> => {
+      const res = await fetch("/api/jobs/latest?kind=banner");
+      if (!res.ok) return null;
+      const data = (await res.json()) as { job?: TrackedJob | null };
+      return data.job ?? null;
+    },
     resumeJob: (jobId: string) => pollTrackedJob(jobId),
   },
 

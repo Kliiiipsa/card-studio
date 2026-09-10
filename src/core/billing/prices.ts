@@ -28,6 +28,7 @@ export type SparkAction =
   | "compare"
   | "generate"
   | "infographic"
+  | "banner"
   | "video"
   | "turnkey"
   | "seo"
@@ -48,6 +49,12 @@ export const PRICES: Record<SparkAction, number> = {
   /** 7 → 8 и 10 → 12 (2026-08-26): компенсация курса fal 84 → 98 ₽/$ */
   generate: 8,
   infographic: 12,
+  /**
+   * «Рекламные баннеры»: одна генерация gpt-image, как у инфографики
+   * (себестоимость ~5,3 ₽), но кадр рекламный — сцена, фирменный заголовок и
+   * чистая зона под накладку. Цена 15 — решение владельца 2026-09-10.
+   */
+  banner: 15,
   /**
    * 5-секундное видео товара из фото. Kling 2.5 Turbo Pro списывает $0.35;
    * при курсе пополнения fal 98 ₽/$ себестоимость ≈ 34,3 ₽ — цена 40 уходила
@@ -77,6 +84,7 @@ export const ACTION_LABELS: Record<SparkAction, string> = {
   compare: "Сравнение карточек",
   generate: "Фото товара",
   infographic: "Инфографика",
+  banner: "Рекламный баннер",
   video: "Видео товара",
   turnkey: "Карточка под ключ (7 изображений)",
   seo: "SEO-тексты",

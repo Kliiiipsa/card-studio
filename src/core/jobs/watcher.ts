@@ -1,4 +1,5 @@
 import { pollInfographicJob } from "@/core/infographics/infographic-service";
+import { pollBannerJob } from "@/core/banners/banner-service";
 import { pollVideoJob } from "@/core/video/video-service";
 import { completeJob, failJob, processingJobs, jobsEnabled, setJobCost, type GenJob } from "./jobs";
 import { settleFalCost, falJobStarted, falJobFinished } from "@/core/ai/fal-cost";
@@ -25,8 +26,8 @@ const state: WatcherState = ((globalThis as Record<string, unknown>).__genJobWat
 const POLL_MS = 3000;
 const MAX_POLLS = 120; // ~6 minutes
 
-/** watchable fal-queue job kinds; charge action == kind, оба есть в PRICES */
-type WatchKind = "infographic" | "video";
+/** watchable fal-queue job kinds; charge action == kind, все есть в PRICES */
+type WatchKind = "infographic" | "video" | "banner";
 
 type WatchArgs = {
   id: string;
@@ -59,6 +60,10 @@ async function pollOnce(
   if (kind === "video") {
     const st = await pollVideoJob(handle);
     return { status: st.status, url: st.videoUrl, error: st.error };
+  }
+  if (kind === "banner") {
+    const st = await pollBannerJob(handle);
+    return { status: st.status, url: st.images?.[0]?.url, error: st.error };
   }
   const st = await pollInfographicJob(handle);
   return { status: st.status, url: st.images?.[0]?.url, error: st.error };
@@ -145,7 +150,9 @@ export function ensureWatcherBoot(): void {
             email: j.email,
             falStatusUrl: j.falStatusUrl,
             falResponseUrl: j.falResponseUrl,
-            kind: j.kind === "video" ? "video" : "infographic",
+            // возврат генов идёт по kind (он же action в PRICES), поэтому
+            // баннер нельзя схлопывать в «инфографику» — вернём не ту сумму
+            kind: j.kind === "video" ? "video" : j.kind === "banner" ? "banner" : "infographic",
           });
         }
       }

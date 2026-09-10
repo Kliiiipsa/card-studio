@@ -42,7 +42,7 @@ const TX_LABEL: Record<string, string> = {
 };
 
 export default function BillingPage() {
-  const { balance, role, fetchMe } = useProfileStore();
+  const { balance, role, fetchMe, banners: bannersAllowed } = useProfileStore();
   const [buying, setBuying] = React.useState<TopupPackage | null>(null);
   const [paying, setPaying] = React.useState(false);
   const [customAmount, setCustomAmount] = React.useState("");
@@ -219,8 +219,8 @@ export default function BillingPage() {
               </p>
             </div>
             <p className="ml-auto max-w-xs text-xs text-muted-foreground">
-              1 ген = 1 ₽. Гены списываются только за успешный результат — за ошибки сервиса вы
-              не платите.
+              1 ген = 1 ₽. Гены списываются только за успешный результат — за ошибки сервиса вы не
+              платите.
             </p>
           </CardContent>
         </Card>
@@ -302,8 +302,8 @@ export default function BillingPage() {
             </Card>
           </div>
           <p className="mt-2 text-xs text-muted-foreground">
-            Своя сумма — от {CUSTOM_TOPUP.minRub} до {CUSTOM_TOPUP.maxRub.toLocaleString("ru-RU")} ₽,
-            1 ₽ = 1 ген, без бонуса.
+            Своя сумма — от {CUSTOM_TOPUP.minRub} до {CUSTOM_TOPUP.maxRub.toLocaleString("ru-RU")}{" "}
+            ₽, 1 ₽ = 1 ген, без бонуса.
           </p>
 
           {/* Промокод */}
@@ -332,8 +332,8 @@ export default function BillingPage() {
             {perks?.pendingBonusPercent ? (
               <p className="mt-2.5 flex items-start gap-1.5 text-xs leading-5 text-emerald-600 dark:text-emerald-400">
                 <Gift className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                Промокод {perks.pendingBonusCode} активен: при следующем пополнении вы получите
-                на {perks.pendingBonusPercent}% больше генов.
+                Промокод {perks.pendingBonusCode} активен: при следующем пополнении вы получите на{" "}
+                {perks.pendingBonusPercent}% больше генов.
               </p>
             ) : null}
             {perks?.priceListCode ? (
@@ -347,8 +347,8 @@ export default function BillingPage() {
                 отдельных партнёров, а не публичная опция */}
             {!perks?.pendingBonusPercent && !perks?.priceListCode && (
               <p className="mt-2.5 text-xs text-muted-foreground">
-                Промокод даёт гены в подарок или бонус к пополнению.
-                Один промокод применяется один раз.
+                Промокод даёт гены в подарок или бонус к пополнению. Один промокод применяется один
+                раз.
               </p>
             )}
           </div>
@@ -367,13 +367,20 @@ export default function BillingPage() {
           <CardContent>
             <div className="grid gap-1.5 text-sm sm:grid-cols-2">
               {(Object.keys(PRICES) as (keyof typeof PRICES)[])
-                .filter((a) => PRICES[a] > 0 && a !== "turnkey") // turnkey скрыт на доработке
+                // turnkey скрыт на доработке; «Рекламный баннер» показываем
+                // только тем, кому раздел уже открыт — иначе прайс расскажет
+                // про услугу, которой человек ещё не видит в меню
+                .filter((a) => PRICES[a] > 0 && a !== "turnkey")
+                .filter((a) => a !== "banner" || bannersAllowed)
                 .map((a) => {
                   // цена по промокоду-прайсу, если он действует
                   const special = perks?.prices?.[a];
                   const hasSpecial = typeof special === "number" && special !== PRICES[a];
                   return (
-                    <div key={a} className="flex items-center justify-between rounded-lg border px-3 py-2">
+                    <div
+                      key={a}
+                      className="flex items-center justify-between rounded-lg border px-3 py-2"
+                    >
                       <span className="text-muted-foreground">{ACTION_LABELS[a]}</span>
                       <span className="flex items-center gap-1 font-semibold">
                         <Dna className="h-3.5 w-3.5 text-primary" />
@@ -382,7 +389,9 @@ export default function BillingPage() {
                             <span className="text-xs font-normal text-muted-foreground line-through">
                               {PRICES[a]}
                             </span>
-                            <span className="text-emerald-600 dark:text-emerald-400">{special}</span>
+                            <span className="text-emerald-600 dark:text-emerald-400">
+                              {special}
+                            </span>
                           </>
                         ) : (
                           PRICES[a]
@@ -414,18 +423,29 @@ export default function BillingPage() {
             ) : (
               <ul className="space-y-1.5 text-sm">
                 {history.map((t) => (
-                  <li key={t.id} className="flex items-center justify-between gap-3 rounded-lg border px-3 py-2">
+                  <li
+                    key={t.id}
+                    className="flex items-center justify-between gap-3 rounded-lg border px-3 py-2"
+                  >
                     <div className="min-w-0">
                       <p className="truncate font-medium">
                         {TX_LABEL[t.type] ?? t.type}
-                        {t.action ? ` · ${ACTION_LABELS[t.action as keyof typeof ACTION_LABELS] ?? t.action}` : ""}
+                        {t.action
+                          ? ` · ${ACTION_LABELS[t.action as keyof typeof ACTION_LABELS] ?? t.action}`
+                          : ""}
                       </p>
                       {t.comment && (
                         <p className="truncate text-xs text-muted-foreground">{t.comment}</p>
                       )}
                     </div>
                     <div className="shrink-0 text-right">
-                      <p className={t.amount > 0 ? "font-semibold text-emerald-600 dark:text-emerald-400" : "font-semibold text-foreground"}>
+                      <p
+                        className={
+                          t.amount > 0
+                            ? "font-semibold text-emerald-600 dark:text-emerald-400"
+                            : "font-semibold text-foreground"
+                        }
+                      >
                         {t.amount > 0 ? `+${t.amount}` : t.amount} 🧬
                       </p>
                       <p className="text-[11px] text-muted-foreground">
@@ -474,7 +494,9 @@ export default function BillingPage() {
                   )}
                   {promoFor(buying.sparks) > 0 && (
                     <div className="mt-1.5 flex justify-between text-emerald-600 dark:text-emerald-400">
-                      <span>Промокод {perks?.pendingBonusCode} · {promoPercent}%</span>
+                      <span>
+                        Промокод {perks?.pendingBonusCode} · {promoPercent}%
+                      </span>
                       <span className="font-medium">+{promoFor(buying.sparks)}</span>
                     </div>
                   )}
@@ -492,9 +514,8 @@ export default function BillingPage() {
                 <div className="rounded-lg border bg-muted/40 px-3 py-3 text-xs leading-5 text-muted-foreground">
                   <p className="font-medium text-foreground">Безопасная оплата через ЮKassa</p>
                   <p className="mt-1">
-                    После нажатия вы перейдёте на защищённую страницу ЮKassa — банковская карта,
-                    СБП и другие способы. Гены зачислятся автоматически сразу после оплаты.
-                    Вопросы —{" "}
+                    После нажатия вы перейдёте на защищённую страницу ЮKassa — банковская карта, СБП
+                    и другие способы. Гены зачислятся автоматически сразу после оплаты. Вопросы —{" "}
                     <a href="mailto:admin@kartogen.ru" className="text-primary hover:underline">
                       admin@kartogen.ru
                     </a>

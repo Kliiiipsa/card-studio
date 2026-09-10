@@ -57,7 +57,7 @@ export class FalGptImageProvider implements ImageProvider {
   async submitTextToImage(req: T2IRequest): Promise<ImageJobHandle> {
     return this.submit(this.t2iModel, {
       prompt: composePrompt(req.prompt, req.negativePrompt),
-      image_size: toImageSize(req.aspectRatio),
+      image_size: toImageSize(req.aspectRatio, req.pixelSize),
       quality: this.quality,
       num_images: req.count ?? 1,
       ...(this.byokKey ? { openai_api_key: this.byokKey } : {}),
@@ -70,7 +70,7 @@ export class FalGptImageProvider implements ImageProvider {
       // gpt-image-2 edit accepts URLs or base64 data URIs directly; the first is
       // the primary (product), extras are style references
       image_urls: [req.referenceImageDataUrl, ...(req.extraImageUrls ?? [])],
-      image_size: toImageSize(req.aspectRatio),
+      image_size: toImageSize(req.aspectRatio, req.pixelSize),
       quality: this.quality,
       num_images: req.count ?? 1,
       ...(this.byokKey ? { openai_api_key: this.byokKey } : {}),
@@ -80,10 +80,7 @@ export class FalGptImageProvider implements ImageProvider {
   /** Submit a job to the fal queue and return its status/response URLs. */
   private async submit(model: string, input: Record<string, unknown>): Promise<ImageJobHandle> {
     if (!this.apiKey) {
-      throw new ProviderError(
-        USER_ERRORS.notConfigured,
-        "missing FAL_KEY",
-      );
+      throw new ProviderError(USER_ERRORS.notConfigured, "missing FAL_KEY");
     }
     const submitted = await this.fetchJson(`https://queue.fal.run/${model}`, {
       method: "POST",
@@ -113,10 +110,7 @@ export class FalGptImageProvider implements ImageProvider {
    */
   async pollJob(handle: ImageJobHandle): Promise<ImageJobStatus> {
     if (!this.apiKey) {
-      throw new ProviderError(
-        USER_ERRORS.notConfigured,
-        "missing FAL_KEY",
-      );
+      throw new ProviderError(USER_ERRORS.notConfigured, "missing FAL_KEY");
     }
     const auth = { Authorization: `Key ${this.apiKey}` };
     const st = await this.fetchJson(handle.statusUrl, { headers: auth });
@@ -149,16 +143,10 @@ export class FalGptImageProvider implements ImageProvider {
       const st = await this.pollJob(handle);
       if (st.status === "completed") return { images: st.images ?? [], provider: this.id };
       if (st.status === "failed") {
-        throw new ProviderError(
-          friendlyJobError(st.error),
-          st.error ?? "fal-gpt-image failed",
-        );
+        throw new ProviderError(friendlyJobError(st.error), st.error ?? "fal-gpt-image failed");
       }
       if (Date.now() > deadline) {
-        throw new ProviderError(
-          USER_ERRORS.timeout,
-          "fal-gpt-image timeout",
-        );
+        throw new ProviderError(USER_ERRORS.timeout, "fal-gpt-image timeout");
       }
     }
   }
@@ -224,8 +212,21 @@ function composePrompt(prompt: string, negative?: string): string {
   return negative ? `${prompt}\n\nStrictly avoid: ${negative}.` : prompt;
 }
 
-/** Map our aspect ratios to gpt-image-2 size presets (portrait_4_3 == 3:4). */
-function toImageSize(ratio?: string): string {
+/**
+ * Размер кадра для gpt-image-2.
+ *
+ * Точный `pixelSize` сильнее пропорции: модель принимает объект {width,height}
+ * и отдаёт ровно его — проверено живыми генерациями 2026-09-10 (1280×720,
+ * 1024×1792, 1200×400 пришли без растяжения, круг остался кругом). Стороны
+ * округляются до кратного 16, поэтому вызывающий код обязан давать кратные
+ * значения (см. BANNER_FORMATS) — молча подменять выбор пользователя нельзя.
+ *
+ * 9:16 РАНЬШЕ молча превращался в portrait_4_3 — человек просил вертикальный
+ * кадр, а получал 3:4 и не знал об этом. Пресет portrait_16_9 существует и
+ * работает (608×1088), так что подмены больше нет.
+ */
+function toImageSize(ratio?: string, pixelSize?: { width: number; height: number }): unknown {
+  if (pixelSize) return { width: pixelSize.width, height: pixelSize.height };
   switch (ratio) {
     case "1:1":
       return "square_hd";
@@ -233,9 +234,10 @@ function toImageSize(ratio?: string): string {
       return "landscape_16_9";
     case "4:3":
       return "landscape_4_3";
+    case "9:16":
+      return "portrait_16_9";
     case "3:4":
     case "4:5":
-    case "9:16":
     default:
       return "portrait_4_3";
   }
