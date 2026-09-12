@@ -1,12 +1,23 @@
 "use client";
 import * as React from "react";
 import Link from "next/link";
-import { Wand2, ScanSearch, LayoutTemplate, FileText, Images, ArrowRight, Clapperboard, Scale } from "lucide-react";
+import {
+  Wand2,
+  ScanSearch,
+  LayoutTemplate,
+  FileText,
+  Images,
+  ArrowRight,
+  Clapperboard,
+  Scale,
+  Megaphone,
+} from "lucide-react";
 import { AppShell } from "@/components/layout/app-shell";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/project/empty-state";
+import { useProfileStore } from "@/store/profile-store";
 
 // Инфографика первой как главный сценарий; у Фото и Инфографики явно указано
 // «с текстом / без текста» — лечит частую путаницу (половина новичков шла в
@@ -51,6 +62,21 @@ const QUICK = [
   },
 ] as const;
 
+/**
+ * «Рекламные креативы» — под гейтом профиля (BANNERS=all раскатан 2026-09-12).
+ * Подпись нарочно противопоставлена «Инфографике»: реклама СНАРУЖИ маркетплейса,
+ * с логотипом, ценой и контактами, — иначе раздел путают с карточкой товара.
+ */
+const BANNERS_TILE = {
+  href: "/banners",
+  icon: Megaphone,
+  title: "Рекламные креативы",
+  desc: "Баннер, пост, шапка, визитка — реклама ВНЕ маркетплейса, с лого и ценой",
+  badge: "Новое",
+} as const;
+
+type QuickTile = (typeof QUICK)[number] | typeof BANNERS_TILE;
+
 type CardItem = {
   id: string;
   kind: string;
@@ -64,10 +90,20 @@ const KIND_LABEL: Record<string, string> = {
   infographic: "Инфографика",
   improve: "Улучшение",
   video: "Видео",
+  banner: "Реклама",
 };
 
 export default function DashboardPage() {
   const [cards, setCards] = React.useState<CardItem[] | null>(null);
+  const bannersAllowed = useProfileStore((p) => p.banners);
+  // плитка креативов — сразу после «Инфографики», соседняя по смыслу услуга
+  const quick = React.useMemo<QuickTile[]>(() => {
+    if (!bannersAllowed) return [...QUICK];
+    const at = QUICK.findIndex((q) => q.href === "/infographics");
+    const next: QuickTile[] = [...QUICK];
+    next.splice(at + 1, 0, BANNERS_TILE);
+    return next;
+  }, [bannersAllowed]);
   // Онбординг-баннер показываем только новичкам (ещё нет ни одной работы),
   // чтобы не мозолил глаза постоянным пользователям.
   const isNewUser = cards !== null && cards.length === 0;
@@ -101,7 +137,8 @@ export default function DashboardPage() {
                 </Link>
               </Button>
               <span className="text-xs text-muted-foreground">
-                «Фото товара» — это чистое фото <b>без надписей</b>, для карточки с текстом нужна «Инфографика».
+                «Фото товара» — это чистое фото <b>без надписей</b>, для карточки с текстом нужна
+                «Инфографика».
               </span>
             </div>
           </section>
@@ -111,7 +148,7 @@ export default function DashboardPage() {
         <section>
           <h2 className="mb-3 text-sm font-semibold text-muted-foreground">Быстрые действия</h2>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            {QUICK.map((q) => (
+            {quick.map((q) => (
               <Link key={q.href} href={q.href}>
                 <Card
                   className={
@@ -126,6 +163,11 @@ export default function DashboardPage() {
                       </div>
                       {"primary" in q && q.primary && (
                         <Badge className="px-1.5 py-0 text-[10px]">Начните с этого</Badge>
+                      )}
+                      {"badge" in q && q.badge && (
+                        <Badge variant="secondary" className="px-1.5 py-0 text-[10px]">
+                          {q.badge}
+                        </Badge>
                       )}
                     </div>
                     <div>
@@ -204,7 +246,10 @@ export default function DashboardPage() {
                     <p className="truncate text-xs font-medium">
                       {c.title ?? KIND_LABEL[c.kind] ?? c.kind}
                     </p>
-                    <Badge variant="secondary" className="shrink-0 px-1.5 py-0 text-[10px] font-normal">
+                    <Badge
+                      variant="secondary"
+                      className="shrink-0 px-1.5 py-0 text-[10px] font-normal"
+                    >
                       {KIND_LABEL[c.kind] ?? c.kind}
                     </Badge>
                   </div>

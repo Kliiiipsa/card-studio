@@ -14,12 +14,15 @@ import {
   Clapperboard,
   Scale,
   Megaphone,
+  type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useProfileStore } from "@/store/profile-store";
 
+type NavItem = { href: string; label: string; icon: LucideIcon; badge?: string };
+
 // «Карточка под ключ» (/turnkey) временно скрыта из меню — дорабатываем качество пакета
-export const NAV = [
+export const NAV: NavItem[] = [
   { href: "/dashboard", label: "Главная", icon: LayoutDashboard },
   { href: "/generator", label: "Фото товара", icon: Wand2 },
   { href: "/infographics", label: "Инфографика", icon: LayoutGrid },
@@ -32,11 +35,17 @@ export const NAV = [
 ];
 
 /**
- * «Рекламные баннеры» пока закрыты гейтом (админ или BANNERS=all), поэтому
- * пункт меню появляется только у тех, кому раздел реально доступен. Настоящая
- * защита — на сервере: без неё ссылку можно было бы просто угадать.
+ * «Рекламные креативы» под гейтом (админ или BANNERS=all — раскатано всем
+ * 2026-09-12), поэтому пункт меню появляется только у тех, кому раздел реально
+ * доступен. Настоящая защита — на сервере: без неё ссылку можно было бы
+ * просто угадать. Метка «новое» — чтобы раздел заметили.
  */
-const BANNERS_ITEM = { href: "/banners", label: "Рекламные креативы", icon: Megaphone };
+const BANNERS_ITEM: NavItem = {
+  href: "/banners",
+  label: "Рекламные креативы",
+  icon: Megaphone,
+  badge: "новое",
+};
 
 export function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
@@ -68,6 +77,11 @@ export function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
           >
             <Icon className="h-4 w-4" />
             {item.label}
+            {item.badge && (
+              <span className="ml-auto rounded-full bg-primary/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary">
+                {item.badge}
+              </span>
+            )}
           </Link>
         );
       })}

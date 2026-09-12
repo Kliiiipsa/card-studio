@@ -60,6 +60,7 @@ const STRUCTURED_DATA: Record<string, unknown>[] = [
       "Фото товара по снимку или описанию",
       "Инфографика с русским текстом и плашками",
       "Видео товара",
+      "Рекламные креативы: баннеры, посты для соцсетей, шапки профилей, визитки",
       "SEO-название, описание и ключевые запросы",
       "Анализ и сравнение карточек",
     ],
@@ -68,7 +69,7 @@ const STRUCTURED_DATA: Record<string, unknown>[] = [
       priceCurrency: "RUB",
       lowPrice: String(Math.min(PRICES.analyze, PRICES.seo)),
       highPrice: String(PRICES.video),
-      offerCount: 6,
+      offerCount: 7,
     },
   },
 ];

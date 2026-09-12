@@ -1,5 +1,6 @@
 "use client";
 import * as React from "react";
+import Link from "next/link";
 import {
   Loader2,
   Sparkles,
@@ -303,8 +304,25 @@ export default function BannersPage() {
 
   return (
     <AppShell title="Рекламные креативы">
-      <div className="mb-4 rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-2.5 text-xs text-amber-900 dark:text-amber-200">
-        Раздел в разработке и виден только вам. Клиенты его не видят.
+      {/* Плашка-ориентир: раздел путают с «Инфографикой». Инфографика — слайд
+          ВНУТРИ карточки маркетплейса, креатив — реклама СНАРУЖИ, и всё, за что
+          WB/Ozon снимают карточку (лого, цена, кнопка, контакты), здесь и есть смысл. */}
+      <div className="mb-5 flex gap-3 rounded-xl border border-primary/30 bg-primary/5 px-4 py-3 text-sm">
+        <Megaphone className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+        <div className="space-y-1">
+          <p className="font-medium [text-wrap:balance]">
+            Это реклама за пределами маркетплейса, а не карточка товара
+          </p>
+          <p className="text-muted-foreground">
+            Баннер для Директа и VK, пост в соцсети, шапка профиля, визитка. На креативе есть
+            логотип, цена, кнопка, телефон и сайт — то, что на карточке Wildberries и Ozon
+            запрещено. Нужна карточка с плашками для маркетплейса? Это раздел{" "}
+            <Link href="/infographics" className="font-medium text-primary hover:underline">
+              «Инфографика»
+            </Link>
+            .
+          </p>
+        </div>
       </div>
 
       <div className="grid gap-5 lg:grid-cols-[1fr_1fr_0.9fr]">
