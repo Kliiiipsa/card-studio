@@ -130,8 +130,13 @@ export function useCardGeneration() {
         // «Обычное фото»: без маркетплейсовых сценария и стиля — промпт как есть.
         const freeMode = s.genMode === "free";
         const scenario = freeMode ? null : PHOTO_SCENARIO_MAP[s.cardType];
+        // «Студийный фон» + стиль «Lifestyle» противоречат друг другу: сервер
+        // допишет «бесшовная серая студийная бумага», а стиль — «естественный
+        // свет, жизненный контекст». Модель получала оба (носки, 2026-09-11).
+        // Сценарий главнее — стиль в этой паре не передаём.
+        const clash = scenario?.id === "studio" && s.styleMode === "lifestyle";
         const styleGuidance =
-          !freeMode && s.styleMode !== "auto" ? styleModeGuidance(s.styleMode) : null;
+          !freeMode && s.styleMode !== "auto" && !clash ? styleModeGuidance(s.styleMode) : null;
         const suffix = [
           scenario && `Сценарий фото: ${scenario.title}. Composition: ${scenario.promptHint}`,
           styleGuidance && `Стиль: ${styleGuidance}`,
@@ -172,6 +177,8 @@ export function useCardGeneration() {
               // генерация, там ни сценария, ни требования сохранить товар
               purpose: freeMode ? undefined : "photo",
               scenario: scenario?.id,
+              // собственный текст человека — без сценария и стиля
+              userText: basePrompt,
               productHint: freeMode
                 ? undefined
                 : [s.product.name, s.product.category].filter(Boolean).join(" ").slice(0, 300) ||

@@ -57,6 +57,8 @@ export async function POST(req: Request) {
           ? `${safePrompt}\n\n${scenarioDirectives(body.scenario, {
               v2,
               productHint: `${body.productHint ?? ""} ${body.prompt}`,
+              // сама просьба человека: по ней снимаем бирки и ставим её выше умолчаний
+              request: body.userText ?? body.prompt,
             })}`
           : safePrompt;
       const strength =
@@ -93,6 +95,10 @@ export async function POST(req: Request) {
             // в журнал пишем то, что реально ушло в модель
             prompt: modelPrompt.slice(0, 2000),
             promptRaw: safePrompt === body.prompt ? undefined : body.prompt.slice(0, 2000),
+            // и отдельно — что человек напечатал САМ, без сценария и стиля:
+            // раньше в админке под «что заполнил пользователь» лежал промпт
+            // модели с английским хвостом, и было не понять, кто что писал
+            userPrompt: body.userText?.slice(0, 2000),
             purpose: body.purpose,
             scenario: body.scenario,
             photoFix: fix || undefined,

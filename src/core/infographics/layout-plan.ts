@@ -90,6 +90,14 @@ export type PhotoCheck = {
   isProduct: boolean;
   /** 3–6 слов по-русски: «лист с текстом и рисунком» */
   seen?: string;
+  /**
+   * Природа картинки — отдельно от «товар ли это». Логотип PowerPoint — это
+   * товар (isProduct=true, человек продаёт презентации), но это ПЛОСКАЯ
+   * ГРАФИКА: модели не за что зацепиться, и она берёт героя с библиотечного
+   * образца стиля (2026-09-11: логотип → мужчина в клетке из «Премиум
+   * тёмного»). Образец картинкой отдаём только для kind=photo.
+   */
+  kind?: "photo" | "graphic" | "document";
 };
 
 export type FallbackPlanParams = {
@@ -203,8 +211,11 @@ export function fallbackLayoutPlan(p: FallbackPlanParams): LayoutPlan {
  */
 function sanitizePhoto(raw: unknown): PhotoCheck | undefined {
   if (!raw || typeof raw !== "object") return undefined;
-  const r = raw as { isProduct?: unknown; seen?: unknown };
+  const r = raw as { isProduct?: unknown; seen?: unknown; kind?: unknown };
   if (r.isProduct === undefined || r.isProduct === null) return undefined;
+  const kindRaw = typeof r.kind === "string" ? r.kind.trim().toLowerCase() : "";
+  const kind: PhotoCheck["kind"] | undefined =
+    kindRaw === "photo" || kindRaw === "graphic" || kindRaw === "document" ? kindRaw : undefined;
   const v = r.isProduct;
   const isProduct =
     typeof v === "boolean"
@@ -214,8 +225,9 @@ function sanitizePhoto(raw: unknown): PhotoCheck | undefined {
         : typeof v === "number"
           ? v !== 0
           : true;
-  const seen = typeof r.seen === "string" && r.seen.trim() ? r.seen.trim().slice(0, 200) : undefined;
-  return { isProduct, seen };
+  const seen =
+    typeof r.seen === "string" && r.seen.trim() ? r.seen.trim().slice(0, 200) : undefined;
+  return { isProduct, seen, kind };
 }
 
 /** Clamp vision art direction to safe sizes; drop it entirely when empty. */

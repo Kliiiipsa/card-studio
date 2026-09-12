@@ -25,13 +25,18 @@ import { ImageUploader } from "@/components/media/image-uploader";
 import { ImagePreview } from "@/components/media/image-preview";
 import { useGeneratorStore, type StyleMode, type GenMode } from "@/store/generator-store";
 import { useCardGeneration } from "@/hooks/use-card-generation";
-import { PHOTO_SCENARIOS, PHOTO_SCENARIO_MAP, type PhotoScenarioId } from "@/core/domain/photo-scenarios";
+import {
+  PHOTO_SCENARIOS,
+  PHOTO_SCENARIO_MAP,
+  type PhotoScenarioId,
+} from "@/core/domain/photo-scenarios";
 import { ASPECT_RATIOS, type AspectRatioId } from "@/core/domain/export-presets";
 import { INFOGRAPHICS_PREFILL_KEY } from "@/components/ai/analysis-report";
 import { PRICES, SPARK } from "@/core/billing/prices";
 import { uid } from "@/lib/utils";
 import { useProfileStore } from "@/store/profile-store";
 import { wantsTextOnPhoto } from "@/core/ai/photo-fix";
+import { toast } from "@/components/ui/toaster";
 
 /**
  * Готовые задачи под полем (v2, 2026-09-08): человек собирает запрос из
@@ -79,11 +84,42 @@ function GeneratorInner() {
   const photoFix = useProfileStore((p) => p.photoFix);
   // v2: «Подсказать задание» вместо «Написать промпт» + плашки готовых задач
   const photoV2 = useProfileStore((p) => p.photoV2);
+  /**
+   * Плашки-задачи: клик добавляет, повторный клик снимает, больше трёх —
+   * отказ. Разбор 2026-09-11: человек нажал пять плашек подряд («крупнее»,
+   * «с другого ракурса», «на модели»…), и модель получила пять команд, часть
+   * из которых спорит друг с другом. Три — предел, при котором результат
+   * ещё предсказуем.
+   */
+  const MAX_TASKS = 3;
   const addTask = (t: string) => {
     const cur = s.userPrompt.trim();
-    if (cur.includes(t)) return;
+    if (cur.includes(t)) {
+      const next = cur
+        .replace(t, "")
+        .replace(/\.\s*\./g, ".")
+        .replace(/\s{2,}/g, " ")
+        .replace(/^[.\s]+|[.\s]+$/g, "");
+      s.setField("userPrompt", next);
+      return;
+    }
+    const active = TASK_CHIPS.filter((c) => cur.includes(c)).length;
+    if (active >= MAX_TASKS) {
+      toast.info("Не больше трёх задач за раз — иначе модель путается. Снимите одну из выбранных.");
+      return;
+    }
     s.setField("userPrompt", cur ? `${cur.replace(/[.\s]+$/, "")}. ${t}` : t);
   };
+
+  // «Студийный фон» и стиль «Lifestyle» противоречат друг другу (студийная
+  // бумага против естественного света) — при таком сочетании стиль сбрасываем
+  React.useEffect(() => {
+    if (s.cardType === "studio" && s.styleMode === "lifestyle") {
+      s.setField("styleMode", "auto");
+      toast.info("Стиль «Lifestyle» не сочетается со студийным фоном — переключили на «Авто»");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [s.cardType, s.styleMode]);
   const [textWarn, setTextWarn] = React.useState<null | string>(null); // промпт, на который согласились
   const textIntent = photoFix && !freeMode && wantsTextOnPhoto(s.userPrompt, s.userNote);
   const [showTextWarn, setShowTextWarn] = React.useState(false);
@@ -195,340 +231,363 @@ function GeneratorInner() {
       </div>
 
       <div className="grid gap-5 lg:grid-cols-[1fr_1fr]">
-      {/* BLOCK 1 — Product data / reference */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-sm">
-            {freeMode ? "1. Референс и размер" : "1. Данные товара"}
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <ImageUploader
-            value={s.reference?.dataUrl}
-            onChange={(dataUrl) =>
-              s.setReference(dataUrl ? { id: uid("ref"), dataUrl, createdAt: Date.now() } : null)
-            }
-            label={freeMode ? "Фото-референс" : "Загрузите фото товара"}
-            hint={
-              freeMode
-                ? "Необязательно. Результат будет опираться на это фото (image-to-image)"
-                : "Необязательно. С фото ИИ напишет промпт точнее (image-to-image)"
-            }
-          />
-
-          <div className="space-y-1.5" hidden={freeMode}>
-            <Label htmlFor="name">Название товара</Label>
-            <Input
-              id="name"
-              value={s.product.name}
-              onChange={(e) => s.setProduct({ name: e.target.value })}
-              placeholder="Например: Мужской деловой костюм"
-            />
-          </div>
-
-          {!freeMode && (
-          <ListField
-            id="benefits"
-            label="Преимущества (по одному на строку)"
-            placeholder={"Не мнётся\nДышащая ткань\nСидит по фигуре"}
-            value={s.product.benefits}
-            onChange={(benefits) => s.setProduct({ benefits })}
-          />
-          )}
-
-          {/* Secondary fields only nudge the AI prompt — hidden by default. */}
-          {!freeMode && (
-          <details className="group rounded-lg border border-border/60 bg-muted/30 px-3 py-2">
-            <summary className="cursor-pointer list-none text-xs font-medium text-muted-foreground transition-colors hover:text-foreground">
-              Дополнительно (необязательно)
-            </summary>
-            <div className="mt-3 space-y-4">
-              <div className="space-y-1.5">
-                <Label htmlFor="category">Категория</Label>
-                <Input
-                  id="category"
-                  value={s.product.category}
-                  onChange={(e) => s.setProduct({ category: e.target.value })}
-                  placeholder="Одежда"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="audience">Целевая аудитория</Label>
-                <Input
-                  id="audience"
-                  value={s.product.audience}
-                  onChange={(e) => s.setProduct({ audience: e.target.value })}
-                  placeholder="Мужчины 25–40, офис"
-                />
-              </div>
-              <ListField
-                id="pains"
-                label="Боли клиента (по одной на строку)"
-                placeholder={"Костюмы быстро мнутся\nТрудно подобрать размер"}
-                value={s.product.pains}
-                onChange={(pains) => s.setProduct({ pains })}
-              />
-            </div>
-          </details>
-          )}
-
-          <div className="space-y-1.5" hidden={freeMode}>
-            <Label htmlFor="note">Дополнительное пожелание</Label>
-            <Textarea
-              id="note"
-              value={s.userNote}
-              onChange={(e) => s.setField("userNote", e.target.value)}
-              placeholder="Например: тёмный премиальный фон, акцент на качестве"
-              className="min-h-[60px]"
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5" hidden={freeMode}>
-              <Label className="text-xs">Сценарий фото</Label>
-              <Select
-                value={s.cardType}
-                onValueChange={(v) => s.setField("cardType", v as PhotoScenarioId)}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {PHOTO_SCENARIOS.map((t) => (
-                    <SelectItem key={t.id} value={t.id}>
-                      {t.title}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1.5" hidden={freeMode}>
-              <Label className="text-xs">Стиль</Label>
-              <Select
-                value={s.styleMode}
-                onValueChange={(v) => s.setField("styleMode", v as StyleMode)}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {STYLE_MODES.map((m) => (
-                    <SelectItem key={m.id} value={m.id}>
-                      {m.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs">Размер фото</Label>
-              <Select
-                value={s.aspectRatio}
-                onValueChange={(v) => s.setField("aspectRatio", v as AspectRatioId)}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {ASPECT_RATIOS.filter(
-                    // «Как у исходного» — только в «Обычном фото» с загруженным референсом
-                    (r) => r.id !== "original" || (freeMode && !!s.reference),
-                  ).map((r) => (
-                    <SelectItem key={r.id} value={r.id}>
-                      {r.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          {!freeMode && (
-          <p className="text-[11px] leading-4 text-muted-foreground">
-            Этот раздел делает чистое фото без надписей. Нужна карточка с текстом и плашками —{" "}
-            <Link href="/infographics" className="font-medium text-primary hover:underline">
-              соберите инфографику
-            </Link>
-            .
-          </p>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* BLOCK 2 + 3 — Prompt & generation */}
-      <div className="space-y-5">
+        {/* BLOCK 1 — Product data / reference */}
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm">{freeMode ? "2. Что нарисовать?" : "2. Промпт"}</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {!freeMode && (
-            <Button
-              onClick={handleWrite}
-              disabled={writing || busy}
-              variant="gradient"
-              className="w-full"
-            >
-              {writing ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Sparkles className="h-4 w-4" />
-              )}
-              {photoV2 ? "Подсказать задание" : "Написать промпт"}
-            </Button>
-            )}
-
-            <Textarea
-              value={s.userPrompt}
-              onChange={(e) => s.setField("userPrompt", e.target.value)}
-              placeholder={
-                freeMode
-                  ? "Опишите картинку своими словами, по-русски. Например: уютная кухня в скандинавском стиле, утренний свет, на столе чашка кофе"
-                  : photoV2
-                    ? "Что изменить на фото? Например: убери коробку слева, сделай фон светлее. Или выберите задачи ниже — либо нажмите «Подсказать задание», и ИИ предложит, что поправить."
-                    : "Нажмите «Написать промпт» — ИИ опишет карточку по фото и данным товара. Текст можно отредактировать."
-              }
-              className="min-h-[160px]"
-            />
-
-            {photoV2 && !freeMode && (
-              <div className="flex flex-wrap gap-1.5">
-                {TASK_CHIPS.map((t) => (
-                  <button
-                    key={t}
-                    type="button"
-                    onClick={() => addTask(t)}
-                    disabled={busy}
-                    className="rounded-full border border-border/70 bg-muted/40 px-2.5 py-1 text-xs text-muted-foreground transition-colors hover:border-primary/50 hover:bg-primary/5 hover:text-foreground"
-                  >
-                    + {t}
-                  </button>
-                ))}
-              </div>
-            )}
-
-            <div className="flex gap-2">
-              {!freeMode && (
-              <Button
-                onClick={handleImprove}
-                disabled={improving || busy || !s.userPrompt.trim()}
-                variant="outline"
-                size="sm"
-              >
-                {improving ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <RefreshCw className="h-4 w-4" />
-                )}
-                Переписать
-              </Button>
-              )}
-              <Button
-                onClick={() => s.setField("userPrompt", "")}
-                disabled={!s.userPrompt.trim()}
-                variant="ghost"
-                size="sm"
-              >
-                <Eraser className="h-4 w-4" />
-                Очистить
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex-row items-center justify-between pb-3">
-            <CardTitle className="text-sm">3. Генерация</CardTitle>
-            {s.variants.length > 0 && (
-              <Button variant="ghost" size="sm" onClick={() => generate()} disabled={busy}>
-                <RefreshCw className="h-4 w-4" />
-                Ещё вариант
-              </Button>
-            )}
+            <CardTitle className="text-sm">
+              {freeMode ? "1. Референс и размер" : "1. Данные товара"}
+            </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <Button
-              onClick={tryGenerate}
-              disabled={busy || !s.userPrompt.trim()}
-              variant="gradient"
-              size="lg"
-              className="w-full"
-            >
-              {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />}
-              Сгенерировать фото · {PRICES.generate} {SPARK}
-            </Button>
+            <ImageUploader
+              value={s.reference?.dataUrl}
+              onChange={(dataUrl) =>
+                s.setReference(dataUrl ? { id: uid("ref"), dataUrl, createdAt: Date.now() } : null)
+              }
+              label={freeMode ? "Фото-референс" : "Загрузите фото товара"}
+              hint={
+                freeMode
+                  ? "Необязательно. Результат будет опираться на это фото (image-to-image)"
+                  : "Необязательно. С фото ИИ напишет промпт точнее (image-to-image)"
+              }
+            />
 
-            {showTextWarn && (
-              <div className="space-y-3 rounded-xl border border-amber-500/40 bg-amber-500/5 p-4 text-sm">
-                <p className="font-medium">Похоже, вы хотите текст на фото</p>
-                <p className="text-muted-foreground">
-                  Этот раздел делает чистое фото товара без надписей — модель не умеет писать
-                  по-русски и вместо преимуществ нарисует кашу из букв. Плашки, преимущества и
-                  заголовок собирает раздел «Инфографика»: перенесём туда название, преимущества
-                  и фото.
-                </p>
-                <div className="flex flex-col gap-2 sm:flex-row">
-                  <Button
-                    variant="gradient"
-                    className="flex-1"
-                    onClick={() => toInfographic(s.reference?.dataUrl)}
-                  >
-                    <LayoutGrid className="h-4 w-4" />
-                    Сделать инфографику · {PRICES.infographic} {SPARK}
-                  </Button>
-                  <Button variant="outline" className="flex-1" onClick={generateAnyway}>
-                    Всё равно сделать чистое фото
-                  </Button>
+            <div className="space-y-1.5" hidden={freeMode}>
+              <Label htmlFor="name">Название товара</Label>
+              <Input
+                id="name"
+                value={s.product.name}
+                onChange={(e) => s.setProduct({ name: e.target.value })}
+                placeholder="Например: Мужской деловой костюм"
+              />
+            </div>
+
+            {!freeMode && (
+              <ListField
+                id="benefits"
+                label="Преимущества (по одному на строку)"
+                placeholder={"Не мнётся\nДышащая ткань\nСидит по фигуре"}
+                value={s.product.benefits}
+                onChange={(benefits) => s.setProduct({ benefits })}
+              />
+            )}
+
+            {/* Secondary fields only nudge the AI prompt — hidden by default. */}
+            {!freeMode && (
+              <details className="group rounded-lg border border-border/60 bg-muted/30 px-3 py-2">
+                <summary className="cursor-pointer list-none text-xs font-medium text-muted-foreground transition-colors hover:text-foreground">
+                  Дополнительно (необязательно)
+                </summary>
+                <div className="mt-3 space-y-4">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="category">Категория</Label>
+                    <Input
+                      id="category"
+                      value={s.product.category}
+                      onChange={(e) => s.setProduct({ category: e.target.value })}
+                      placeholder="Одежда"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="audience">Целевая аудитория</Label>
+                    <Input
+                      id="audience"
+                      value={s.product.audience}
+                      onChange={(e) => s.setProduct({ audience: e.target.value })}
+                      placeholder="Мужчины 25–40, офис"
+                    />
+                  </div>
+                  <ListField
+                    id="pains"
+                    label="Боли клиента (по одной на строку)"
+                    placeholder={"Костюмы быстро мнутся\nТрудно подобрать размер"}
+                    value={s.product.pains}
+                    onChange={(pains) => s.setProduct({ pains })}
+                  />
                 </div>
-              </div>
+              </details>
             )}
 
-            {busy ? (
-              <LoadingGenerationState status={s.status} />
-            ) : selected ? (
-              <ImagePreview src={selected.url} className="mx-auto max-w-sm" />
-            ) : (
-              <div className={`flex ${placeholderAspect} max-w-sm mx-auto items-center justify-center rounded-xl border border-dashed text-center text-sm text-muted-foreground`}>
-                <span className="flex flex-col items-center gap-2 px-6">
-                  <ImagePlus className="h-6 w-6 opacity-60" />
-                  Здесь появится фото
-                </span>
-              </div>
-            )}
+            <div className="space-y-1.5" hidden={freeMode}>
+              <Label htmlFor="note">Дополнительное пожелание</Label>
+              <Textarea
+                id="note"
+                value={s.userNote}
+                onChange={(e) => s.setField("userNote", e.target.value)}
+                placeholder="Например: тёмный премиальный фон, акцент на качестве"
+                className="min-h-[60px]"
+              />
+            </div>
 
-            {s.variants.length > 1 && (
-              <div className="mx-auto max-w-sm">
-                <GeneratedImageGrid
-                  variants={s.variants}
-                  selectedId={s.selectedVariantId}
-                  onSelect={(id) => s.selectVariant(id)}
-                />
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5" hidden={freeMode}>
+                <Label className="text-xs">Сценарий фото</Label>
+                <Select
+                  value={s.cardType}
+                  onValueChange={(v) => s.setField("cardType", v as PhotoScenarioId)}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {PHOTO_SCENARIOS.map((t) => (
+                      <SelectItem key={t.id} value={t.id}>
+                        {t.title}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
-            )}
-
-            {selected && (
-              <div className="space-y-3 border-t pt-4">
-                {/* Только кнопки скачивания: размер задан до генерации, текст
-                    поверх фото — это раздел «Инфографика» (2026-09-08). */}
-                <ExportPanel
-                  src={selected.url}
-                  variants={s.variants}
-                  item={freeMode ? "photo" : "card"}
-                  minimal
-                />
-                <Button variant="outline" className="w-full" onClick={() => toInfographic()}>
-                  <LayoutGrid className="h-4 w-4" />
-                  Сделать инфографику из этого фото · {PRICES.infographic} {SPARK}
-                </Button>
-                {latestScore && (
-                  <p className="text-center text-xs text-muted-foreground">
-                    Оценка карточки: <span className="font-semibold">{latestScore.total}/100</span>
-                  </p>
-                )}
+              <div className="space-y-1.5" hidden={freeMode}>
+                <Label className="text-xs">Стиль</Label>
+                <Select
+                  value={s.styleMode}
+                  onValueChange={(v) => s.setField("styleMode", v as StyleMode)}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {STYLE_MODES.map((m) => (
+                      <SelectItem
+                        key={m.id}
+                        value={m.id}
+                        disabled={m.id === "lifestyle" && s.cardType === "studio"}
+                      >
+                        {m.label}
+                        {m.id === "lifestyle" && s.cardType === "studio"
+                          ? " — не сочетается со студийным фоном"
+                          : ""}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Размер фото</Label>
+                <Select
+                  value={s.aspectRatio}
+                  onValueChange={(v) => s.setField("aspectRatio", v as AspectRatioId)}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {ASPECT_RATIOS.filter(
+                      // «Как у исходного» — только в «Обычном фото» с загруженным референсом
+                      (r) => r.id !== "original" || (freeMode && !!s.reference),
+                    ).map((r) => (
+                      <SelectItem key={r.id} value={r.id}>
+                        {r.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            {!freeMode && (
+              <p className="text-[11px] leading-4 text-muted-foreground">
+                Этот раздел делает чистое фото без надписей. Нужна карточка с текстом и плашками —{" "}
+                <Link href="/infographics" className="font-medium text-primary hover:underline">
+                  соберите инфографику
+                </Link>
+                .
+              </p>
             )}
           </CardContent>
         </Card>
-      </div>
+
+        {/* BLOCK 2 + 3 — Prompt & generation */}
+        <div className="space-y-5">
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm">
+                {freeMode ? "2. Что нарисовать?" : "2. Промпт"}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {!freeMode && (
+                <Button
+                  onClick={handleWrite}
+                  disabled={writing || busy}
+                  variant="gradient"
+                  className="w-full"
+                >
+                  {writing ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Sparkles className="h-4 w-4" />
+                  )}
+                  {photoV2 ? "Подсказать задание" : "Написать промпт"}
+                </Button>
+              )}
+
+              <Textarea
+                value={s.userPrompt}
+                onChange={(e) => s.setField("userPrompt", e.target.value)}
+                placeholder={
+                  freeMode
+                    ? "Опишите картинку своими словами, по-русски. Например: уютная кухня в скандинавском стиле, утренний свет, на столе чашка кофе"
+                    : photoV2
+                      ? "Что изменить на фото? Например: убери коробку слева, сделай фон светлее. Или выберите задачи ниже — либо нажмите «Подсказать задание», и ИИ предложит, что поправить."
+                      : "Нажмите «Написать промпт» — ИИ опишет карточку по фото и данным товара. Текст можно отредактировать."
+                }
+                className="min-h-[160px]"
+              />
+
+              {photoV2 && !freeMode && (
+                <div className="flex flex-wrap gap-1.5">
+                  {TASK_CHIPS.map((t) => {
+                    const active = s.userPrompt.includes(t);
+                    return (
+                      <button
+                        key={t}
+                        type="button"
+                        onClick={() => addTask(t)}
+                        disabled={busy}
+                        className={
+                          active
+                            ? "rounded-full border border-primary bg-primary/10 px-2.5 py-1 text-xs text-primary transition-colors"
+                            : "rounded-full border border-border/70 bg-muted/40 px-2.5 py-1 text-xs text-muted-foreground transition-colors hover:border-primary/50 hover:bg-primary/5 hover:text-foreground"
+                        }
+                      >
+                        {active ? "✓" : "+"} {t}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+
+              <div className="flex gap-2">
+                {!freeMode && (
+                  <Button
+                    onClick={handleImprove}
+                    disabled={improving || busy || !s.userPrompt.trim()}
+                    variant="outline"
+                    size="sm"
+                  >
+                    {improving ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <RefreshCw className="h-4 w-4" />
+                    )}
+                    Переписать
+                  </Button>
+                )}
+                <Button
+                  onClick={() => s.setField("userPrompt", "")}
+                  disabled={!s.userPrompt.trim()}
+                  variant="ghost"
+                  size="sm"
+                >
+                  <Eraser className="h-4 w-4" />
+                  Очистить
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex-row items-center justify-between pb-3">
+              <CardTitle className="text-sm">3. Генерация</CardTitle>
+              {s.variants.length > 0 && (
+                <Button variant="ghost" size="sm" onClick={() => generate()} disabled={busy}>
+                  <RefreshCw className="h-4 w-4" />
+                  Ещё вариант
+                </Button>
+              )}
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <Button
+                onClick={tryGenerate}
+                disabled={busy || !s.userPrompt.trim()}
+                variant="gradient"
+                size="lg"
+                className="w-full"
+              >
+                {busy ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Wand2 className="h-4 w-4" />
+                )}
+                Сгенерировать фото · {PRICES.generate} {SPARK}
+              </Button>
+
+              {showTextWarn && (
+                <div className="space-y-3 rounded-xl border border-amber-500/40 bg-amber-500/5 p-4 text-sm">
+                  <p className="font-medium">Похоже, вы хотите текст на фото</p>
+                  <p className="text-muted-foreground">
+                    Этот раздел делает чистое фото товара без надписей — модель не умеет писать
+                    по-русски и вместо преимуществ нарисует кашу из букв. Плашки, преимущества и
+                    заголовок собирает раздел «Инфографика»: перенесём туда название, преимущества и
+                    фото.
+                  </p>
+                  <div className="flex flex-col gap-2 sm:flex-row">
+                    <Button
+                      variant="gradient"
+                      className="flex-1"
+                      onClick={() => toInfographic(s.reference?.dataUrl)}
+                    >
+                      <LayoutGrid className="h-4 w-4" />
+                      Сделать инфографику · {PRICES.infographic} {SPARK}
+                    </Button>
+                    <Button variant="outline" className="flex-1" onClick={generateAnyway}>
+                      Всё равно сделать чистое фото
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {busy ? (
+                <LoadingGenerationState status={s.status} />
+              ) : selected ? (
+                <ImagePreview src={selected.url} className="mx-auto max-w-sm" />
+              ) : (
+                <div
+                  className={`flex ${placeholderAspect} max-w-sm mx-auto items-center justify-center rounded-xl border border-dashed text-center text-sm text-muted-foreground`}
+                >
+                  <span className="flex flex-col items-center gap-2 px-6">
+                    <ImagePlus className="h-6 w-6 opacity-60" />
+                    Здесь появится фото
+                  </span>
+                </div>
+              )}
+
+              {s.variants.length > 1 && (
+                <div className="mx-auto max-w-sm">
+                  <GeneratedImageGrid
+                    variants={s.variants}
+                    selectedId={s.selectedVariantId}
+                    onSelect={(id) => s.selectVariant(id)}
+                  />
+                </div>
+              )}
+
+              {selected && (
+                <div className="space-y-3 border-t pt-4">
+                  {/* Только кнопки скачивания: размер задан до генерации, текст
+                    поверх фото — это раздел «Инфографика» (2026-09-08). */}
+                  <ExportPanel
+                    src={selected.url}
+                    variants={s.variants}
+                    item={freeMode ? "photo" : "card"}
+                    minimal
+                  />
+                  <Button variant="outline" className="w-full" onClick={() => toInfographic()}>
+                    <LayoutGrid className="h-4 w-4" />
+                    Сделать инфографику из этого фото · {PRICES.infographic} {SPARK}
+                  </Button>
+                  {latestScore && (
+                    <p className="text-center text-xs text-muted-foreground">
+                      Оценка карточки:{" "}
+                      <span className="font-semibold">{latestScore.total}/100</span>
+                    </p>
+                  )}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
       </div>
 
       {/* Mobile: the generate CTA is always in reach at the bottom of the screen */}

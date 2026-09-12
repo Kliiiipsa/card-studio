@@ -62,29 +62,64 @@ export function wantsTextOnPhoto(prompt: string, note?: string): boolean {
  */
 export function scenarioDirectives(
   scenario?: string | null,
-  opts?: { v2?: boolean; productHint?: string },
+  opts?: { v2?: boolean; productHint?: string; request?: string },
 ): string {
-  switch (scenario) {
-    // Сценарий по умолчанию: ничего сверх просьбы человека не трогаем.
-    case "as-is":
-      return `${KEEP} The background, lighting and setting stay as in the photo; only what the request asks for changes.`;
-    // A/B 2026-09-06: «only the product remains» убирал модель с платья, а
-    // «cords tucked away» рисовал шнур в углу (запрет = приглашение). Человек
-    // на фото остаётся; про шнуры молчим — «пустая поверхность» их и так убирает.
-    case "studio":
-      if (opts?.v2) return studioV2(opts.productHint);
-      return (
-        `${KEEP} The whole product fits inside the frame with clear margins on every side. ` +
-        "The original background is replaced by a clean seamless studio backdrop; the surface " +
-        "under the product is spotless and empty, the product looks freshly cleaned."
-      );
-    case "background-swap":
-      return `${KEEP} Only the environment around it changes; the whole product stays inside the frame with margins.`;
-    case "closeup":
-      return `${KEEP} The crop moves closer, the product does not change.`;
-    default:
-      return KEEP;
+  const core = (() => {
+    switch (scenario) {
+      // Сценарий по умолчанию: ничего сверх просьбы человека не трогаем.
+      case "as-is":
+        return `${KEEP} The background, lighting and setting stay as in the photo; only what the request asks for changes.`;
+      // A/B 2026-09-06: «only the product remains» убирал модель с платья, а
+      // «cords tucked away» рисовал шнур в углу (запрет = приглашение). Человек
+      // на фото остаётся; про шнуры молчим — «пустая поверхность» их и так убирает.
+      case "studio":
+        if (opts?.v2) return studioV2(opts.productHint);
+        return (
+          `${KEEP} The whole product fits inside the frame with clear margins on every side. ` +
+          "The original background is replaced by a clean seamless studio backdrop; the surface " +
+          "under the product is spotless and empty, the product looks freshly cleaned."
+        );
+      case "background-swap":
+        return `${KEEP} Only the environment around it changes; the whole product stays inside the frame with margins.`;
+      case "closeup":
+        return `${KEEP} The crop moves closer, the product does not change.`;
+      default:
+        return KEEP;
+    }
+  })();
+  return `${core}${requestOverrides(opts?.request)}`;
+}
+
+/**
+ * Просьба человека сильнее наших умолчаний.
+ *
+ * Случай 2026-09-11 (носки): клиент написал «убери все бирки и этикетки», а
+ * KEEP рядом говорил «надписи на товаре копируются точно» — модель прочла это
+ * как «бирки оставить», и жёлтые ярлыки уехали в результат. Клиент заплатил
+ * 8 генов и не получил главного, о чём просил.
+ *
+ * Поэтому: (1) если в просьбе есть снятие бирок — говорим это по-английски и
+ * прямо, бирки — это упаковка, а не товар; (2) общая строка о приоритете
+ * просьбы над умолчаниями. Обе формулировки позитивные — запрет модель читает
+ * как приглашение.
+ */
+function requestOverrides(request?: string): string {
+  const text = (request ?? "").trim();
+  if (!text) return "";
+  const parts: string[] = [];
+  const TAG = /(бирк|этикет|ярлык|наклейк|стикер|ценник|тег\b|лейбл)/i;
+  const REMOVE = /(убер|убр|сним|снят|удал|без\s|срез|отрез)/i;
+  if (TAG.test(text) && REMOVE.test(text)) {
+    parts.push(
+      "As the request asks, every hang tag, price tag, label and sticker attached to the " +
+        "product is removed — those are packaging, not part of the item; the item itself " +
+        "stays unchanged.",
+    );
   }
+  parts.push(
+    "Where the request above asks for a specific change, that change takes priority over these defaults.",
+  );
+  return ` ${parts.join(" ")}`;
 }
 
 /**
@@ -109,7 +144,11 @@ function studioV2(productHint?: string): string {
 /** Постановка по типу товара (ключевые слова из названия/категории/промпта). */
 function studioTail(hint?: string): string {
   const h = (hint ?? "").toLowerCase();
-  if (/одежд|плать|куртк|пальт|костюм|рубаш|брюк|джинс|футболк|худи|свитер|юбк|шорт|комбинезон|бель|пиджак|жилет|блуз|кардиган|плащ|пуховик|штан/.test(h)) {
+  if (
+    /одежд|плать|куртк|пальт|костюм|рубаш|брюк|джинс|футболк|худи|свитер|юбк|шорт|комбинезон|бель|пиджак|жилет|блуз|кардиган|плащ|пуховик|штан/.test(
+      h,
+    )
+  ) {
     // Тест 2026-09-08: «visible head to toe» на платье БЕЗ модели дорисовал
     // модель (упоминание = приглашение). Подача остаётся как на фото: на
     // человеке, на вешалке или в раскладке.
@@ -136,7 +175,9 @@ function studioTail(hint?: string): string {
  * на товаре — только те, что видны на фото (бренд из промпта иначе рисуется
  * крупной кривой надписью: «Wessgauff» на аэрогриле в A/B).
  */
+// «printed on the item itself» — намеренно: раньше стояло «markings on the
+// product», и модель считала бирки частью товара (см. requestOverrides).
 const KEEP =
   "The product itself, and the person wearing or holding it if there is one, stay exactly as " +
-  "in the photo (same item, colour, material, details, proportions). Markings and lettering on " +
-  "the product are copied exactly from the photo, nothing new is written on it.";
+  "in the photo (same item, colour, material, details, proportions). Brand marks and lettering " +
+  "printed on the item itself are copied exactly from the photo; nothing new is written on it.";

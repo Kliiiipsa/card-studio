@@ -97,7 +97,8 @@ const TYPE_BAKED_SPEC: Record<
 > = {
   benefits: {
     intent: "sell the product's key benefits at a glance",
-    blocks: (n, list) => `${n} short benefit captions, each with a small minimalist line icon: ${list}`,
+    blocks: (n, list) =>
+      `${n} short benefit captions, each with a small minimalist line icon: ${list}`,
   },
   why_buy: {
     intent: "convince the shopper to buy — confident promo energy without clutter",
@@ -158,7 +159,10 @@ function describeBakedStyle(
       `Accent color ${accent}`,
     ];
     if (styleProfile) {
-      parts.push(`panels ${styleProfile.palette.surface}`, CARD_STYLE_WORDS[styleProfile.cardStyle]);
+      parts.push(
+        `panels ${styleProfile.palette.surface}`,
+        CARD_STYLE_WORDS[styleProfile.cardStyle],
+      );
     }
     return parts.filter(Boolean).join(". ");
   }
@@ -257,6 +261,12 @@ export function buildBakedCardPrompt(args: {
   refKind?: "user" | "library";
   /** превью адаптивных сцен (админ/env): кнопка фона работает со стилями, сцена — под товар */
   adaptive?: boolean;
+  /**
+   * Природа картинки от vision. Для graphic (логотип, иконка, иллюстрация)
+   * «сохрани человека фотореалистичным» бессмысленно и вредно: человека там
+   * нет, и модель его выдумывает. Вместо этого логотип сам становится героем.
+   */
+  photoKind?: "photo" | "graphic" | "document";
 }): string {
   const { productName, headline, subheadline, benefits, type, style, styleProfile, layoutPlan } =
     args;
@@ -297,9 +307,7 @@ export function buildBakedCardPrompt(args: {
   // НЕ применяется при пользовательском референсе — там перенос окружения из
   // референса и есть желаемое поведение.
   const artScenes =
-    adaptive && sceneMode === "restyle" && !userReference
-      ? (layoutPlan?.art?.scenes ?? [])
-      : [];
+    adaptive && sceneMode === "restyle" && !userReference ? (layoutPlan?.art?.scenes ?? []) : [];
   const adaptiveScene = artScenes.length
     ? artScenes[(hashSeed(product) + (args.variantSeed ?? 0)) % artScenes.length]
     : undefined;
@@ -309,9 +317,15 @@ export function buildBakedCardPrompt(args: {
       ? ` Let small accents subtly echo the product's own colors (${layoutPlan.art.productColors.join(", ")}).`
       : "";
 
-  const base = args.hasProductImage
-    ? `Using the provided product photo, create a FINISHED Wildberries marketplace infographic card for ${product}. Keep the product/person photorealistic — same identity, clothing, materials, colors and proportions.`
-    : `Create a FINISHED Wildberries marketplace infographic card for ${product}.`;
+  const isGraphic = args.photoKind === "graphic" || args.photoKind === "document";
+  const base = !args.hasProductImage
+    ? `Create a FINISHED Wildberries marketplace infographic card for ${product}.`
+    : isGraphic
+      ? // Плоская графика вместо фото: логотип/иконка и есть товар. Никаких людей
+        // и предметов «для оживления» — именно так на карточку про PowerPoint
+        // попал мужчина в клетчатой рубашке (2026-09-11).
+        `The provided image is a flat LOGO/GRAPHIC, not a photograph — it represents ${product}. Make this graphic the hero of a FINISHED Wildberries marketplace infographic card: reproduce it faithfully (same shapes, colours and lettering), set it large on a clean designed background. The only object on the card is this graphic — no people, no models, no invented physical products, no other logos.`
+      : `Using the provided product photo, create a FINISHED Wildberries marketplace infographic card for ${product}. Keep the product/person photorealistic — same identity, clothing, materials, colors and proportions.`;
 
   const benefitsList = benefits
     .map((b) => `«${b.trim()}»`)

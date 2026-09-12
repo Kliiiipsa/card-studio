@@ -184,6 +184,8 @@ export const generateImageRequestSchema = z.object({
   scenario: z.string().max(40).optional(),
   /** название + категория товара: по ним «Студийный фон» v2 выбирает постановку */
   productHint: z.string().max(300).optional(),
+  /** что человек напечатал сам, без дописанных сценария и стиля — для журнала и приоритета просьбы */
+  userText: z.string().max(4000).optional(),
 });
 
 export const scoreRequestSchema = z.object({

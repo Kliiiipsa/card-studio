@@ -240,13 +240,21 @@ function genSections(g: Generation): Section[] {
     });
     out.push({ title: "Промпт в модель", fields: [{ label: "Видео", value: p.videoPrompt }] });
   } else if (g.kind === "generator") {
+    // userPrompt — собственный текст человека (пишется с 2026-09-11); у старых
+    // записей его нет, там показываем то, что было: промпт с хвостом сценария
     out.push({
       title: "Что заполнил пользователь",
       fields: [
-        { label: "Описание (промпт)", value: p.prompt },
+        { label: "Описание (промпт)", value: p.userPrompt ?? p.promptRaw ?? p.prompt },
         { label: "Текст на карточке", value: p.cardText },
       ],
     });
+    if (p.userPrompt) {
+      out.push({
+        title: "Промпт в модель",
+        fields: [{ label: "С дописанным сценарием", value: p.prompt }],
+      });
+    }
     out.push({
       title: "Что выбрал",
       fields: [
@@ -271,7 +279,8 @@ function genSections(g: Generation): Section[] {
 
 function FieldRow({ field }: { field: Field }) {
   const v = field.value;
-  if (v === undefined || v === null || v === "" || (Array.isArray(v) && v.length === 0)) return null;
+  if (v === undefined || v === null || v === "" || (Array.isArray(v) && v.length === 0))
+    return null;
   return (
     <div className="grid grid-cols-[minmax(0,180px)_minmax(0,1fr)] gap-3 border-b py-1.5 last:border-0">
       <span className="text-xs text-muted-foreground">{field.label}</span>
@@ -285,7 +294,11 @@ function FieldRow({ field }: { field: Field }) {
             ))}
           </ul>
         ) : typeof v === "boolean" ? (
-          v ? "да" : "нет"
+          v ? (
+            "да"
+          ) : (
+            "нет"
+          )
         ) : (
           <span className="whitespace-pre-wrap break-words">{String(v)}</span>
         )}
@@ -504,7 +517,11 @@ export default function AdminPage() {
 
   /** Вернуть человеку бонус к пополнению, если он помечен использованным зря. */
   const releaseBonus = async (r: PromoRedemption) => {
-    if (!window.confirm(`Вернуть ${r.email} бонус по коду ${r.code}? Он снова сработает при следующем пополнении.`))
+    if (
+      !window.confirm(
+        `Вернуть ${r.email} бонус по коду ${r.code}? Он снова сработает при следующем пополнении.`,
+      )
+    )
       return;
     try {
       const res = await fetch("/api/admin/promo", {
@@ -646,8 +663,8 @@ export default function AdminPage() {
           <h2 className="text-sm font-semibold">Управление студией</h2>
           {storage && (
             <span className="ml-auto text-xs text-muted-foreground">
-              Хранилище: {storage.count} карточек ·{" "}
-              {(storage.bytes / 1024 / 1024).toFixed(0)} МБ из 10 240 МБ
+              Хранилище: {storage.count} карточек · {(storage.bytes / 1024 / 1024).toFixed(0)} МБ из
+              10 240 МБ
             </span>
           )}
         </div>
@@ -742,8 +759,8 @@ export default function AdminPage() {
                 )}
 
                 <p className="mt-3 text-xs leading-5 text-muted-foreground">
-                  Проверка выполняется при открытии вкладки и по кнопке. Пополнение fal.ai —
-                  в личном кабинете fal.ai, Timeweb — в панели Timeweb Cloud. Если баланс кончится,
+                  Проверка выполняется при открытии вкладки и по кнопке. Пополнение fal.ai — в
+                  личном кабинете fal.ai, Timeweb — в панели Timeweb Cloud. Если баланс кончится,
                   клиенты увидят понятное сообщение и гены за неудачные попытки списаны не будут.
                 </p>
 
@@ -752,8 +769,8 @@ export default function AdminPage() {
                   <p className="text-sm font-medium">Рубильники разделов</p>
                   <p className="mt-0.5 text-xs text-muted-foreground">
                     Выключенный раздел отклоняет новые генерации с сообщением о техработах
-                    (мгновенно, для всех открытых вкладок; гены не списываются). Идущие
-                    генерации доезжают. На вас рубильники не действуют.
+                    (мгновенно, для всех открытых вкладок; гены не списываются). Идущие генерации
+                    доезжают. На вас рубильники не действуют.
                   </p>
                   {flags === null ? (
                     <div className="mt-3 flex items-center gap-2 text-sm text-muted-foreground">
@@ -774,7 +791,9 @@ export default function AdminPage() {
                             <p
                               className={
                                 "text-[11px] " +
-                                (f.disabled ? "font-medium text-destructive" : "text-muted-foreground")
+                                (f.disabled
+                                  ? "font-medium text-destructive"
+                                  : "text-muted-foreground")
                               }
                             >
                               {f.disabled ? "ЗАКРЫТ — техработы" : "работает"}
@@ -999,7 +1018,9 @@ export default function AdminPage() {
                                 ? ` · ${ACTION_LABELS[t.action as keyof typeof ACTION_LABELS] ?? t.action}`
                                 : ""}
                               {t.comment && (
-                                <span className="block text-xs text-muted-foreground">{t.comment}</span>
+                                <span className="block text-xs text-muted-foreground">
+                                  {t.comment}
+                                </span>
                               )}
                             </td>
                             <td
@@ -1070,7 +1091,12 @@ export default function AdminPage() {
                 <CardContent className="space-y-3 p-4">
                   <div className="flex items-center justify-between gap-2">
                     <p className="text-sm font-medium">Аналитика затрат</p>
-                    <Button variant="outline" size="sm" onClick={loadReport} disabled={reportLoading}>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={loadReport}
+                      disabled={reportLoading}
+                    >
                       {reportLoading ? (
                         <Loader2 className="h-3.5 w-3.5 animate-spin" />
                       ) : (
@@ -1161,7 +1187,12 @@ export default function AdminPage() {
                 <CardContent className="space-y-3 p-4">
                   <div className="flex items-center justify-between gap-2">
                     <p className="text-sm font-medium">Источники (UTM)</p>
-                    <Button variant="outline" size="sm" onClick={loadReport} disabled={reportLoading}>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={loadReport}
+                      disabled={reportLoading}
+                    >
                       {reportLoading ? (
                         <Loader2 className="h-3.5 w-3.5 animate-spin" />
                       ) : (
@@ -1206,8 +1237,8 @@ export default function AdminPage() {
                         </tbody>
                       </table>
                       <p className="mt-2 text-[11px] leading-4 text-muted-foreground">
-                        «(без метки)» — прямые и органические заходы. CAC по каналу = расход
-                        канала ÷ число платящих из него.
+                        «(без метки)» — прямые и органические заходы. CAC по каналу = расход канала
+                        ÷ число платящих из него.
                       </p>
                     </div>
                   )}
@@ -1250,10 +1281,10 @@ export default function AdminPage() {
                         </tbody>
                       </table>
                       <p className="mt-1 text-[11px] leading-4 text-muted-foreground">
-                        Люди считаются по числовому id Telegram, без имён и никнеймов. В боте
-                        стоит голая ссылка kartogen.ru (решение 06.09: без хвостов, чтобы не
-                        пугать людей), поэтому переходы и регистрации из бота отдельно не
-                        считаются — они попадают в «(без метки)» выше.
+                        Люди считаются по числовому id Telegram, без имён и никнеймов. В боте стоит
+                        голая ссылка kartogen.ru (решение 06.09: без хвостов, чтобы не пугать
+                        людей), поэтому переходы и регистрации из бота отдельно не считаются — они
+                        попадают в «(без метки)» выше.
                       </p>
                     </div>
                   )}
@@ -1384,11 +1415,7 @@ export default function AdminPage() {
                 )}
                 {gens !== null && gens.length >= genLimit && (
                   <div className="mt-3 flex justify-center">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setGenLimit((l) => l + 100)}
-                    >
+                    <Button variant="outline" size="sm" onClick={() => setGenLimit((l) => l + 100)}>
                       Показать ещё
                     </Button>
                   </div>
@@ -1397,8 +1424,8 @@ export default function AdminPage() {
                   {gens !== null
                     ? `Показано генераций: ${gens.length} (по фильтру, свежие сверху).`
                     : ""}{" "}
-                  Загруженные клиентом фото не сохраняются — видны только введённые данные, настройки
-                  и промпт, ушедший в модель.
+                  Загруженные клиентом фото не сохраняются — видны только введённые данные,
+                  настройки и промпт, ушедший в модель.
                 </p>
               </CardContent>
             </Card>
@@ -1409,8 +1436,7 @@ export default function AdminPage() {
             <Card>
               <CardContent className="p-4">
                 <p className="mb-3 text-sm">
-                  Подписаны сейчас:{" "}
-                  <b>{mk ? mk.subscribers : "…"}</b>
+                  Подписаны сейчас: <b>{mk ? mk.subscribers : "…"}</b>
                   <span className="ml-2 text-xs text-muted-foreground">
                     (галочка «Получать советы и новости» при регистрации; тестовые аккаунты скрыты)
                   </span>
@@ -1436,19 +1462,26 @@ export default function AdminPage() {
                       </thead>
                       <tbody>
                         {mk.rows.map((r, i) => (
-                          <tr key={`${r.email}-${r.created_at}-${i}`} className="border-b last:border-0">
+                          <tr
+                            key={`${r.email}-${r.created_at}-${i}`}
+                            className="border-b last:border-0"
+                          >
                             <td className="whitespace-nowrap py-2 pr-4 text-xs text-muted-foreground">
                               {new Date(r.created_at).toLocaleString("ru-RU")}
                             </td>
                             <td className="py-2 pr-4 text-xs">{r.email}</td>
                             <td className="py-2 pr-4 text-xs">
                               {r.action === "granted" ? (
-                                <span className="text-emerald-600 dark:text-emerald-400">подписался</span>
+                                <span className="text-emerald-600 dark:text-emerald-400">
+                                  подписался
+                                </span>
                               ) : (
                                 <span className="text-destructive">отписался</span>
                               )}
                             </td>
-                            <td className="py-2 font-mono text-xs text-muted-foreground">{r.ip ?? "—"}</td>
+                            <td className="py-2 font-mono text-xs text-muted-foreground">
+                              {r.ip ?? "—"}
+                            </td>
                           </tr>
                         ))}
                       </tbody>
@@ -1617,7 +1650,10 @@ export default function AdminPage() {
                           const sparks = KIND_PRICE[openGen.kind];
                           return (
                             <p className="mt-0.5 text-muted-foreground">
-                              fal списал <span className="font-medium text-foreground">{costLabel(openGen)}</span>{" "}
+                              fal списал{" "}
+                              <span className="font-medium text-foreground">
+                                {costLabel(openGen)}
+                              </span>{" "}
                               ≈ {rub.toFixed(1)} ₽
                               {sparks
                                 ? ` · клиент заплатил ${sparks} 🧬 → маржа ${(sparks - rub).toFixed(1)} ₽`
@@ -1706,8 +1742,17 @@ export default function AdminPage() {
                   placeholder="Оплата переводом от 04.08"
                 />
               </div>
-              <Button variant="gradient" className="w-full" onClick={applySparks} disabled={applying}>
-                {applying ? <Loader2 className="h-4 w-4 animate-spin" /> : <Dna className="h-4 w-4" />}
+              <Button
+                variant="gradient"
+                className="w-full"
+                onClick={applySparks}
+                disabled={applying}
+              >
+                {applying ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Dna className="h-4 w-4" />
+                )}
                 Применить
               </Button>
             </div>

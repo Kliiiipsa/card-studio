@@ -403,6 +403,8 @@ export const api = {
     scenario?: string;
     /** название + категория: «Студийный фон» v2 подбирает по ним постановку */
     productHint?: string;
+    /** что человек напечатал сам — для журнала и приоритета его просьбы */
+    userText?: string;
   }) => post<ImageResult>("/api/ai/generate/image", args),
 
   score: (args: { imageDataUrl: string; product?: Partial<ProductInfo>; cardType?: string }) =>

@@ -174,14 +174,14 @@ export async function analyzeLayout(args: {
             args.productName
               ? `; пользователь называет товар «${args.productName.slice(0, 80)}»${args.category ? `, категория «${args.category.slice(0, 60)}»` : ""} — если само изображение и есть товар (постер, картина, фотопечать, обои, принт, чехол с рисунком), это isProduct=true`
               : ""
-          }; isProduct=false, если это документ, скан страницы, текст, скриншот интерфейса, таблица, презентация, пустой фон или неразборчивое изображение. seen — что именно на фото, 3–6 слов по-русски.${
+          }; isProduct=false, если это документ, скан страницы, текст, скриншот интерфейса, таблица, презентация, пустой фон или неразборчивое изображение. seen — что именно на фото, 3–6 слов по-русски. kind — ПРИРОДА картинки, независимо от isProduct: "photo" — фотография реального предмета, вещи, человека, еды, техники; "graphic" — плоская графика: логотип, иконка, значок, иллюстрация, векторный рисунок, обложка, скриншот; "document" — скан, страница с текстом, таблица. Логотип программы — это isProduct=true, но kind="graphic".${
             args.wantArt
               ? `
 11) Поле art — арт-дирекшн ИМЕННО под этот товар: mood — короткое настроение по-английски; productColors — до 3 доминирующих цветов товара (hex или английские названия); scenes — 2–3 РАЗНЫХ варианта уместного окружения/фона для этого конкретного товара, по-английски, каждый одним конкретным предложением (поверхность, место, свет; без людей и без текста). Варианты должны заметно отличаться друг от друга. НЕ предлагай шаблонную «белую студию с растением в горшке».`
               : ""
           }
 
-Верни JSON: { version:1, mode, product:{x,y,w,h}, freeZones:[{x,y,w,h}], safeMargins:{top,bottom,left,right}, headline:{box:{x,y,w,h},align,fontScale,maxLines,plate,side}, subheadline?, benefits:[{index,box,align,fontScale,plate,icon}], callouts:[], photo:{isProduct:true|false, seen:"…"}${
+Верни JSON: { version:1, mode, product:{x,y,w,h}, freeZones:[{x,y,w,h}], safeMargins:{top,bottom,left,right}, headline:{box:{x,y,w,h},align,fontScale,maxLines,plate,side}, subheadline?, benefits:[{index,box,align,fontScale,plate,icon}], callouts:[], photo:{isProduct:true|false, seen:"…", kind:"photo"|"graphic"|"document"}${
             args.wantArt ? ", art:{mood,productColors:[],scenes:[]}" : ""
           }, notes? }`,
           imageDataUrl: image,
@@ -422,9 +422,7 @@ export type InfographicBaseArgs = {
   previewAdaptive?: boolean;
 };
 
-type BuiltRequest =
-  | { kind: "i2i"; req: I2IRequest }
-  | { kind: "t2i"; req: T2IRequest };
+type BuiltRequest = { kind: "i2i"; req: I2IRequest } | { kind: "t2i"; req: T2IRequest };
 
 /**
  * Build the SINGLE image request for the base — identical whatever provider or
@@ -453,9 +451,19 @@ function buildBaseRequest(args: InfographicBaseArgs, bake: boolean): BuiltReques
   // пейзаж превратились в мужчину в клетчатой рубашке из «Премиум тёмного»).
   // Стиль в этом случае идёт словами из профиля (палитра, плашки, свет).
   const photoIsProduct = args.brief.layoutPlan?.photo?.isProduct !== false;
+  // 2026-09-11, логотип PowerPoint: isProduct=true (человек продаёт презентации),
+  // но картинка — плоская графика, и модель снова взяла мужчину с образца.
+  // Значит, «товар ли это» — не тот вопрос; вопрос — «есть ли на фото
+  // предмет, за который модель может зацепиться». Для graphic/document
+  // образец картинкой не отдаём, стиль идёт словами из профиля.
+  const photoKind = args.brief.layoutPlan?.photo?.kind;
+  const photoIsPhotographic = photoKind === undefined || photoKind === "photo";
   const styleReferenceImage =
     args.styleReferenceImage ??
-    (args.productImage && photoIsProduct && args.brief.styleProfile?.source === "library"
+    (args.productImage &&
+    photoIsProduct &&
+    photoIsPhotographic &&
+    args.brief.styleProfile?.source === "library"
       ? STYLE_REF_IMAGES[args.brief.styleProfile.id]
       : undefined);
   const refKind: "user" | "library" | undefined = userSuppliedRef
@@ -482,6 +490,7 @@ function buildBaseRequest(args: InfographicBaseArgs, bake: boolean): BuiltReques
       keepBackground: args.keepBackground,
       refKind,
       adaptive,
+      photoKind,
     });
 
   // Custom style reference + product photo: give the model BOTH images — the
@@ -499,9 +508,11 @@ function buildBaseRequest(args: InfographicBaseArgs, bake: boolean): BuiltReques
         : adaptive && bake && refKind === "library"
           ? ` Two images are provided. The FIRST image is the user's product — keep THAT exact product (same garment, colors, materials, person/identity). The SECOND image is a soft STYLE REFERENCE: borrow ONLY its palette, plate/panel treatment, typography style and decorative language. Do NOT copy its composition or layout, its environment, background, furniture, plants or props, its product, its model or its text — follow the composition and environment instructions in this prompt instead. The only people, animals and objects on this card are the ones visible in the FIRST image — the reference's person and product never appear. CRITICAL: every word, number, price or badge visible in the reference belongs to a DIFFERENT product — none of it may appear on this card. Use ONLY the Russian texts listed in this prompt.`
           : undefined;
-    const twoImageNote = adaptiveNote ?? (bake
-      ? ` Two images are provided. The FIRST image is the user's product — keep THAT exact product (same garment, colors, materials, person/identity). The SECOND image is a STYLE REFERENCE ONLY: take its composition, layout rhythm, palette, typography and decorative language, but DO NOT reuse its product, its model, its photo or its text. CRITICAL: every word, number, price, sales figure, size range, feature claim or badge text visible in the reference belongs to a DIFFERENT product — none of it may appear on this card. Recreate the reference's TEXT STYLE (lettering, plates, effects) using ONLY the Russian texts listed in this prompt; if the reference has more text blocks than provided texts, leave those blocks out rather than inventing or copying content. Aim for a card in the same style family — clearly similar, not an exact replica.`
-      : ` The product is the FIRST image — keep it unchanged. Use the SECOND image only as a STYLE reference (palette, composition, rhythm); do not copy its product or text. Remove any text/logo, leave empty space for a future text overlay.`);
+    const twoImageNote =
+      adaptiveNote ??
+      (bake
+        ? ` Two images are provided. The FIRST image is the user's product — keep THAT exact product (same garment, colors, materials, person/identity). The SECOND image is a STYLE REFERENCE ONLY: take its composition, layout rhythm, palette, typography and decorative language, but DO NOT reuse its product, its model, its photo or its text. CRITICAL: every word, number, price, sales figure, size range, feature claim or badge text visible in the reference belongs to a DIFFERENT product — none of it may appear on this card. Recreate the reference's TEXT STYLE (lettering, plates, effects) using ONLY the Russian texts listed in this prompt; if the reference has more text blocks than provided texts, leave those blocks out rather than inventing or copying content. Aim for a card in the same style family — clearly similar, not an exact replica.`
+        : ` The product is the FIRST image — keep it unchanged. Use the SECOND image only as a STYLE reference (palette, composition, rhythm); do not copy its product or text. Remove any text/logo, leave empty space for a future text overlay.`);
     return {
       kind: "i2i",
       req: {
@@ -568,10 +579,14 @@ function buildBaseRequest(args: InfographicBaseArgs, bake: boolean): BuiltReques
 
 /** Run a built request synchronously against a provider and return the image URL. */
 async function execSync(
-  image: { imageToImage: (r: I2IRequest) => Promise<{ images: { url: string }[] }>; textToImage: (r: T2IRequest) => Promise<{ images: { url: string }[] }> },
+  image: {
+    imageToImage: (r: I2IRequest) => Promise<{ images: { url: string }[] }>;
+    textToImage: (r: T2IRequest) => Promise<{ images: { url: string }[] }>;
+  },
   built: BuiltRequest,
 ): Promise<string> {
-  const res = built.kind === "i2i" ? await image.imageToImage(built.req) : await image.textToImage(built.req);
+  const res =
+    built.kind === "i2i" ? await image.imageToImage(built.req) : await image.textToImage(built.req);
   return res.images[0].url;
 }
 
