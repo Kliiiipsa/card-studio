@@ -17,6 +17,8 @@ export default function robots(): MetadataRoute.Robots {
           "/infografika",
           "/neuroset-infografika",
           "/infografika-marketplace",
+          "/dizayn-kartochki-tovara",
+          "/generator-kartochek",
           "/razmer-kartochki-wildberries",
           "/trebovaniya-k-foto-ozon",
           "/check",

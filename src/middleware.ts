@@ -39,6 +39,8 @@ export async function middleware(req: NextRequest) {
     pathname === "/infografika" || // SEO: «инфографика для карточки wildberries»
     pathname === "/neuroset-infografika" || // SEO: «нейросеть для инфографики»
     pathname === "/infografika-marketplace" || // SEO: «инфографика для маркетплейсов»
+    pathname === "/dizayn-kartochki-tovara" || // SEO: «дизайн карточки товара»
+    pathname === "/generator-kartochek" || // SEO: «генератор карточек товара»
     pathname === "/razmer-kartochki-wildberries" || // SEO-справочник: размер фото WB
     pathname === "/trebovaniya-k-foto-ozon" || // SEO-справочник: требования к фото Ozon
     pathname === "/check" || // бесплатная экспресс-проверка карточки (лид-магнит)
