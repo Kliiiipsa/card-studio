@@ -17,6 +17,8 @@ export const maxDuration = 120;
 const schema = z.object({
   campaign: z.enum(["second-card"]),
   mode: z.enum(["preview", "test", "send"]),
+  /** тест: на какой адрес (по умолчанию — почта админа из сессии) */
+  to: z.string().email().max(200).optional(),
 });
 
 /**
@@ -50,8 +52,9 @@ export async function POST(req: Request) {
     }
     if (!isSmtpConfigured()) throw new AppError("Почта не настроена — письма не уйдут.", 503);
     if (body.mode === "test") {
-      await sendCampaignTest(body.campaign, session.email);
-      return ok({ testSentTo: session.email });
+      const to = (body.to ?? session.email).trim().toLowerCase();
+      await sendCampaignTest(body.campaign, to);
+      return ok({ testSentTo: to });
     }
     return ok(await sendCampaign(body.campaign));
   } catch (err) {

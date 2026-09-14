@@ -470,6 +470,8 @@ export default function AdminPage() {
   } | null>(null);
   const [campBusy, setCampBusy] = React.useState<"" | "test" | "send">("");
   const [campSample, setCampSample] = React.useState(false);
+  /** адрес для тестового письма; пусто — почта админа */
+  const [campTestTo, setCampTestTo] = React.useState("");
   const loadCampaign = React.useCallback(() => {
     fetch("/api/admin/marketing/send", {
       method: "POST",
@@ -493,7 +495,11 @@ export default function AdminPage() {
       const res = await fetch("/api/admin/marketing/send", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ campaign: CAMPAIGN, mode }),
+        body: JSON.stringify({
+          campaign: CAMPAIGN,
+          mode,
+          to: mode === "test" && campTestTo.trim() ? campTestTo.trim() : undefined,
+        }),
       });
       const d = await res.json();
       if (!res.ok || d?.error) throw new Error(d?.error ?? "Не удалось отправить");
@@ -1595,6 +1601,13 @@ export default function AdminPage() {
                       </p>
                     </div>
                     <div className="ml-auto flex flex-wrap items-center gap-2">
+                      <Input
+                        type="email"
+                        value={campTestTo}
+                        onChange={(e) => setCampTestTo(e.target.value)}
+                        placeholder="Тест на адрес (пусто — себе)"
+                        className="h-8 w-56 text-xs"
+                      />
                       <Button
                         variant="outline"
                         size="sm"
@@ -1604,7 +1617,7 @@ export default function AdminPage() {
                         {campBusy === "test" ? (
                           <Loader2 className="h-3.5 w-3.5 animate-spin" />
                         ) : null}
-                        Тест себе
+                        Тест
                       </Button>
                       <Button
                         size="sm"
