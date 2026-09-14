@@ -276,9 +276,18 @@ export function sanitizeLayoutPlan(raw: LayoutPlan, params: FallbackPlanParams):
   const benefits: LayoutBenefit[] = stacked.map((stackBox, i) => {
     const v = byIndex.get(i);
     if (!v) return stackBox;
+    // Ниже 5 % высоты плашка не вмещает даже одну строку с отступами —
+    // vision присылал 3 % (тапочки, 2026-09-14). Ширину не трогаем: три
+    // плашки в ряд при расширении наехали бы друг на друга.
+    const box = clampBox(v.box);
+    if (box.h < 0.05) {
+      const mid = box.y + box.h / 2;
+      box.h = 0.05;
+      box.y = Math.max(0, Math.min(1 - box.h, mid - box.h / 2));
+    }
     return {
       index: i,
-      box: clampBox(v.box),
+      box,
       align: v.align ?? "left",
       fontScale: clampScale(v.fontScale, 0.016, 0.045, 0.028),
       plate: v.plate ?? true,
