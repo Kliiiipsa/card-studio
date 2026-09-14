@@ -11,8 +11,7 @@ import { getPool } from "./store-pg";
  * офертой — иначе согласие ничтожно.
  */
 
-export const MARKETING_CONSENT_TEXT =
-  "Получать советы по карточкам и новости сервиса на почту";
+export const MARKETING_CONSENT_TEXT = "Получать советы по карточкам и новости сервиса на почту";
 export const MARKETING_CONSENT_VERSION = "mk-2026-09-05";
 
 let ready: Promise<void> | null = null;
@@ -109,18 +108,67 @@ export async function listMarketingConsents(limit = 300): Promise<MarketingConse
   }
 }
 
-/** Список согласных адресов (для будущей рассылки). */
+/**
+ * Список согласных адресов (для будущей рассылки).
+ *
+ * Подписчик = последняя запись журнала «granted» И аккаунт всё ещё существует.
+ * Второе условие — страховка: если удаление аккаунта по какой-то причине не
+ * дописало «revoked» (упало на середине, старая версия кода), письмо
+ * удалённому всё равно не уйдёт.
+ */
 export async function marketingSubscribers(): Promise<string[]> {
   if (!dbConfigured()) return [];
   try {
     await ensure();
     const { rows } = await getPool().query<{ email: string }>(
-      `select distinct on (email) email, action from marketing_consents
-        order by email, created_at desc`,
+      `select c.email
+         from (select distinct on (email) email, action from marketing_consents
+                order by email, created_at desc) c
+         join auth_users u on u.email = c.email
+        where c.action = 'granted'`,
     );
-    return rows.filter((r) => (r as { action?: string }).action === "granted").map((r) => r.email);
+    return rows.map((r) => r.email);
   } catch (e) {
     console.error("[marketing-consent] subscribers failed:", e);
     return [];
+  }
+}
+
+/**
+ * Разовая и самовосстанавливающаяся чистка: строки журнала на адреса, которых
+ * уже нет в auth_users (аккаунт удалён до того, как удаление научилось
+ * отзывать рассылку), получают «revoked» и обезличиваются тем же псевдонимом,
+ * что и остальные следы удалённого аккаунта. Вызывается из админки при
+ * открытии вкладки; при пустом результате ничего не пишет.
+ * Возвращает число обработанных адресов.
+ */
+export async function purgeOrphanMarketingConsents(
+  aliasFor: (email: string) => string,
+): Promise<number> {
+  if (!dbConfigured()) return 0;
+  try {
+    await ensure();
+    const { rows } = await getPool().query<{ email: string }>(
+      `select distinct c.email from marketing_consents c
+         left join auth_users u on u.email = c.email
+        where u.email is null and c.email not like 'deleted:%'`,
+    );
+    for (const { email } of rows) {
+      const alias = aliasFor(email);
+      await getPool().query(
+        `insert into marketing_consents (email, action, consent_text, version)
+         values ($1, 'revoked', 'Аккаунт удалён — согласие на рассылку отозвано', 'account-deleted')`,
+        [email],
+      );
+      await getPool().query(
+        "update marketing_consents set email = $2, ip = null, user_agent = null where email = $1",
+        [email, alias],
+      );
+    }
+    if (rows.length) console.log(`[marketing-consent] purged ${rows.length} orphan address(es)`);
+    return rows.length;
+  } catch (e) {
+    console.error("[marketing-consent] purge failed:", e);
+    return 0;
   }
 }

@@ -39,11 +39,13 @@ const pgAvailable = () => Boolean(process.env.DATABASE_URL || process.env.PGHOST
 // след), чтобы повторный бонус нельзя было получить через user+1@ (аудит
 // 2026-08-26). Согласовано с ключом welcome-бонуса.
 export function emailHash(emailRaw: string): string {
-  return createHash("sha256").update(`kartogen:${canonicalEmail(emailRaw)}`).digest("hex");
+  return createHash("sha256")
+    .update(`kartogen:${canonicalEmail(emailRaw)}`)
+    .digest("hex");
 }
 
 /** Обезличенная замена почты в сохраняемых строках. */
-const pseudonym = (emailRaw: string) => `deleted:${emailHash(emailRaw).slice(0, 16)}`;
+export const pseudonym = (emailRaw: string) => `deleted:${emailHash(emailRaw).slice(0, 16)}`;
 
 let schemaReady: Promise<void> | null = null;
 function ensureSchema(): Promise<void> {
@@ -75,10 +77,9 @@ export async function wasDeleted(emailRaw: string): Promise<boolean> {
   if (!pgAvailable()) return false;
   try {
     await ensureSchema();
-    const { rows } = await getPool().query(
-      "select 1 from deleted_accounts where email_hash = $1",
-      [emailHash(emailRaw)],
-    );
+    const { rows } = await getPool().query("select 1 from deleted_accounts where email_hash = $1", [
+      emailHash(emailRaw),
+    ]);
     return Boolean(rows[0]);
   } catch (e) {
     // не блокируем регистрацию из-за проверки бонуса
@@ -216,10 +217,9 @@ export async function eraseAccount(emailRaw: string): Promise<void> {
     await ensureSchema();
     const db = getPool();
 
-    await db.query(
-      "insert into deleted_accounts (email_hash) values ($1) on conflict do nothing",
-      [emailHash(email)],
-    );
+    await db.query("insert into deleted_accounts (email_hash) values ($1) on conflict do nothing", [
+      emailHash(email),
+    ]);
 
     // Файлы генераций в S3 (по ссылкам из gen_jobs). Чужие URL (временные
     // ссылки fal, попавшие в базу когда S3 был недоступен) пропускаем.
@@ -277,11 +277,30 @@ export async function eraseAccount(emailRaw: string): Promise<void> {
     // Журнал согласий: дата и версии остаются (доказательство согласия),
     // ПД — нет.
     await db
+      .query("update auth_consents set email = $2, ip = null, user_agent = null where email = $1", [
+        email,
+        alias,
+      ])
+      .catch(swallow("auth_consents"));
+
+    // Согласие на рекламную рассылку: удаление аккаунта = отзыв. Сначала
+    // пишем строку «revoked» на настоящую почту (последняя запись = состояние),
+    // потом обезличиваем весь журнал этого адреса. Случай 2026-09-14: человек
+    // удалил аккаунт, а во вкладке «Рассылка» остался подписанным — письмо
+    // ушло бы удалённому.
+    await db
       .query(
-        "update auth_consents set email = $2, ip = null, user_agent = null where email = $1",
+        `insert into marketing_consents (email, action, consent_text, version)
+         values ($1, 'revoked', 'Аккаунт удалён — согласие на рассылку отозвано', 'account-deleted')`,
+        [email],
+      )
+      .catch(swallow("marketing_consents revoke"));
+    await db
+      .query(
+        "update marketing_consents set email = $2, ip = null, user_agent = null where email = $1",
         [email, alias],
       )
-      .catch(swallow("auth_consents"));
+      .catch(swallow("marketing_consents"));
 
     await db
       .query("delete from account_deletion_pending where email = $1", [email])
