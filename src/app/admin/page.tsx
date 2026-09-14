@@ -458,6 +458,57 @@ export default function AdminPage() {
     subscribers: number;
     rows: { email: string; action: string; created_at: string; ip: string | null }[];
   } | null>(null);
+  // рассылка «Вторая карточка»: кому уйдёт, тест себе, отправка всем
+  const CAMPAIGN = "second-card";
+  const [camp, setCamp] = React.useState<{
+    total: number;
+    first: number;
+    second: number;
+    alreadySent: number;
+    mailConfigured: boolean;
+    sample: string;
+  } | null>(null);
+  const [campBusy, setCampBusy] = React.useState<"" | "test" | "send">("");
+  const [campSample, setCampSample] = React.useState(false);
+  const loadCampaign = React.useCallback(() => {
+    fetch("/api/admin/marketing/send", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ campaign: CAMPAIGN, mode: "preview" }),
+    })
+      .then((r) => r.json())
+      .then((d) => (d?.error ? setCamp(null) : setCamp(d)))
+      .catch(() => setCamp(null));
+  }, []);
+  const runCampaign = async (mode: "test" | "send") => {
+    if (
+      mode === "send" &&
+      !confirm(
+        `Отправить письмо ${camp?.total ?? 0} подписчикам? Повторно тем же людям оно не уйдёт.`,
+      )
+    )
+      return;
+    setCampBusy(mode);
+    try {
+      const res = await fetch("/api/admin/marketing/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ campaign: CAMPAIGN, mode }),
+      });
+      const d = await res.json();
+      if (!res.ok || d?.error) throw new Error(d?.error ?? "Не удалось отправить");
+      if (mode === "test") toast.success(`Тест ушёл на ${d.testSentTo} (два письма: оба варианта)`);
+      else
+        toast.success(
+          `Отправлено ${d.sent}, ошибок ${d.failed?.length ?? 0}, уже получали ${d.skipped}`,
+        );
+      loadCampaign();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Не удалось отправить");
+    } finally {
+      setCampBusy("");
+    }
+  };
   const runAdsAnalysis = async () => {
     setAdsLoading(true);
     try {
@@ -609,7 +660,8 @@ export default function AdminPage() {
         setMk({ subscribers: d.subscribers ?? 0, rows: d.rows ?? [] }),
       )
       .catch(() => setMk({ subscribers: 0, rows: [] }));
-  }, [loadUsers, loadTxs, loadHealth, loadPromoUses]);
+    loadCampaign();
+  }, [loadUsers, loadTxs, loadHealth, loadPromoUses, loadCampaign]);
 
   // журнал генераций: перезапрос при смене фильтров (почта — с задержкой,
   // чтобы не дёргать сервер на каждую букву)
@@ -1531,6 +1583,67 @@ export default function AdminPage() {
                     (галочка «Получать советы и новости» при регистрации; тестовые аккаунты скрыты)
                   </span>
                 </p>
+
+                {/* Кампания «Вторая карточка»: совет + промокод PLUS12 на 12 генов */}
+                <div className="mb-4 rounded-xl border bg-card/60 p-4">
+                  <div className="flex flex-wrap items-center gap-3">
+                    <div className="text-sm">
+                      <p className="font-medium">Письмо «Вторая карточка»</p>
+                      <p className="text-xs text-muted-foreground">
+                        Три совета по карточке + промокод PLUS12 на 12 генов. Два варианта: уже
+                        собирал карточку / ещё нет. Каждому уходит один раз.
+                      </p>
+                    </div>
+                    <div className="ml-auto flex flex-wrap items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={!camp || campBusy !== ""}
+                        onClick={() => runCampaign("test")}
+                      >
+                        {campBusy === "test" ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : null}
+                        Тест себе
+                      </Button>
+                      <Button
+                        size="sm"
+                        disabled={!camp || camp.total === 0 || campBusy !== ""}
+                        onClick={() => runCampaign("send")}
+                      >
+                        {campBusy === "send" ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : null}
+                        Отправить всем{camp ? ` (${camp.total})` : ""}
+                      </Button>
+                    </div>
+                  </div>
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    {camp === null ? (
+                      "Считаем получателей…"
+                    ) : (
+                      <>
+                        Получат: <b>{camp.total}</b> (собирали карточку — {camp.second}, ещё нет —{" "}
+                        {camp.first}); уже получили раньше — {camp.alreadySent}.
+                        {!camp.mailConfigured && (
+                          <span className="ml-1 text-destructive">Почта не настроена.</span>
+                        )}{" "}
+                        <button
+                          type="button"
+                          className="underline hover:text-foreground"
+                          onClick={() => setCampSample((v) => !v)}
+                        >
+                          {campSample ? "скрыть текст письма" : "показать текст письма"}
+                        </button>
+                      </>
+                    )}
+                  </p>
+                  {camp && campSample && (
+                    <pre className="mt-3 max-h-96 overflow-auto whitespace-pre-wrap rounded-lg border bg-muted/40 p-3 text-xs leading-5">
+                      {camp.sample}
+                    </pre>
+                  )}
+                </div>
                 {mk === null ? (
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     <Loader2 className="h-4 w-4 animate-spin" /> Загрузка…

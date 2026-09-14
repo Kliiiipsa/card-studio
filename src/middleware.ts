@@ -55,6 +55,8 @@ export async function middleware(req: NextRequest) {
     pathname === "/api/billing/yookassa/webhook" ||
     // read-only диагностика, защищена собственным секретом DIAG_TOKEN (не сессией)
     pathname === "/api/diag" ||
+    // отписка от рассылки по подписанной ссылке из письма — без входа
+    pathname === "/unsubscribe" ||
     // legal documents are public by law
     pathname === "/terms" ||
     pathname === "/offer" ||

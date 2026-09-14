@@ -38,6 +38,7 @@ export default function robots(): MetadataRoute.Robots {
           "/billing",
           "/settings",
           "/admin",
+          "/unsubscribe",
           "/login",
           "/register",
           "/turnkey",

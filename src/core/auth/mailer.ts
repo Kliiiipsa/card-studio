@@ -20,7 +20,13 @@ export function isSmtpConfigured(): boolean {
   );
 }
 
-type MailContent = { subject: string; text: string; html: string };
+export type MailContent = {
+  subject: string;
+  text: string;
+  html: string;
+  /** дополнительные заголовки (List-Unsubscribe для рассылок) */
+  headers?: Record<string, string>;
+};
 
 const codeMail = (code: string): MailContent => ({
   subject: `${code} — код подтверждения Kartogen`,
@@ -198,14 +204,20 @@ async function connect(host: string, port: number, implicitTls: boolean): Promis
       socket.on("timeout", onTimeout(socket));
       socket.once("error", reject);
     } else {
-      const socket = net.connect({ host, port, timeout: 15000 }, () => resolve(new SmtpConn(socket)));
+      const socket = net.connect({ host, port, timeout: 15000 }, () =>
+        resolve(new SmtpConn(socket)),
+      );
       socket.on("timeout", onTimeout(socket));
       socket.once("error", reject);
     }
   });
 }
 
-async function sendMail(to: string, mail: MailContent): Promise<void> {
+/**
+ * Общая отправка: коды, уведомления владельцу и (с 2026-09-14) рекламные
+ * письма подписчикам — все идут тем же проверенным транспортом.
+ */
+export async function sendMail(to: string, mail: MailContent): Promise<void> {
   if (process.env.NOTISEND_API_KEY) {
     try {
       await sendViaNotiSend(to, mail);
@@ -236,8 +248,7 @@ export function sendDeletionEmail(to: string, code: string): Promise<void> {
 export async function sendOwnerAlert(subject: string, text: string): Promise<boolean> {
   const to = process.env.OWNER_ALERT_EMAIL || process.env.ADMIN_EMAIL || process.env.MAIL_FROM;
   if (!to || !isSmtpConfigured()) return false;
-  const esc = (s: string) =>
-    s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
   const html =
     `<pre style="font:14px/1.6 -apple-system,Segoe UI,Roboto,sans-serif;white-space:pre-wrap;margin:0;color:#1d1c19">` +
     `${esc(text)}</pre>`;
@@ -263,10 +274,16 @@ async function sendViaSmtp(to: string, mail: MailContent): Promise<void> {
 
   const subject = `=?UTF-8?B?${b64(mail.subject)}?=`;
   const body = b64(mail.text);
+  // свои заголовки — только ASCII и без переводов строк (защита от инъекции)
+  const extra = Object.entries(mail.headers ?? {})
+    .filter(([k, v]) => /^[A-Za-z-]+$/.test(k) && !/[\r\n]/.test(v))
+    .map(([k, v]) => `${k}: ${v}\r\n`)
+    .join("");
   const message =
     `From: Kartogen <${from}>\r\n` +
     `To: <${to}>\r\n` +
     `Subject: ${subject}\r\n` +
+    extra +
     `MIME-Version: 1.0\r\n` +
     `Content-Type: text/plain; charset=utf-8\r\n` +
     `Content-Transfer-Encoding: base64\r\n` +
