@@ -313,6 +313,9 @@ export default function AdminPage() {
   const [storage, setStorage] = React.useState<{ count: number; bytes: number } | null>(null);
   const [error, setError] = React.useState<string | null>(null);
   const [search, setSearch] = React.useState("");
+  // фильтр по дате регистрации (пользователи): «сколько пришло за период»
+  const [dateFrom, setDateFrom] = React.useState("");
+  const [dateTo, setDateTo] = React.useState("");
 
   // «Состояние»: здоровье сервиса
   const [health, setHealth] = React.useState<{
@@ -646,8 +649,33 @@ export default function AdminPage() {
   };
 
   const q = search.trim().toLowerCase();
+  // границы периода в локальном времени: «с» — начало дня, «по» — конец дня
+  const fromTs = dateFrom ? new Date(`${dateFrom}T00:00:00`).getTime() : null;
+  const toTs = dateTo ? new Date(`${dateTo}T23:59:59.999`).getTime() : null;
   const filtered =
-    users?.filter((u) => u.email.includes(q) || (u.ip ?? "").toLowerCase().includes(q)) ?? null;
+    users?.filter((u) => {
+      if (!(u.email.includes(q) || (u.ip ?? "").toLowerCase().includes(q))) return false;
+      const t = new Date(u.createdAt).getTime();
+      if (fromTs !== null && t < fromTs) return false;
+      if (toTs !== null && t > toTs) return false;
+      return true;
+    }) ?? null;
+  /** ISO-дата (YYYY-MM-DD) в локальном времени со сдвигом на N дней назад. */
+  const isoDaysAgo = (n: number) => {
+    const d = new Date();
+    d.setDate(d.getDate() - n);
+    const p = (x: number) => String(x).padStart(2, "0");
+    return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+  };
+  const setPeriod = (days: number | null) => {
+    if (days === null) {
+      setDateFrom("");
+      setDateTo("");
+      return;
+    }
+    setDateFrom(isoDaysAgo(days));
+    setDateTo(isoDaysAgo(0));
+  };
   // how many accounts share each registration IP — the fraud tell at a glance
   const ipCounts = React.useMemo(() => {
     const m: Record<string, number> = {};
@@ -842,6 +870,68 @@ export default function AdminPage() {
                     />
                     Показать тестовые{hiddenCount > 0 ? ` (${hiddenCount})` : ""}
                   </label>
+                </div>
+                {/* Период регистрации: быстрые пресеты + произвольные даты, рядом счётчик */}
+                <div className="mb-3 flex flex-wrap items-center gap-2 text-xs">
+                  <span className="text-muted-foreground">Регистрация:</span>
+                  {(
+                    [
+                      { label: "Сегодня", days: 0 },
+                      { label: "7 дней", days: 6 },
+                      { label: "30 дней", days: 29 },
+                      { label: "Всё время", days: null },
+                    ] as { label: string; days: number | null }[]
+                  ).map((p) => {
+                    const active =
+                      p.days === null
+                        ? !dateFrom && !dateTo
+                        : dateFrom === isoDaysAgo(p.days) && dateTo === isoDaysAgo(0);
+                    return (
+                      <button
+                        key={p.label}
+                        type="button"
+                        onClick={() => setPeriod(p.days)}
+                        className={cn(
+                          "rounded-md border px-2 py-1 transition-colors",
+                          active
+                            ? "border-primary bg-primary/10 text-primary"
+                            : "text-muted-foreground hover:border-primary/40",
+                        )}
+                      >
+                        {p.label}
+                      </button>
+                    );
+                  })}
+                  <span className="ml-1 flex items-center gap-1 text-muted-foreground">
+                    с
+                    <Input
+                      type="date"
+                      value={dateFrom}
+                      max={dateTo || undefined}
+                      onChange={(e) => setDateFrom(e.target.value)}
+                      className="h-7 w-[9.5rem] px-2 text-xs"
+                    />
+                    по
+                    <Input
+                      type="date"
+                      value={dateTo}
+                      min={dateFrom || undefined}
+                      onChange={(e) => setDateTo(e.target.value)}
+                      className="h-7 w-[9.5rem] px-2 text-xs"
+                    />
+                  </span>
+                  {filtered !== null && users !== null && (
+                    <span className="ml-auto font-medium text-foreground">
+                      {dateFrom || dateTo ? "За период: " : "Всего: "}
+                      {filtered.length}
+                      {filtered.length !== users.length ? (
+                        <span className="font-normal text-muted-foreground">
+                          {" "}
+                          из {users.length}
+                        </span>
+                      ) : null}
+                    </span>
+                  )}
                 </div>
                 {error ? (
                   <p className="text-sm text-destructive">{error}</p>
