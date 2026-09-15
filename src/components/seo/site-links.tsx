@@ -37,6 +37,7 @@ export const SITE_LINK_GROUPS: { title: string; links: { href: string; label: st
     title: "Справочники",
     links: [
       { href: "/razmer-kartochki-wildberries", label: "Размер карточки Wildberries" },
+      { href: "/razmer-kartochki-ozon", label: "Размер карточки Ozon" },
       { href: "/trebovaniya-k-foto-ozon", label: "Требования к фото Ozon" },
       { href: "/help", label: "Как это работает" },
       { href: "/blog", label: "Блог" },

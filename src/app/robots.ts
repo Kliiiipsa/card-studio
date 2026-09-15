@@ -21,6 +21,7 @@ export default function robots(): MetadataRoute.Robots {
           "/generator-kartochek",
           "/razmer-kartochki-wildberries",
           "/trebovaniya-k-foto-ozon",
+          "/razmer-kartochki-ozon",
           "/check",
           "/blog",
           "/examples/",

@@ -43,6 +43,7 @@ export async function middleware(req: NextRequest) {
     pathname === "/generator-kartochek" || // SEO: «генератор карточек товара»
     pathname === "/razmer-kartochki-wildberries" || // SEO-справочник: размер фото WB
     pathname === "/trebovaniya-k-foto-ozon" || // SEO-справочник: требования к фото Ozon
+    pathname === "/razmer-kartochki-ozon" || // SEO-справочник: размер инфографики и фото Ozon
     pathname === "/check" || // бесплатная экспресс-проверка карточки (лид-магнит)
     pathname === "/api/public/quick-check" || // её API: свои лимиты по IP + дневной потолок
     pathname === "/api/tg/webhook" || // Telegram-бот: свой секрет в заголовке, без сессии
