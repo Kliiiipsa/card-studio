@@ -76,25 +76,36 @@ async function paint(canvas: HTMLCanvasElement, props: BannerPreviewProps): Prom
 
 export type BannerPreviewHandle = {
   download: () => Promise<void>;
-  /** готовый кадр как data URL — уходит на сервер вместо файла без логотипа */
+  /**
+   * Готовый кадр как data URL — уходит на сервер вместо файла без логотипа.
+   * Возвращает null, пока кадр НЕ дорисован: 15.09.2026 клиент забрал холст
+   * через 1,2 с после ответа, картинка (1 МБ через прокси) ещё не загрузилась,
+   * и в хранилище ушёл белый пустой PNG, ЗАМЕНИВ настоящий креатив.
+   */
   toDataUrl: () => string | null;
+  /** дождаться, пока кадр и логотип нарисованы; false — если рисование упало */
+  ready: () => Promise<boolean>;
 };
 
 export const BannerPreview = React.forwardRef<BannerPreviewHandle, BannerPreviewProps>(
   function BannerPreview({ imageUrl, width, height, logo }, ref) {
     const canvasRef = React.useRef<HTMLCanvasElement>(null);
     const [error, setError] = React.useState<string | null>(null);
+    // промис текущей отрисовки: пока не resolved(true), холст считать пустым
+    const paintedRef = React.useRef<Promise<boolean>>(Promise.resolve(false));
 
     React.useEffect(() => {
       let cancelled = false;
-      void (async () => {
+      paintedRef.current = (async () => {
         const canvas = canvasRef.current;
-        if (!canvas) return;
+        if (!canvas) return false;
         try {
           await paint(canvas, { imageUrl, width, height, logo });
           if (!cancelled) setError(null);
+          return !cancelled;
         } catch (e) {
           if (!cancelled) setError(e instanceof Error ? e.message : "Не удалось нарисовать кадр");
+          return false;
         }
       })();
       return () => {
@@ -108,6 +119,7 @@ export const BannerPreview = React.forwardRef<BannerPreviewHandle, BannerPreview
         download: async () => {
           const canvas = canvasRef.current;
           if (!canvas) return;
+          if (!(await paintedRef.current)) return;
           const blob = await new Promise<Blob | null>((r) => canvas.toBlob(r, "image/png"));
           if (blob) downloadBlob(blob, `kartogen-${width}x${height}.png`);
         },
@@ -118,6 +130,7 @@ export const BannerPreview = React.forwardRef<BannerPreviewHandle, BannerPreview
             return null;
           }
         },
+        ready: () => paintedRef.current,
       }),
       [width, height],
     );

@@ -282,12 +282,22 @@ export default function BannersPage() {
    */
   React.useEffect(() => {
     if (!result?.jobId || !logoObj) return;
-    const t = setTimeout(() => {
+    let cancelled = false;
+    // Ждём НАСТОЯЩЕЙ отрисовки, а не таймер: 15.09.2026 таймер в 1,2 с сработал
+    // раньше загрузки картинки, и в хранилище ушёл пустой белый холст вместо
+    // креатива (job_mu2hamna). Сервер дополнительно отбрасывает пустые кадры.
+    void (async () => {
+      // превью монтируется в этом же рендере — даём ему тик, чтобы появился ref
+      await new Promise((r) => setTimeout(r, 50));
+      const ok = await previewRef.current?.ready();
+      if (cancelled || !ok) return;
       const data = previewRef.current?.toDataUrl();
       if (!data) return;
-      void api.banner.finalize(result.jobId!, data).catch(() => undefined);
-    }, 1200);
-    return () => clearTimeout(t);
+      await api.banner.finalize(result.jobId!, data).catch(() => undefined);
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, [result, logoObj]);
 
   if (loaded && !allowed) {
