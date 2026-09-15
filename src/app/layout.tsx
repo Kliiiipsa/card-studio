@@ -23,14 +23,16 @@ const SITE_URL = process.env.SITE_URL || "https://kliiiipsa-card-studio-30da.twc
 // В title намеренно оставлены названия площадок: это поисковые запросы, по
 // которым нас ищут селлеры. В интерфейсе везде — нейтральное «маркетплейсы».
 const TITLE = "Kartogen — AI-карточки и инфографика для маркетплейсов (Wildberries, Ozon)";
-const DESCRIPTION =
-  `Фото товара, готовая инфографика с русским текстом, видео и анализ карточек — за минуты. ${WELCOME_SPARKS} генов в подарок при регистрации.`;
+const DESCRIPTION = `Фото товара, готовая инфографика с русским текстом, видео и анализ карточек — за минуты. ${WELCOME_SPARKS} генов в подарок при регистрации.`;
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: TITLE,
   description: DESCRIPTION,
-  alternates: { canonical: "/" },
+  // canonical здесь НЕ задаём: он наследовался всеми страницами без своего, и
+  // /pricing, /terms, /offer, /privacy объявляли каноническим адресом главную —
+  // Вебмастер помечал их «неканоническая» и не показывал (разбор 15.09.2026).
+  // Каждая публичная страница объявляет canonical сама.
   // подтверждение прав в Google Search Console (не удалять — иначе слетит)
   verification: {
     google: "-R-CzL1J1dyVwZA1o4s0A0tiJx0Hiv2rJOh3J2NTDwU",

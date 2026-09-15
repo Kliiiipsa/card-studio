@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Gem, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { SiteLinks } from "@/components/seo/site-links";
 
 /** Общая шапка/подвал для страниц блога — в стиле лендинга, публичные. */
 export function BlogHeader() {
@@ -33,12 +34,16 @@ export function BlogHeader() {
 export function BlogFooter() {
   return (
     <footer className="container flex flex-col items-center gap-3 border-t py-8 text-center text-sm text-muted-foreground">
+      {/* ссылки на посадочные: статьи блога — самые посещаемые страницы из
+          поиска, и они должны передавать вес инструментам и гайдам */}
+      <SiteLinks className="mb-6 w-full max-w-3xl text-left" />
       <nav className="flex flex-wrap justify-center gap-x-4 gap-y-1">
-        <Link href="/" className="hover:text-foreground">Главная</Link>
-        <Link href="/blog" className="hover:text-foreground">Блог</Link>
-        <Link href="/help" className="hover:text-foreground">Как это работает</Link>
-        <Link href="/pricing" className="hover:text-foreground">Тарифы</Link>
-        <a href="mailto:admin@kartogen.ru" className="hover:text-foreground">admin@kartogen.ru</a>
+        <Link href="/" className="hover:text-foreground">
+          Главная
+        </Link>
+        <a href="mailto:admin@kartogen.ru" className="hover:text-foreground">
+          admin@kartogen.ru
+        </a>
       </nav>
       <p className="text-xs">
         Kartogen — независимый сервис и не аффилирован с Wildberries, Ozon и иными маркетплейсами.

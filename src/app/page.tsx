@@ -20,6 +20,7 @@ import { Badge } from "@/components/ui/badge";
 import { type ExampleCard } from "@/components/landing/examples-gallery";
 import { ExamplesMarquee } from "@/components/landing/examples-marquee";
 import { JsonLd } from "@/components/seo/json-ld";
+import { SiteLinks } from "@/components/seo/site-links";
 import { PRICES, WELCOME_SPARKS } from "@/core/billing/prices";
 
 /**
@@ -141,11 +142,19 @@ const FEATURES = [
 ];
 
 const STEPS = [
-  { icon: Upload, title: "Загрузите товар", text: "Фото товара или текущую карточку с маркетплейса." },
+  {
+    icon: Upload,
+    title: "Загрузите товар",
+    text: "Фото товара или текущую карточку с маркетплейса.",
+  },
   { icon: Lightbulb, title: "Получите идеи", text: "ИИ предложит смыслы и закроет боли клиента." },
   { icon: Wand2, title: "Сгенерируйте карточку", text: "Структурный промпт → дорогой визуал." },
   { icon: Download, title: "Скачайте результат", text: "Готовая графика в нужном размере." },
 ];
+
+// canonical главной: раньше жил в layout и наследовался всеми страницами без
+// своего (см. комментарий в layout.tsx)
+export const metadata = { alternates: { canonical: `${SITE}/` } };
 
 export default async function LandingPage() {
   // The landing is public; greet an already-authenticated visitor properly —
@@ -162,9 +171,7 @@ export default async function LandingPage() {
           <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-blue-500 text-white shadow-md">
             <Gem className="h-5 w-5" />
           </div>
-          <span className="whitespace-nowrap text-sm font-semibold sm:text-base">
-            Kartogen
-          </span>
+          <span className="whitespace-nowrap text-sm font-semibold sm:text-base">Kartogen</span>
         </Link>
         <div className="flex shrink-0 items-center gap-1.5 sm:gap-3">
           {authed ? (
@@ -305,8 +312,8 @@ export default async function LandingPage() {
             Готовы делать карточки, которые продают?
           </h2>
           <p className="mx-auto mt-3 max-w-xl text-white/85">
-            Регистрация за минуту, {WELCOME_SPARKS} генов в подарок. Тексты, идеи и анализ фото — бесплатно,
-            платите только за готовые изображения.
+            Регистрация за минуту, {WELCOME_SPARKS} генов в подарок. Тексты, идеи и анализ фото —
+            бесплатно, платите только за готовые изображения.
           </p>
           <Button asChild size="lg" variant="secondary" className="mt-8">
             <Link href={authed ? "/dashboard" : "/register"}>
@@ -315,6 +322,12 @@ export default async function LandingPage() {
             </Link>
           </Button>
         </div>
+      </section>
+
+      {/* Внутренние ссылки на посадочные и справочники: без них они были
+          «сиротами», и поисковики держали их за 50-й позицией (15.09.2026) */}
+      <section className="container border-t py-10">
+        <SiteLinks />
       </section>
 
       <footer className="container flex flex-col items-center gap-3 border-t py-8 text-center text-sm text-muted-foreground">
@@ -339,9 +352,7 @@ export default async function LandingPage() {
             admin@kartogen.ru
           </a>
         </nav>
-        <p className="text-xs">
-          Сервис не аффилирован с Wildberries, Ozon и иными маркетплейсами.
-        </p>
+        <p className="text-xs">Сервис не аффилирован с Wildberries, Ozon и иными маркетплейсами.</p>
       </footer>
     </div>
   );

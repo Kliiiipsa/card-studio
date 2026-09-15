@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { SiteLinks } from "@/components/seo/site-links";
 import { cookies } from "next/headers";
 import { ArrowRight, CheckCircle2, Dna, Gem } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -163,16 +164,18 @@ export async function ArticlePage(props: {
         </section>
       </main>
 
+      <section className="container max-w-3xl border-t py-10">
+        <SiteLinks />
+      </section>
+
       <footer className="container flex flex-col items-center gap-3 border-t py-8 text-center text-sm text-muted-foreground">
         <nav className="flex flex-wrap justify-center gap-x-4 gap-y-1">
-          <Link href="/" className="hover:text-foreground">Главная</Link>
-          <Link href="/wildberries" className="hover:text-foreground">Для Wildberries</Link>
-          <Link href="/ozon" className="hover:text-foreground">Для Ozon</Link>
-          <Link href="/check" className="hover:text-foreground">Бесплатный анализ карточки</Link>
-          <Link href="/blog" className="hover:text-foreground">Блог</Link>
-          <Link href="/help" className="hover:text-foreground">Как это работает</Link>
-          <Link href="/pricing" className="hover:text-foreground">Тарифы</Link>
-          <a href="mailto:admin@kartogen.ru" className="hover:text-foreground">admin@kartogen.ru</a>
+          <Link href="/" className="hover:text-foreground">
+            Главная
+          </Link>
+          <a href="mailto:admin@kartogen.ru" className="hover:text-foreground">
+            admin@kartogen.ru
+          </a>
         </nav>
         <p className="max-w-2xl text-xs">{props.disclaimer}</p>
       </footer>
@@ -207,7 +210,10 @@ export function Table({ head, rows }: { head: string[]; rows: (React.ReactNode |
           {rows.map((r, i) => (
             <tr key={i} className="border-b last:border-0 align-top">
               {r.map((c, j) => (
-                <td key={j} className={`px-3 py-2 ${j === 0 ? "font-medium" : "text-muted-foreground"}`}>
+                <td
+                  key={j}
+                  className={`px-3 py-2 ${j === 0 ? "font-medium" : "text-muted-foreground"}`}
+                >
                   {c}
                 </td>
               ))}
@@ -231,6 +237,8 @@ export function Ul({ items }: { items: React.ReactNode[] }) {
 
 export function Tip({ children }: { children: React.ReactNode }) {
   return (
-    <div className="mt-4 rounded-xl border border-primary/30 bg-primary/5 p-4 text-sm">{children}</div>
+    <div className="mt-4 rounded-xl border border-primary/30 bg-primary/5 p-4 text-sm">
+      {children}
+    </div>
   );
 }

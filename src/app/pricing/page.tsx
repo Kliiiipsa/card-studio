@@ -12,6 +12,7 @@ import {
 
 export const metadata: Metadata = {
   title: "Тарифы — Kartogen",
+  alternates: { canonical: "https://kartogen.ru/pricing" },
   description: "Стоимость услуг сервиса Kartogen: пакеты генов и цены на генерации.",
 };
 
@@ -22,12 +23,27 @@ export const metadata: Metadata = {
  * app actually charges.
  */
 const PAID: { key: keyof typeof PRICES; what: string }[] = [
-  { key: "infographic", what: "Готовая карточка с русским текстом, плашками и композицией под ваш товар (3:4 или 4:5)." },
-  { key: "generate", what: "Чистое фото товара: новый фон, свет и подача — по описанию или из вашего снимка." },
-  { key: "video", what: "5-секундный видеоролик товара из одного фото: движение камеры и «оживление» кадра, 1080p, формат кадра — как у фото." },
-  { key: "banner", what: "Рекламный креатив вне маркетплейса: баннер для Директа и VK, пост для соцсетей, шапка профиля или визитка — с вашим заголовком, ценой, телефоном, сайтом и логотипом." },
+  {
+    key: "infographic",
+    what: "Готовая карточка с русским текстом, плашками и композицией под ваш товар (3:4 или 4:5).",
+  },
+  {
+    key: "generate",
+    what: "Чистое фото товара: новый фон, свет и подача — по описанию или из вашего снимка.",
+  },
+  {
+    key: "video",
+    what: "5-секундный видеоролик товара из одного фото: движение камеры и «оживление» кадра, 1080p, формат кадра — как у фото.",
+  },
+  {
+    key: "banner",
+    what: "Рекламный креатив вне маркетплейса: баннер для Директа и VK, пост для соцсетей, шапка профиля или визитка — с вашим заголовком, ценой, телефоном, сайтом и логотипом.",
+  },
   { key: "analyze", what: "Разбор текущей карточки: оценка, слабые места, что мешает продажам." },
-  { key: "compare", what: "Ваша карточка против карточки конкурента: оценка обеих по одной рубрике, вердикт кто выигрывает и план, что перенять." },
+  {
+    key: "compare",
+    what: "Ваша карточка против карточки конкурента: оценка обеих по одной рубрике, вердикт кто выигрывает и план, что перенять.",
+  },
   { key: "seo", what: "SEO-название, продающее описание и 12–15 поисковых запросов для карточки." },
 ];
 
@@ -67,10 +83,11 @@ export default function PricingPage() {
             Тарифы
           </h1>
           <p className="text-[15px] leading-7 text-muted-foreground">
-            Расчёты в сервисе ведутся в генах: <strong className="text-foreground">1 ген = 1 ₽</strong>.
-            Вы пополняете баланс пакетом, а затем оплачиваете генами отдельные операции. Подписок и
-            автоматических списаний нет. Гены не сгорают. Списание происходит только за успешно
-            выполненную операцию — за ошибки сервиса или отклонение модерацией гены не списываются.
+            Расчёты в сервисе ведутся в генах:{" "}
+            <strong className="text-foreground">1 ген = 1 ₽</strong>. Вы пополняете баланс пакетом,
+            а затем оплачиваете генами отдельные операции. Подписок и автоматических списаний нет.
+            Гены не сгорают. Списание происходит только за успешно выполненную операцию — за ошибки
+            сервиса или отклонение модерацией гены не списываются.
           </p>
         </section>
 
@@ -84,7 +101,8 @@ export default function PricingPage() {
                   {p.sparks + p.bonus}
                 </div>
                 <div className="mt-1 text-sm text-muted-foreground">
-                  {gens(p.sparks)}{p.bonus > 0 ? ` + ${p.bonus} бонусом` : ""}
+                  {gens(p.sparks)}
+                  {p.bonus > 0 ? ` + ${p.bonus} бонусом` : ""}
                 </div>
                 <div className="mt-3 text-lg font-semibold">{p.priceRub} ₽</div>
               </div>
@@ -115,7 +133,9 @@ export default function PricingPage() {
               <tbody>
                 {PAID.map((row) => (
                   <tr key={row.key} className="border-b last:border-0 align-top">
-                    <td className="whitespace-nowrap px-4 py-3 font-medium">{ACTION_LABELS[row.key]}</td>
+                    <td className="whitespace-nowrap px-4 py-3 font-medium">
+                      {ACTION_LABELS[row.key]}
+                    </td>
                     <td className="px-4 py-3 text-muted-foreground">{row.what}</td>
                     <td className="whitespace-nowrap px-4 py-3 text-right font-semibold [font-variant-numeric:tabular-nums]">
                       {PRICES[row.key]} 🧬 = {PRICES[row.key]} ₽
@@ -126,8 +146,8 @@ export default function PricingPage() {
             </table>
           </div>
           <p className="text-sm text-muted-foreground">
-            Цена операции показывается на кнопке до её запуска. Одна операция = один результат
-            (одно изображение или один текстовый блок).
+            Цена операции показывается на кнопке до её запуска. Одна операция = один результат (одно
+            изображение или один текстовый блок).
           </p>
         </section>
 
