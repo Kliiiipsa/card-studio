@@ -1,6 +1,7 @@
 import type { ImageProvider, T2IRequest, I2IRequest, ImageResult, GeneratedImage } from "../types";
 import { ProviderError } from "@/lib/errors";
 import { USER_ERRORS, providerHttpMessage } from "@/lib/user-messages";
+import { inlineRemoteImage } from "./inline-image";
 
 /**
  * fal.ai image provider. Enabled via AI_IMAGE_PROVIDER=fal and FAL_KEY
@@ -41,7 +42,14 @@ export class FalImageProvider implements ImageProvider {
     return this.run(this.t2iModel, input);
   }
 
-  async imageToImage(req: I2IRequest): Promise<ImageResult> {
+  async imageToImage(rawReq: I2IRequest): Promise<ImageResult> {
+    // S3-адрес нашего хранилища → байты: fal из США до twcstorage дотягивается
+    // не всегда (см. inline-image.ts); запасной путь получает тот же адрес,
+    // что и gpt-image, поэтому страхуем и здесь
+    const req: I2IRequest = {
+      ...rawReq,
+      referenceImageDataUrl: await inlineRemoteImage(rawReq.referenceImageDataUrl),
+    };
     const ratio = req.aspectRatio ?? this.defaultRatio;
     const input = buildI2IInput(this.i2iModel, req, ratio);
     if (isSeedream(this.i2iModel)) {

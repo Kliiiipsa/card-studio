@@ -10,6 +10,7 @@ import type {
 import { ProviderError } from "@/lib/errors";
 import { USER_ERRORS, providerHttpMessage, friendlyJobError } from "@/lib/user-messages";
 import { FAL_PRIVACY_HEADERS } from "./fal";
+import { inlineRemoteImage } from "./inline-image";
 
 /**
  * OpenAI gpt-image-2 hosted on fal.ai. Enabled via
@@ -65,11 +66,18 @@ export class FalGptImageProvider implements ImageProvider {
   }
 
   async submitImageToImage(req: I2IRequest): Promise<ImageJobHandle> {
+    // gpt-image-2 edit accepts URLs or base64 data URIs directly; the first is
+    // the primary (product), extras are style references. Наши S3-адреса
+    // (поток «Фото товара → Инфографика») fal скачивает из США и иногда не
+    // дотягивается: «Failed to download the file» — 3 отказа (25.08, 30.08,
+    // 15.09), все на cards/*.jpg. Сервер стоит рядом с S3 — качаем сами и
+    // отдаём как data URI, как и при загрузке с устройства.
+    const image_urls = await Promise.all(
+      [req.referenceImageDataUrl, ...(req.extraImageUrls ?? [])].map(inlineRemoteImage),
+    );
     return this.submit(this.i2iModel, {
       prompt: composePrompt(req.prompt, req.negativePrompt),
-      // gpt-image-2 edit accepts URLs or base64 data URIs directly; the first is
-      // the primary (product), extras are style references
-      image_urls: [req.referenceImageDataUrl, ...(req.extraImageUrls ?? [])],
+      image_urls,
       image_size: toImageSize(req.aspectRatio, req.pixelSize),
       quality: this.quality,
       num_images: req.count ?? 1,
