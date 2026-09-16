@@ -82,6 +82,43 @@ export async function saveAttribution(email: string, a: Attribution): Promise<vo
   );
 }
 
+/**
+ * Атрибуция по списку почт (для вкладки «Пользователи»): откуда пришёл каждый.
+ * Вопрос владельца 16.09.2026: «не все регистрации через Директ, откуда
+ * остальные?» — ответить можно только по строкам, а не по сводке.
+ */
+export async function attributionFor(
+  emails: string[],
+): Promise<Record<string, Attribution & { createdAt: string }>> {
+  if (!enabled() || !emails.length) return {};
+  await ensureSchema();
+  const { rows } = await getPool().query<{
+    email: string;
+    source: string | null;
+    medium: string | null;
+    campaign: string | null;
+    landing: string | null;
+    referrer: string | null;
+    created_at: string;
+  }>(
+    `select email, source, medium, campaign, landing, referrer, created_at
+       from signup_attribution where email = any($1)`,
+    [emails],
+  );
+  const out: Record<string, Attribution & { createdAt: string }> = {};
+  for (const r of rows) {
+    out[r.email] = {
+      source: r.source ?? undefined,
+      medium: r.medium ?? undefined,
+      campaign: r.campaign ?? undefined,
+      landing: r.landing ?? undefined,
+      referrer: r.referrer ?? undefined,
+      createdAt: new Date(r.created_at).toISOString(),
+    };
+  }
+  return out;
+}
+
 export type SourceRow = {
   source: string;
   registrations: number;

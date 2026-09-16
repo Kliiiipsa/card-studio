@@ -49,7 +49,36 @@ type AdminUser = {
   balance: number | null;
   /** IP at registration (from the consent journal); null for pre-journal accounts */
   ip: string | null;
+  /** откуда пришёл: UTM первого визита, страница входа, реферер (signup_attribution) */
+  source?: string | null;
+  medium?: string | null;
+  campaign?: string | null;
+  landing?: string | null;
+  referrer?: string | null;
 };
+
+/** Короткая подпись источника регистрации для таблицы пользователей. */
+function sourceLabel(u: AdminUser): {
+  text: string;
+  title: string;
+  kind: "ad" | "organic" | "direct" | "none";
+} {
+  const ref = (u.referrer ?? "").replace(/^https?:\/\//, "").replace(/\/.*$/, "");
+  const title = [
+    u.source &&
+      `utm: ${u.source}${u.medium ? ` / ${u.medium}` : ""}${u.campaign ? ` / ${u.campaign}` : ""}`,
+    u.landing && `вход: ${u.landing}`,
+    u.referrer && `реферер: ${u.referrer}`,
+  ]
+    .filter(Boolean)
+    .join("\n");
+  if (u.source) return { text: `${u.source}${u.medium ? `/${u.medium}` : ""}`, title, kind: "ad" };
+  if (/yandex\.|google\.|bing\.|ya\.ru|dzen\./.test(ref))
+    return { text: `поиск: ${ref}`, title, kind: "organic" };
+  if (ref) return { text: ref, title, kind: "organic" };
+  if (u.landing) return { text: "прямой заход", title, kind: "direct" };
+  return { text: "—", title: "атрибуция не записана (Яндекс ID или старый аккаунт)", kind: "none" };
+}
 
 const TX_LABEL: Record<string, string> = {
   welcome: "Бонус",
@@ -1008,6 +1037,7 @@ export default function AdminPage() {
                           <th className="py-2 pr-4 font-medium">Роль</th>
                           <th className="py-2 pr-4 font-medium">Баланс</th>
                           <th className="py-2 pr-4 font-medium">IP регистрации</th>
+                          <th className="py-2 pr-4 font-medium">Источник</th>
                           <th className="py-2 pr-4 font-medium">Промокоды</th>
                           <th className="py-2 pr-4 font-medium">Создан</th>
                           <th className="py-2 font-medium" />
@@ -1055,6 +1085,26 @@ export default function AdminPage() {
                               ) : (
                                 <span className="text-xs text-muted-foreground">—</span>
                               )}
+                            </td>
+                            <td className="py-2 pr-4">
+                              {(() => {
+                                const s = sourceLabel(u);
+                                return (
+                                  <span
+                                    title={s.title}
+                                    className={cn(
+                                      "whitespace-nowrap text-xs",
+                                      s.kind === "ad" && "text-primary",
+                                      s.kind === "organic" &&
+                                        "text-emerald-600 dark:text-emerald-400",
+                                      s.kind === "direct" && "text-foreground",
+                                      s.kind === "none" && "text-muted-foreground",
+                                    )}
+                                  >
+                                    {s.text}
+                                  </span>
+                                );
+                              })()}
                             </td>
                             <td className="py-2 pr-4">
                               {(() => {

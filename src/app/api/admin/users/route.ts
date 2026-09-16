@@ -5,6 +5,7 @@ import { listUsers } from "@/core/auth/store";
 import { billingEnabled, balancesFor } from "@/core/billing/billing";
 import { registrationIps } from "@/core/auth/consent";
 import { isHiddenAccount } from "@/core/auth/hidden-accounts";
+import { attributionFor } from "@/core/analytics/attribution";
 
 export const runtime = "nodejs";
 
@@ -18,9 +19,10 @@ export async function GET(req: Request) {
     const hiddenCount = allUsers.filter((u) => isHiddenAccount(u.email)).length;
     const users = showAll ? allUsers : allUsers.filter((u) => !isHiddenAccount(u.email));
     const emails = users.map((u) => u.email);
-    const [balances, ips] = await Promise.all([
+    const [balances, ips, attr] = await Promise.all([
       billingEnabled() ? balancesFor(emails) : Promise.resolve({} as Record<string, number>),
       registrationIps(emails),
+      attributionFor(emails).catch(() => ({}) as Awaited<ReturnType<typeof attributionFor>>),
     ]);
     return ok({
       users: users.map((u) => ({
@@ -30,6 +32,12 @@ export async function GET(req: Request) {
         createdAt: u.createdAt,
         balance: billingEnabled() ? (balances[u.email] ?? 0) : null,
         ip: ips[u.email] ?? null,
+        // откуда пришёл: UTM-метки первого визита, страница входа, реферер
+        source: attr[u.email]?.source ?? null,
+        medium: attr[u.email]?.medium ?? null,
+        campaign: attr[u.email]?.campaign ?? null,
+        landing: attr[u.email]?.landing ?? null,
+        referrer: attr[u.email]?.referrer ?? null,
       })),
       hiddenCount,
     });
