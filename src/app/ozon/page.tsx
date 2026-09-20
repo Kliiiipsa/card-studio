@@ -22,6 +22,7 @@ import { Badge } from "@/components/ui/badge";
 import { type ExampleCard } from "@/components/landing/examples-gallery";
 import { ExamplesMarquee } from "@/components/landing/examples-marquee";
 import { JsonLd } from "@/components/seo/json-ld";
+import { SeoFacts } from "@/components/seo/facts";
 import { PRICES, WELCOME_SPARKS } from "@/core/billing/prices";
 
 /* ------------------------------------------------------------------ */
@@ -233,6 +234,7 @@ export default async function OzonLanding() {
           SEO-тексты и анализ карточки — за минуты и без дизайнера. Всё в вертикали 3:4, как требует
           Ozon.
         </p>
+        <SeoFacts className="mt-5 max-w-2xl text-left" />
         <div className="mt-8 flex flex-col gap-3 sm:flex-row">
           <Button asChild size="lg" variant="gradient">
             <Link href={authed ? "/dashboard" : "/register"}>

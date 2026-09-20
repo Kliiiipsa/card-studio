@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { SiteLinks } from "@/components/seo/site-links";
+import { SeoFacts } from "@/components/seo/facts";
 import { cookies } from "next/headers";
 import { ArrowRight, CheckCircle2, Dna, Gem } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -32,6 +33,8 @@ export async function ArticlePage(props: {
   cta: { title: string; text: string; button: string; href?: string };
   related: { href: string; label: string }[];
   disclaimer: string;
+  /** фактический абзац под лидом; по умолчанию — общий про сервис */
+  facts?: string;
   children: React.ReactNode;
 }) {
   const secret = process.env.AUTH_SECRET;
@@ -113,6 +116,8 @@ export async function ArticlePage(props: {
         <h1 className="text-3xl font-bold tracking-tight sm:text-4xl lg:text-5xl">{props.title}</h1>
         <p className="mt-4 text-lg text-muted-foreground">{props.lead}</p>
         <p className="mt-2 text-xs text-muted-foreground">Обновлено: {props.updated}</p>
+        {/* фактический абзац для нейропоиска: кто, что, почём, как быстро */}
+        <SeoFacts text={props.facts} className="mt-6" />
 
         <article className="mt-10 space-y-8 text-[15px] leading-7">{props.children}</article>
 

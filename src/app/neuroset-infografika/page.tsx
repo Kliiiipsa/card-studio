@@ -2,7 +2,23 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import Image from "next/image";
 import { ArticlePage, H2, P, Table, Ul, Tip, SITE, type Faq } from "@/components/seo/article-page";
+import { ExamplesMarquee } from "@/components/landing/examples-marquee";
 import { PRICES, WELCOME_SPARKS } from "@/core/billing/prices";
+
+// расширенная лента примеров (аудит 20.09.2026: по головному запросу страница
+// не показывалась, у соседей в топе 6–10 примеров против наших трёх)
+const MORE_EXAMPLES = [
+  { src: "/examples/turka.jpg", title: "Турка", style: "Сцена-история" },
+  { src: "/examples/speaker.jpg", title: "Колонка", style: "Поп-арт · по референсу" },
+  { src: "/examples/bedding.jpg", title: "Постельное бельё", style: "Нежный текстиль" },
+  { src: "/examples/suitcase.jpg", title: "Чемодан", style: "Солнечный промо" },
+  { src: "/examples/coat.jpg", title: "Пуховик", style: "Премиум тёмный" },
+  { src: "/examples/yogamat.jpg", title: "Коврик для йоги", style: "Бирюзовый фреш" },
+  { src: "/examples/jeans.jpg", title: "Джинсы", style: "Солнечный промо" },
+  { src: "/examples/thermomug.jpg", title: "Термокружка", style: "Чистый минимал" },
+  { src: "/examples/backpack.jpg", title: "Рюкзак", style: "Весёлый яркий" },
+  { src: "/examples/constructor.jpg", title: "Конструктор", style: "Поп-комплект" },
+];
 
 /* ------------------------------------------------------------------ */
 /* SEO-страница под кластер «нейросеть для инфографики» (1854 + 517 +  */
@@ -19,7 +35,7 @@ import { PRICES, WELCOME_SPARKS } from "@/core/billing/prices";
 /* ------------------------------------------------------------------ */
 
 const PATH = "/neuroset-infografika";
-const UPDATED = "10 сентября 2026";
+const UPDATED = "20 сентября 2026";
 
 export const metadata: Metadata = {
   // 58 знаков вместо 72: хвост title в выдаче Яндекса обрезался
@@ -158,6 +174,15 @@ export default function Page() {
       </section>
 
       <section>
+        <H2>Нейросеть для создания инфографики: ещё примеры по категориям</H2>
+        <P>
+          Десять карточек из разных ниш, собранных одной и той же нейросетью по одному фото каждая.
+          Стиль выбран под категорию, текст напечатан моделью, ни одна не дорисована руками.
+        </P>
+        <ExamplesMarquee items={MORE_EXAMPLES} />
+      </section>
+
+      <section>
         <H2>Что ИИ делает хорошо, а что плохо</H2>
         <P>
           Полезнее знать границы инструмента заранее, чем разочароваться после третьей неудачной
@@ -286,7 +311,7 @@ export default function Page() {
       </section>
 
       <section>
-        <H2>Правда про «бесплатно»</H2>
+        <H2>Нейросеть для инфографики бесплатно: что даётся даром, а что нет</H2>
         <P>
           По запросу «нейросеть для инфографики бесплатно» находится два разных типа инструментов, и
           путать их дорого по времени.

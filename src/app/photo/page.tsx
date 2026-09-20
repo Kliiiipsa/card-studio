@@ -22,6 +22,7 @@ import { Badge } from "@/components/ui/badge";
 import { type ExampleCard } from "@/components/landing/examples-gallery";
 import { ExamplesMarquee } from "@/components/landing/examples-marquee";
 import { JsonLd } from "@/components/seo/json-ld";
+import { SeoFacts } from "@/components/seo/facts";
 import { PRICES, WELCOME_SPARKS } from "@/core/billing/prices";
 
 /* ------------------------------------------------------------------ */
@@ -37,8 +38,7 @@ export const metadata: Metadata = {
   // обещал съёмку «БЕЗ студии» — формально про экономию на аренде, но в выдаче
   // читалось как «студийного вида не будет». Теперь оба намерения названы прямо.
   title: "Фото товара нейросетью: студийные кадры и сцены — Kartogen",
-  description:
-    `Предметная съёмка для карточки товара нейросетью: чистый студийный фон, лайфстайл-сцены, новый свет по вашему снимку или фото по описанию. Под требования WB и Ozon, за минуту, без фотографа. ${WELCOME_SPARKS} генов в подарок.`,
+  description: `Предметная съёмка для карточки товара нейросетью: чистый студийный фон, лайфстайл-сцены, новый свет по вашему снимку или фото по описанию. Под требования WB и Ozon, за минуту, без фотографа. ${WELCOME_SPARKS} генов в подарок.`,
   keywords: [
     "фото товара нейросеть",
     "предметная съёмка ИИ",
@@ -82,9 +82,21 @@ const BLOCKS = [
 
 const STEPS = [
   { icon: Upload, title: "Загрузите фото товара", text: "Подойдёт даже снимок на телефон." },
-  { icon: SlidersHorizontal, title: "Выберите сценарий", text: "Студия, лайфстайл или просто замена фона — и силу изменения." },
-  { icon: Wand2, title: "Сгенерируйте", text: "ИИ сохранит товар и пересоберёт фон, свет и подачу за ~30 секунд." },
-  { icon: Download, title: "Скачайте под маркетплейс", text: "Вертикаль 3:4 — 900×1200 или 1200×1600, PNG или JPG." },
+  {
+    icon: SlidersHorizontal,
+    title: "Выберите сценарий",
+    text: "Студия, лайфстайл или просто замена фона — и силу изменения.",
+  },
+  {
+    icon: Wand2,
+    title: "Сгенерируйте",
+    text: "ИИ сохранит товар и пересоберёт фон, свет и подачу за ~30 секунд.",
+  },
+  {
+    icon: Download,
+    title: "Скачайте под маркетплейс",
+    text: "Вертикаль 3:4 — 900×1200 или 1200×1600, PNG или JPG.",
+  },
 ];
 
 const EXAMPLES: ExampleCard[] = [
@@ -212,6 +224,7 @@ export default async function PhotoLanding() {
           Загрузите любой снимок — ИИ сохранит товар и пересоберёт фон, свет и подачу: чистая студия
           под главное фото или живая сцена под ваш товар. Без фотографа, аренды и ожидания.
         </p>
+        <SeoFacts className="mt-5 max-w-2xl text-left" />
         <div className="mt-8 flex flex-col gap-3 sm:flex-row">
           <Button asChild size="lg" variant="gradient">
             <Link href={authed ? "/generator" : "/register"}>
@@ -253,9 +266,7 @@ export default async function PhotoLanding() {
 
       {/* What you get */}
       <section className="container py-16">
-        <h2 className="text-center text-3xl font-bold tracking-tight">
-          Что умеет ИИ-фотостудия
-        </h2>
+        <h2 className="text-center text-3xl font-bold tracking-tight">Что умеет ИИ-фотостудия</h2>
         <p className="mx-auto mt-2 max-w-2xl text-center text-muted-foreground">
           Четыре режима — от чистой студии до живых сцен и видео. Товар всегда остаётся вашим:
           меняются фон, свет и подача.
@@ -275,9 +286,7 @@ export default async function PhotoLanding() {
 
       {/* How it works */}
       <section className="container py-16">
-        <h2 className="text-center text-3xl font-bold tracking-tight">
-          Фото товара за 4 шага
-        </h2>
+        <h2 className="text-center text-3xl font-bold tracking-tight">Фото товара за 4 шага</h2>
         <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
           {STEPS.map((s, i) => (
             <div key={s.title} className="relative rounded-2xl border bg-card p-6">
@@ -294,9 +303,7 @@ export default async function PhotoLanding() {
 
       {/* Examples */}
       <section id="examples" className="container py-16">
-        <h2 className="text-center text-3xl font-bold tracking-tight">
-          Примеры генераций студии
-        </h2>
+        <h2 className="text-center text-3xl font-bold tracking-tight">Примеры генераций студии</h2>
         <p className="mt-2 text-center text-muted-foreground">
           Сцены и свет во всех примерах созданы нейросетью — на базе таких фото собираются и чистые
           кадры, и карточки с инфографикой.
@@ -327,8 +334,8 @@ export default async function PhotoLanding() {
             Сделайте первое фото товара
           </h2>
           <p className="mx-auto mt-3 max-w-xl text-white/85">
-            Регистрация за минуту, {WELCOME_SPARKS} генов в подарок — первое фото бесплатно. Платите только за
-            готовые изображения.
+            Регистрация за минуту, {WELCOME_SPARKS} генов в подарок — первое фото бесплатно. Платите
+            только за готовые изображения.
           </p>
           <Button asChild size="lg" variant="secondary" className="mt-8">
             <Link href={authed ? "/generator" : "/register"}>
@@ -341,15 +348,33 @@ export default async function PhotoLanding() {
 
       <footer className="container flex flex-col items-center gap-3 border-t py-8 text-center text-sm text-muted-foreground">
         <nav className="flex flex-wrap justify-center gap-x-4 gap-y-1">
-          <Link href="/" className="hover:text-foreground">Главная</Link>
-          <Link href="/wildberries" className="hover:text-foreground">Для Wildberries</Link>
-          <Link href="/infografika" className="hover:text-foreground">Инфографика</Link>
-          <Link href="/razmer-kartochki-wildberries" className="hover:text-foreground">Размер карточки WB</Link>
-          <Link href="/trebovaniya-k-foto-ozon" className="hover:text-foreground">Требования к фото Ozon</Link>
-          <Link href="/ozon" className="hover:text-foreground">Для Ozon</Link>
-          <Link href="/help" className="hover:text-foreground">Как это работает</Link>
-          <Link href="/pricing" className="hover:text-foreground">Тарифы</Link>
-          <a href="mailto:admin@kartogen.ru" className="hover:text-foreground">admin@kartogen.ru</a>
+          <Link href="/" className="hover:text-foreground">
+            Главная
+          </Link>
+          <Link href="/wildberries" className="hover:text-foreground">
+            Для Wildberries
+          </Link>
+          <Link href="/infografika" className="hover:text-foreground">
+            Инфографика
+          </Link>
+          <Link href="/razmer-kartochki-wildberries" className="hover:text-foreground">
+            Размер карточки WB
+          </Link>
+          <Link href="/trebovaniya-k-foto-ozon" className="hover:text-foreground">
+            Требования к фото Ozon
+          </Link>
+          <Link href="/ozon" className="hover:text-foreground">
+            Для Ozon
+          </Link>
+          <Link href="/help" className="hover:text-foreground">
+            Как это работает
+          </Link>
+          <Link href="/pricing" className="hover:text-foreground">
+            Тарифы
+          </Link>
+          <a href="mailto:admin@kartogen.ru" className="hover:text-foreground">
+            admin@kartogen.ru
+          </a>
         </nav>
         <p className="text-xs">
           Kartogen — независимый сервис и не аффилирован с маркетплейсами. Упомянутые товарные знаки
