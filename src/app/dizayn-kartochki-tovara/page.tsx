@@ -20,7 +20,7 @@ import { PRICES, WELCOME_SPARKS } from "@/core/billing/prices";
 /* ------------------------------------------------------------------ */
 
 const PATH = "/dizayn-kartochki-tovara";
-const UPDATED = "14 сентября 2026";
+const UPDATED = "20 сентября 2026";
 
 export const metadata: Metadata = {
   title: "Дизайн карточки товара для маркетплейсов — Kartogen",
@@ -255,6 +255,38 @@ export default function Page() {
           внутри каждой серии один.
         </P>
         <ExamplesMarquee items={EXAMPLES} />
+      </section>
+
+      <section>
+        <H2>До и после: как дизайн переносится с референса</H2>
+        <P>
+          Самый быстрый способ получить продающий дизайн, не придумывая его с нуля: взять карточку,
+          которая нравится, и повторить её стиль на своём товаре. Слева референс, чужая карточка
+          фотоаппарата в ретро-поп стиле. Справа наша колонка: тот же характер, палитра и ритм
+          плашек, но свой товар и свои тексты. Чужой товар, логотип и цифры на новую карточку не
+          переносятся.
+        </P>
+        <div className="grid gap-4 sm:grid-cols-2">
+          {[
+            { src: "/help/reference-source.jpg", label: "До: референс, чужая карточка" },
+            { src: "/examples/speaker.jpg", label: "После: наш товар в том же стиле" },
+          ].map((im) => (
+            <figure key={im.src} className="overflow-hidden rounded-2xl border bg-card">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={im.src} alt={im.label} className="aspect-[3/4] w-full object-cover" />
+              <figcaption className="px-4 py-2 text-center text-xs text-muted-foreground">
+                {im.label}
+              </figcaption>
+            </figure>
+          ))}
+        </div>
+        <P>
+          Так работает вкладка «Свой референс» в{" "}
+          <Link href="/infographics" className="text-primary hover:underline">
+            «Инфографике»
+          </Link>
+          : стиль извлекается из скриншота бесплатно, дальше каждый слайд серии собирается в нём.
+        </P>
       </section>
 
       <section>
