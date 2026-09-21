@@ -1,4 +1,5 @@
 import "server-only";
+import { createHash } from "node:crypto";
 import { getLLMProvider, getInfographicImageProvider, getImageProvider } from "@/core/ai/providers";
 import type {
   ImageJobHandle,
@@ -21,7 +22,12 @@ import { STYLE_REF_IMAGES } from "./style-ref-images";
 import { assembleBrief, buildInfographicBriefFallback, type BriefCopy } from "./brief-builder";
 import { DEFAULT_STYLE_PROFILE } from "./style-library";
 import { layoutPlanSchema } from "./schemas";
-import { fallbackLayoutPlan, sanitizeLayoutPlan, type LayoutPlan } from "./layout-plan";
+import {
+  fallbackLayoutPlan,
+  sanitizeLayoutPlan,
+  type FallbackPlanParams,
+  type LayoutPlan,
+} from "./layout-plan";
 
 /* ----------------------------- helpers ----------------------------- */
 
@@ -44,6 +50,15 @@ function safeJson(text: string): unknown {
     }
     return null;
   }
+}
+
+/**
+ * Отпечаток фото товара (data URL или ссылка) — чтобы при генерации понять,
+ * что план раскладки построен именно по ЭТОМУ снимку. Хешируем строку целиком:
+ * та же картинка с клиента приходит той же строкой.
+ */
+export function photoFingerprint(image: string): string {
+  return createHash("sha256").update(image).digest("hex").slice(0, 24);
 }
 
 async function ensureDataUrl(src: string): Promise<string> {
@@ -140,6 +155,17 @@ export async function analyzeLayout(args: {
     headlinePosition: args.headlinePosition,
     mode: args.mode,
   };
+  // отпечаток снимка кладём в любой исход (и в запасной план тоже): иначе при
+  // генерации план без отпечатка считался бы устаревшим и vision звался бы снова
+  const photoHash = photoFingerprint(args.productImageDataUrl);
+  const plan = await analyzeLayoutUncached(args, params);
+  return { ...plan, photoHash };
+}
+
+async function analyzeLayoutUncached(
+  args: Parameters<typeof analyzeLayout>[0],
+  params: FallbackPlanParams,
+): Promise<LayoutPlan> {
   try {
     const image = await ensureDataUrl(args.productImageDataUrl);
     const llm = getLLMProvider();
@@ -215,6 +241,53 @@ export async function analyzeLayout(args: {
     );
     return fallbackLayoutPlan(params);
   }
+}
+
+/**
+ * Перед генерацией убедиться, что план раскладки построен по ТОМУ фото, что
+ * пришло сейчас. Бриф собирается на клиенте один раз («Собрать инфографику»),
+ * а фото можно заменить и сразу генерировать — тогда с брифом приезжает план
+ * от прежнего снимка: чужой bbox товара, чужие свободные зоны и, главное,
+ * чужой вердикт «фото / графика», от которого зависит, отдавать ли модели
+ * образец стиля картинкой. 21.09.2026: чертёж пошёл как «фото» → на карточке
+ * с крепежом появилась женщина с образца «Чистый маркетплейс».
+ *
+ * Здесь только заменяем layoutPlan (и запоминаем отпечаток) — тексты,
+ * промпт и overlay брифа не трогаем, чтобы не потерять правки пользователя.
+ * Vision не бросает исключений: при сбое вернётся детерминированный план.
+ */
+export async function ensureFreshLayoutPlan(args: {
+  brief: InfographicBrief;
+  productImage?: string;
+  previewAdaptive?: boolean;
+  productName?: string;
+  category?: string;
+}): Promise<{ brief: InfographicBrief; refreshed: boolean }> {
+  const { brief, productImage } = args;
+  if (!productImage) return { brief, refreshed: false };
+  const hash = photoFingerprint(productImage);
+  if (brief.layoutPlan?.photoHash === hash) return { brief, refreshed: false };
+  console.warn(
+    "[layout-stale] plan",
+    brief.layoutPlan
+      ? brief.layoutPlan.photoHash
+        ? "for another photo"
+        : "without fingerprint"
+      : "missing",
+    "→ re-analyzing the current photo",
+  );
+  const layoutPlan = await analyzeLayout({
+    productImageDataUrl: productImage,
+    benefitCount: brief.blocks.length,
+    type: brief.type,
+    headlinePosition: brief.styleProfile?.headlinePosition,
+    mode: brief.styleProfile?.mode,
+    hasSubheadline: !!brief.subheadline,
+    wantArt: args.previewAdaptive,
+    productName: args.productName,
+    category: args.category,
+  });
+  return { brief: { ...brief, layoutPlan }, refreshed: true };
 }
 
 /* ------------------------------ brief ------------------------------ */
@@ -456,8 +529,12 @@ function buildBaseRequest(args: InfographicBaseArgs, bake: boolean): BuiltReques
   // Значит, «товар ли это» — не тот вопрос; вопрос — «есть ли на фото
   // предмет, за который модель может зацепиться». Для graphic/document
   // образец картинкой не отдаём, стиль идёт словами из профиля.
+  // 2026-09-21: «не знаем» (vision упал, kind не пришёл) — больше НЕ значит
+  // «фото». Образец картинкой только при подтверждённом kind="photo"; в
+  // остальных случаях стиль идёт словами из профиля. Цена ошибки в одну
+  // сторону — чуть слабее перенос стиля, в другую — чужой человек на карточке.
   const photoKind = args.brief.layoutPlan?.photo?.kind;
-  const photoIsPhotographic = photoKind === undefined || photoKind === "photo";
+  const photoIsPhotographic = photoKind === "photo";
   const styleReferenceImage =
     args.styleReferenceImage ??
     (args.productImage &&

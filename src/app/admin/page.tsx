@@ -228,6 +228,37 @@ function genSections(g: Generation): Section[] {
         },
         { label: "Фото товара приложено", value: p.hasProductPhoto },
         { label: "Референс стиля приложен", value: p.hasStyleReference },
+        {
+          label: "Фон карточки",
+          value:
+            p.keepBackground === false
+              ? "заменить под стиль"
+              : p.keepBackground === true
+                ? "как на фото"
+                : undefined,
+        },
+        {
+          label: "Что ИИ увидел на фото",
+          value: p.photoCheck
+            ? [
+                p.photoCheck.seen,
+                p.photoCheck.kind === "graphic"
+                  ? "графика"
+                  : p.photoCheck.kind === "document"
+                    ? "документ"
+                    : p.photoCheck.kind === "photo"
+                      ? "фото"
+                      : undefined,
+                p.photoCheck.isProduct === false ? "не товар" : undefined,
+              ]
+                .filter(Boolean)
+                .join(" · ")
+            : undefined,
+        },
+        {
+          label: "План пересчитан при генерации",
+          value: p.layoutRefreshed ? "да (фото заменили без «Собрать»)" : undefined,
+        },
       ],
     });
     out.push({

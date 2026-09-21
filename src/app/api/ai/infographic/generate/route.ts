@@ -15,6 +15,7 @@ import {
   submitInfographicBase,
   generateInfographicFallback,
   adaptiveScenesEnabled,
+  ensureFreshLayoutPlan,
   type InfographicBaseArgs,
 } from "@/core/infographics/infographic-service";
 import { sessionFromRequest } from "@/core/auth/session";
@@ -45,121 +46,133 @@ export async function POST(req: Request) {
     const bill = await reserveSparks(req, "infographic", jobChargeRef(jobId));
     let handedOff = false;
     try {
-    const brief = body.brief as unknown as InfographicBrief;
-    /**
-     * Что кладём в задачу для разбора жалоб («Генерации» в админке): что
-     * человек заполнил и выбрал, какой промпт реально ушёл в модель и
-     * исходное фото товара (sources/<jobId>, решение 2026-09-06). Референс
-     * стиля не храним — это чужая карточка.
-     */
-    const sourceUrl = await persistSourcePhoto(body.productImage, jobId);
-    // превью адаптивных сцен: только админ (или env-раскатка INFOGRAPHIC_ADAPTIVE=all)
-    const session = await sessionFromRequest(req);
-    const previewAdaptive = adaptiveScenesEnabled(session?.role);
-    const debug = {
-      userInput: body.userInput,
-      hasProductPhoto: Boolean(body.productImage),
-      hasStyleReference: Boolean(body.styleReferenceImage),
-      imagePrompt: brief.imagePrompt?.slice(0, 2000),
-      styleProfileName: brief.styleProfile?.name,
-      styleProfileSource: brief.styleProfile?.source,
-      adaptivePreview: previewAdaptive || undefined,
-      keepBackground: body.keepBackground,
-      sourceUrl,
-      // vision-проверка фото: isProduct=false значит человек нажал «всё равно»
-      photoCheck: brief.layoutPlan?.photo,
-    };
-    const args: InfographicBaseArgs = {
-      brief,
-      productImage: body.productImage,
-      styleReferenceImage: body.styleReferenceImage,
-      productName: body.productName,
-      aspectRatio: body.aspectRatio,
-      variantSeed: body.variantSeed,
-      keepBackground: body.keepBackground,
-      previewAdaptive,
-    };
-
-    // остаток fal до работы — по разнице после посчитаем реальную себестоимость
-    const concurrentAtStart = falJobsInFlight();
-    const falBalanceBefore = await readFalBalance();
-
-    // Client asks for the Flux fallback after a queued gpt-image job failed.
-    if (body.forceFallback) {
-      const { baseImageUrl, textBaked } = await generateInfographicFallback(args);
-      const cardId = uid("card");
-      const finalUrl = await persistGeneration({
-        id: cardId,
-        email: bill.ctx.email,
-        kind: "infographic",
-        sourceUrl: baseImageUrl,
-        payload: { brief, textBaked, ...debug, fallback: true },
+      // превью адаптивных сцен: только админ (или env-раскатка INFOGRAPHIC_ADAPTIVE=all)
+      const session = await sessionFromRequest(req);
+      const previewAdaptive = adaptiveScenesEnabled(session?.role);
+      // План раскладки должен быть построен по фото, которое пришло СЕЙЧАС:
+      // после замены фото без «Собрать» с брифом приезжает план от прежнего
+      // снимка (см. ensureFreshLayoutPlan). Пересчёт — секунды vision, только
+      // когда отпечаток не совпал.
+      const { brief, refreshed: layoutRefreshed } = await ensureFreshLayoutPlan({
+        brief: body.brief as unknown as InfographicBrief,
+        productImage: body.productImage,
+        previewAdaptive,
+        productName: body.productName ?? body.userInput?.productName,
+        category: body.userInput?.category,
       });
-      settleFalCostInBackground(cardId, falBalanceBefore, { concurrentAtStart });
-      return ok({
-        done: true,
-        baseImageUrl: finalUrl,
-        overlayPlan: brief.overlayPlan,
+      /**
+       * Что кладём в задачу для разбора жалоб («Генерации» в админке): что
+       * человек заполнил и выбрал, какой промпт реально ушёл в модель и
+       * исходное фото товара (sources/<jobId>, решение 2026-09-06). Референс
+       * стиля не храним — это чужая карточка.
+       */
+      const sourceUrl = await persistSourcePhoto(body.productImage, jobId);
+      const debug = {
+        userInput: body.userInput,
+        hasProductPhoto: Boolean(body.productImage),
+        hasStyleReference: Boolean(body.styleReferenceImage),
+        imagePrompt: brief.imagePrompt?.slice(0, 2000),
+        styleProfileName: brief.styleProfile?.name,
+        styleProfileSource: brief.styleProfile?.source,
+        adaptivePreview: previewAdaptive || undefined,
+        keepBackground: body.keepBackground,
+        sourceUrl,
+        // vision-проверка фото: isProduct=false значит человек нажал «всё равно»
+        photoCheck: brief.layoutPlan?.photo,
+        // план пересчитан на сервере (фото заменили без «Собрать инфографику»)
+        layoutRefreshed: layoutRefreshed || undefined,
+      };
+      const args: InfographicBaseArgs = {
         brief,
-        textBaked,
-        balance: bill.balance ?? undefined,
-      });
-    }
+        productImage: body.productImage,
+        styleReferenceImage: body.styleReferenceImage,
+        productName: body.productName,
+        aspectRatio: body.aspectRatio,
+        variantSeed: body.variantSeed,
+        keepBackground: body.keepBackground,
+        previewAdaptive,
+      };
 
-    const result = await submitInfographicBase(args);
-    if (result.kind === "done") {
-      // fast provider (mock/Flux) finished inline
-      const cardId = uid("card");
-      const finalUrl = await persistGeneration({
-        id: cardId,
-        email: bill.ctx.email,
-        kind: "infographic",
-        sourceUrl: result.baseImageUrl,
-        payload: { brief, textBaked: result.textBaked, ...debug },
-      });
-      settleFalCostInBackground(cardId, falBalanceBefore, { concurrentAtStart });
+      // остаток fal до работы — по разнице после посчитаем реальную себестоимость
+      const concurrentAtStart = falJobsInFlight();
+      const falBalanceBefore = await readFalBalance();
+
+      // Client asks for the Flux fallback after a queued gpt-image job failed.
+      if (body.forceFallback) {
+        const { baseImageUrl, textBaked } = await generateInfographicFallback(args);
+        const cardId = uid("card");
+        const finalUrl = await persistGeneration({
+          id: cardId,
+          email: bill.ctx.email,
+          kind: "infographic",
+          sourceUrl: baseImageUrl,
+          payload: { brief, textBaked, ...debug, fallback: true },
+        });
+        settleFalCostInBackground(cardId, falBalanceBefore, { concurrentAtStart });
+        return ok({
+          done: true,
+          baseImageUrl: finalUrl,
+          overlayPlan: brief.overlayPlan,
+          brief,
+          textBaked,
+          balance: bill.balance ?? undefined,
+        });
+      }
+
+      const result = await submitInfographicBase(args);
+      if (result.kind === "done") {
+        // fast provider (mock/Flux) finished inline
+        const cardId = uid("card");
+        const finalUrl = await persistGeneration({
+          id: cardId,
+          email: bill.ctx.email,
+          kind: "infographic",
+          sourceUrl: result.baseImageUrl,
+          payload: { brief, textBaked: result.textBaked, ...debug },
+        });
+        settleFalCostInBackground(cardId, falBalanceBefore, { concurrentAtStart });
+        return ok({
+          done: true,
+          baseImageUrl: finalUrl,
+          overlayPlan: brief.overlayPlan,
+          brief,
+          textBaked: result.textBaked,
+          balance: bill.balance ?? undefined,
+        });
+      }
+      // Queued async job (gpt-image). When Postgres is available the job is also
+      // tracked server-side: the watcher finishes it even if the tab closes, so
+      // the client polls /api/jobs/{id}. Legacy `job` handle kept for old tabs.
+      if (tracked) {
+        ensureWatcherBoot();
+        await createJob({
+          id: jobId,
+          email: bill.ctx.email,
+          kind: "infographic",
+          payload: { brief, textBaked: result.textBaked, ...debug },
+          falStatusUrl: result.job.statusUrl,
+          falResponseUrl: result.job.responseUrl,
+        });
+        watchJob({
+          id: jobId,
+          email: bill.ctx.email,
+          falStatusUrl: result.job.statusUrl,
+          falResponseUrl: result.job.responseUrl,
+          falBalanceBefore,
+          concurrentAtStart,
+        });
+        // дальше возврат при неудаче — на watcher'е (по jobChargeRef)
+        handedOff = true;
+      }
       return ok({
-        done: true,
-        baseImageUrl: finalUrl,
+        done: false,
+        jobId: tracked ? jobId : undefined,
+        job: result.job,
         overlayPlan: brief.overlayPlan,
         brief,
         textBaked: result.textBaked,
         balance: bill.balance ?? undefined,
       });
-    }
-    // Queued async job (gpt-image). When Postgres is available the job is also
-    // tracked server-side: the watcher finishes it even if the tab closes, so
-    // the client polls /api/jobs/{id}. Legacy `job` handle kept for old tabs.
-    if (tracked) {
-      ensureWatcherBoot();
-      await createJob({
-        id: jobId,
-        email: bill.ctx.email,
-        kind: "infographic",
-        payload: { brief, textBaked: result.textBaked, ...debug },
-        falStatusUrl: result.job.statusUrl,
-        falResponseUrl: result.job.responseUrl,
-      });
-      watchJob({
-        id: jobId,
-        email: bill.ctx.email,
-        falStatusUrl: result.job.statusUrl,
-        falResponseUrl: result.job.responseUrl,
-        falBalanceBefore,
-        concurrentAtStart,
-      });
-      // дальше возврат при неудаче — на watcher'е (по jobChargeRef)
-      handedOff = true;
-    }
-    return ok({
-      done: false,
-      jobId: tracked ? jobId : undefined,
-      job: result.job,
-      overlayPlan: brief.overlayPlan,
-      brief,
-      textBaked: result.textBaked,
-      balance: bill.balance ?? undefined,
-    });
     } catch (err) {
       // ошибка ДО постановки async-задачи — возвращаем зарезервированные гены
       if (!handedOff) await refundReservation(bill).catch(() => undefined);
