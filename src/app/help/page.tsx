@@ -15,6 +15,7 @@ import {
   Download,
   Palette,
   CheckCircle2,
+  ShieldAlert,
 } from "lucide-react";
 import { AppShell } from "@/components/layout/app-shell";
 import { JsonLd } from "@/components/seo/json-ld";
@@ -59,14 +60,39 @@ const SCENARIOS: Scenario[] = [
     href: "/infographics",
     cta: "Открыть «Инфографику»",
     price: `${PRICES.infographic} 🧬 за карточку`,
-    screenshot: { src: "/help/infographics.jpg", alt: "Раздел «Инфографика»: фото и данные слева, настройки и стили в центре, результат справа" },
+    screenshot: {
+      src: "/help/infographics.jpg",
+      alt: "Раздел «Инфографика»: фото и данные слева, настройки и стили в центре, результат справа",
+    },
     steps: [
-      { title: "Загрузите фото товара", text: "Лучше всего — чёткое фото на нейтральном фоне. Нажмите «Заполнить по фото» — ИИ распознает товар и предложит название и преимущества (это бесплатно)." },
-      { title: "Проверьте данные", text: "Название и преимущества — по одному на строку. Совет: цифры продают лучше слов. «Хлопок 80%», «Объём 55 л», «До −30 °C» — модель вынесет их в плашки как есть." },
-      { title: "Выберите, что нужно сделать", text: "«Преимущества», «Почему купить», «Состав», «Размеры» — карточка строится по-разному под каждую задачу. Тексты плашек соберутся автоматически, их можно поправить перед генерацией." },
-      { title: "Выберите стиль", text: "В «Библиотеке» — 8 готовых стилей от спокойных до ярких плакатных. Или загрузите «Свой референс» — карточку конкурента, которая вам нравится (см. следующий сценарий)." },
-      { title: "Нажмите «Собрать инфографику»", text: "Генерация идёт 40–90 секунд на сервере. Вкладку можно закрыть — результат дождётся вас в «Моих карточках»." },
-      { title: "Скачайте в нужном размере", text: "900×1200 или 1200×1600, PNG или JPG. Не понравилось — «Перегенерировать основу»: следующий вариант получит другую композицию." },
+      {
+        title: "Загрузите фото товара",
+        text: "Лучше всего — чёткое фото на нейтральном фоне. Нажмите «Заполнить по фото» — ИИ распознает товар и предложит название и преимущества (это бесплатно).",
+      },
+      {
+        title: "Проверьте данные",
+        text: "Название и преимущества — по одному на строку. Совет: цифры продают лучше слов. «Хлопок 80%», «Объём 55 л», «До −30 °C» — модель вынесет их в плашки как есть.",
+      },
+      {
+        title: "Выберите, что нужно сделать",
+        text: "«Преимущества», «Почему купить», «Состав», «Размеры» — карточка строится по-разному под каждую задачу. Тексты плашек соберутся автоматически, их можно поправить перед генерацией.",
+      },
+      {
+        title: "Выберите стиль",
+        text: "В «Библиотеке» — 8 готовых стилей от спокойных до ярких плакатных. Или загрузите «Свой референс» — карточку конкурента, которая вам нравится (см. следующий сценарий).",
+      },
+      {
+        title: "Нажмите «Собрать инфографику»",
+        text: "Бесплатно. ИИ напишет заголовок и плашки из ваших данных и разметит, где на фото свободное место. Тексты можно поправить руками в правой колонке.",
+      },
+      {
+        title: "Нажмите «Сгенерировать изображение»",
+        text: "Это платный шаг. Генерация идёт 40–90 секунд на сервере. Вкладку можно закрыть — результат дождётся вас в «Моих карточках».",
+      },
+      {
+        title: "Скачайте в нужном размере",
+        text: "900×1200 или 1200×1600, PNG или JPG. Не понравилось — «Перегенерировать основу»: следующий вариант получит другую композицию.",
+      },
     ],
     examples: [
       { src: "/examples/turka.jpg", alt: "Пример: турка медная, стиль «Сцена-история»" },
@@ -84,16 +110,37 @@ const SCENARIOS: Scenario[] = [
     href: "/infographics",
     cta: "Попробовать со своим референсом",
     price: `${PRICES.infographic} 🧬 за карточку, извлечение стиля — бесплатно`,
-    screenshot: { src: "/help/infographics.jpg", alt: "Вкладка «Свой референс» в разделе «Инфографика»" },
+    screenshot: {
+      src: "/help/infographics.jpg",
+      alt: "Вкладка «Свой референс» в разделе «Инфографика»",
+    },
     steps: [
-      { title: "Загрузите фото своего товара", text: "Обязательный шаг для точного переноса: тогда модель понимает, что менять (стиль), а что сохранить (ваш товар)." },
-      { title: "Переключитесь на «Свой референс»", text: "В блоке «Стиль референса» вместо «Библиотеки». Загрузите скриншот понравившейся карточки." },
-      { title: "Дождитесь «Стиль применён»", text: "Стиль извлекается автоматически за пару секунд — появится зелёная подпись с названием стиля. Селект «Визуальный стиль» при этом отключится: теперь стиль задаёт референс." },
-      { title: "Собирайте как обычно", text: "Заголовок и плашки — только из ваших данных. Чужие цифры, цены и заявления с референса на вашу карточку не попадут." },
+      {
+        title: "Загрузите фото своего товара",
+        text: "Обязательный шаг для точного переноса: тогда модель понимает, что менять (стиль), а что сохранить (ваш товар).",
+      },
+      {
+        title: "Переключитесь на «Свой референс»",
+        text: "В блоке «Стиль референса» вместо «Библиотеки». Загрузите скриншот понравившейся карточки.",
+      },
+      {
+        title: "Дождитесь «Стиль применён»",
+        text: "Стиль извлекается автоматически за пару секунд — появится зелёная подпись с названием стиля. Селект «Визуальный стиль» при этом отключится: теперь стиль задаёт референс.",
+      },
+      {
+        title: "Собирайте как обычно",
+        text: "Заголовок и плашки — только из ваших данных. Чужие цифры, цены и заявления с референса на вашу карточку не попадут.",
+      },
     ],
     examples: [
-      { src: "/help/reference-source.jpg", alt: "Референс: чужая карточка фотоаппарата в ретро-поп стиле" },
-      { src: "/examples/speaker.jpg", alt: "Результат: наша колонка — тот же стиль, свой товар и свои тексты" },
+      {
+        src: "/help/reference-source.jpg",
+        alt: "Референс: чужая карточка фотоаппарата в ретро-поп стиле",
+      },
+      {
+        src: "/examples/speaker.jpg",
+        alt: "Результат: наша колонка — тот же стиль, свой товар и свои тексты",
+      },
     ],
     tip: "Чужой стиль не охраняется авторским правом, а чужой товар, логотип и текст мы не копируем — так что это честный приём.",
   },
@@ -106,12 +153,27 @@ const SCENARIOS: Scenario[] = [
     href: "/generator",
     cta: "Открыть «Фото товара»",
     price: `${PRICES.generate} 🧬 за фото`,
-    screenshot: { src: "/help/generator.jpg", alt: "Раздел «Фото товара»: данные, промпт и результат" },
+    screenshot: {
+      src: "/help/generator.jpg",
+      alt: "Раздел «Фото товара»: данные, промпт и результат",
+    },
     steps: [
-      { title: "Загрузите снимок (или опишите товар)", text: "Со снимком модель бережно сохранит товар и заменит окружение. Без снимка — нарисует по описанию." },
-      { title: "Выберите сценарий и стиль", text: "Студия, замена фона, lifestyle, крупный план, флэтлей, праздничный — это про композицию и подачу, а не про текст." },
-      { title: "Нажмите «Написать промпт»", text: "ИИ составит описание кадра по фото и данным (бесплатно). Можно поправить руками или «Переписать»." },
-      { title: "Сгенерируйте и заберите дальше", text: "Готовое фото можно скачать или сразу отправить в «Инфографику» кнопкой под результатом — фото товара уже будет на месте." },
+      {
+        title: "Загрузите снимок (или опишите товар)",
+        text: "Со снимком модель бережно сохранит товар и заменит окружение. Без снимка — нарисует по описанию.",
+      },
+      {
+        title: "Выберите сценарий и стиль",
+        text: "Студия, замена фона, lifestyle, крупный план, флэтлей, праздничный — это про композицию и подачу, а не про текст.",
+      },
+      {
+        title: "Нажмите «Написать промпт»",
+        text: "ИИ составит описание кадра по фото и данным (бесплатно). Можно поправить руками или «Переписать».",
+      },
+      {
+        title: "Сгенерируйте и заберите дальше",
+        text: "Готовое фото можно скачать или сразу отправить в «Инфографику» кнопкой под результатом — фото товара уже будет на месте.",
+      },
     ],
   },
   {
@@ -125,9 +187,18 @@ const SCENARIOS: Scenario[] = [
     price: `${PRICES.analyze} 🧬 за анализ`,
     screenshot: { src: "/help/analysis.jpg", alt: "Раздел «Анализ и улучшение»" },
     steps: [
-      { title: "Загрузите карточку и укажите товар", text: "Скриншот с маркетплейса или файл карточки." },
-      { title: "Прочитайте отчёт", text: "Общий балл, оценки по критериям и почему они такие, что исправить в первую очередь." },
-      { title: "Нажмите «Собрать инфографику»", text: "Данные из отчёта перенесутся в раздел «Инфографика» — останется выбрать стиль." },
+      {
+        title: "Загрузите карточку и укажите товар",
+        text: "Скриншот с маркетплейса или файл карточки.",
+      },
+      {
+        title: "Прочитайте отчёт",
+        text: "Общий балл, оценки по критериям и почему они такие, что исправить в первую очередь.",
+      },
+      {
+        title: "Нажмите «Собрать инфографику»",
+        text: "Данные из отчёта перенесутся в раздел «Инфографика» — останется выбрать стиль.",
+      },
     ],
   },
   {
@@ -141,8 +212,14 @@ const SCENARIOS: Scenario[] = [
     price: `${PRICES.seo} 🧬 за комплект`,
     screenshot: { src: "/help/seo.jpg", alt: "Раздел «SEO-тексты»" },
     steps: [
-      { title: "Заполните название, категорию, преимущества", text: "Чем конкретнее данные (состав, размеры, назначение), тем точнее ключи." },
-      { title: "Нажмите «Создать SEO»", text: "Через несколько секунд — три блока текста. Копируйте прямо в карточку на маркетплейсе." },
+      {
+        title: "Заполните название, категорию, преимущества",
+        text: "Чем конкретнее данные (состав, размеры, назначение), тем точнее ключи.",
+      },
+      {
+        title: "Нажмите «Создать SEO»",
+        text: "Через несколько секунд — три блока текста. Копируйте прямо в карточку на маркетплейсе.",
+      },
     ],
   },
 ];
@@ -156,7 +233,59 @@ const FREE_ACTIONS = [
   "Оценка готовой карточки после генерации",
 ];
 
+/**
+ * Границы сервиса — честно и до списания генов. Каждый пункт родился из
+ * реального обращения в поддержку; поддержка даёт ссылку /help#limits вместо
+ * длинного письма. Формулировки без канцелярита: это инструкция, а не оферта.
+ */
+const LIMITS: { title: string; text: string }[] = [
+  {
+    title: "Модель перерисовывает картинку, а не накладывает поверх",
+    text: "Нейросеть создаёт карточку заново, глядя на ваше фото. Товар, форма и цвета сохраняются, но мелкие надписи, чертёжные линии, штрихкоды и логотипы на упаковке воспроизводятся приблизительно. Чертёж с размерами лучше загрузить на маркетплейс отдельным слайдом как есть, а сами размеры вписать в преимущества: на плашках они печатаются точно.",
+  },
+  {
+    title: "Два запуска дают разный результат",
+    text: "Генерация вероятностная: одинаковые настройки дают разные картинки, и точного следования описанию нет ни у одного сервиса. Обычно нужный вариант получается с первой-второй попытки. Если после второй результат далёк от нужного, измените настройки или напишите нам, а не повторяйте то же самое.",
+  },
+  {
+    title: "Фон: два режима, и вместе они не работают",
+    text: "«Как на фото» сохраняет ваш снимок целиком, включая фон, стиль ложится только на заголовок и плашки. «Заменить под стиль» перерисовывает окружение под выбранный стиль или референс. Получить и родной фон, и новую сцену в одной генерации нельзя.",
+  },
+  {
+    title: "«Дополнительный комментарий» влияет на тексты",
+    text: "Это поле читает копирайтер, который пишет заголовок и плашки: что подчеркнуть, чего не писать. Пожелания к фону, свету или сцене туда писать бесполезно: сцену задают режим фона, стиль и референс.",
+  },
+  {
+    title: "На карточке только ваши тексты",
+    text: "Модель печатает заголовок и плашки, собранные из ваших данных. Скидки, рейтинги, «хит продаж» и чужие цифры с референса на карточке не появятся, если их нет в ваших преимуществах. Так карточка не нарушит правила маркетплейса.",
+  },
+  {
+    title: "Что может отклонить модерация",
+    text: "Фото с узнаваемыми персонажами и брендами, а также люди в открытой одежде могут не пройти автоматический фильтр модели. Тогда карточка соберётся запасным способом, а если и он не сработал, гены вернутся.",
+  },
+  {
+    title: "Замена фото после сборки",
+    text: "Если после «Собрать инфографику» вы заменили фото, раскладка под новый снимок пересчитается сама, а заголовок и плашки останутся прежними. Поменяли сам товар, а не только снимок, соберите инфографику заново.",
+  },
+];
+
 const FAQ: { q: string; a: string }[] = [
+  {
+    q: "Почему на карточке не сохранились надписи с моего фото: чертёж, этикетка, размеры?",
+    a: "Модель не накладывает элементы поверх фото, а рисует картинку заново. Мелкие линии и цифры она воспроизводит приблизительно, и текст в комментарии этого не изменит. Размеры и характеристики впишите в преимущества: на плашках они печатаются точно. Чертёж или этикетку загрузите на маркетплейс отдельным слайдом как есть.",
+  },
+  {
+    q: "Чем отличаются «Как на фото» и «Заменить под стиль»?",
+    a: "«Как на фото» оставляет ваш снимок и его фон нетронутыми, стиль ложится только на заголовок и плашки. «Заменить под стиль» перерисовывает окружение под выбранный стиль или ваш референс. Режимы взаимоисключающие: сохранить родной фон и получить новую сцену в одной генерации нельзя.",
+  },
+  {
+    q: "Я написал в комментарии, какой нужен фон, но его не учли. Почему?",
+    a: "«Дополнительный комментарий» читает копирайтер, который пишет заголовок и плашки. На сцену он не влияет. Фон задают режим «Фон карточки», выбранный стиль из библиотеки или ваш референс: загрузите карточку с нужной сценой как референс и включите «Заменить под стиль».",
+  },
+  {
+    q: "Сделал несколько попыток, всё разное и не то. Что делать?",
+    a: "Так работает генерация: каждый запуск даёт новую картинку, и повторять одни и те же настройки бессмысленно. После второй неудачной попытки измените что-то одно: режим фона, стиль, референс или формулировки плашек. Или напишите нам с номером генерации, разберём и подскажем настройки.",
+  },
   {
     q: "Почему в «Фото товара» не рисуется текст?",
     a: "Так задумано. Этот раздел делает чистое фото — фон, свет, подачу. Текст, плашки и заголовки рисует «Инфографика», у неё для этого отдельная модель, которая умеет писать по-русски прямо в картинке. Сделали фото → кнопка «Сделать инфографику из этого фото».",
@@ -223,10 +352,10 @@ export default function HelpPage() {
               Как получить продающую карточку — по шагам
             </h1>
             <p className="text-[15px] leading-7 text-muted-foreground">
-              Kartogen делает четыре вещи: собирает готовую инфографику с русским текстом, генерирует
-              чистые фото товара, разбирает существующие карточки и пишет SEO-тексты. Ниже — сценарии
-              «от задачи»: выберите свою и идите по шагам. Все текстовые помощники бесплатны, платите
-              только за готовые изображения и SEO.
+              Kartogen делает четыре вещи: собирает готовую инфографику с русским текстом,
+              генерирует чистые фото товара, разбирает существующие карточки и пишет SEO-тексты.
+              Ниже — сценарии «от задачи»: выберите свою и идите по шагам. Все текстовые помощники
+              бесплатны, платите только за готовые изображения и SEO.
             </p>
           </div>
           <nav className="rounded-2xl border bg-card p-4">
@@ -234,7 +363,10 @@ export default function HelpPage() {
             <ol className="space-y-1.5 text-sm">
               {SCENARIOS.map((s, i) => (
                 <li key={s.id}>
-                  <a href={`#${s.id}`} className="flex items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-accent">
+                  <a
+                    href={`#${s.id}`}
+                    className="flex items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-accent"
+                  >
                     <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/10 text-[11px] font-semibold text-primary">
                       {i + 1}
                     </span>
@@ -243,12 +375,26 @@ export default function HelpPage() {
                 </li>
               ))}
               <li>
-                <a href="#sparks" className="flex items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-accent">
+                <a
+                  href="#sparks"
+                  className="flex items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-accent"
+                >
                   <Dna className="h-4 w-4 text-primary" /> Гены и цены
                 </a>
               </li>
               <li>
-                <a href="#faq" className="flex items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-accent">
+                <a
+                  href="#limits"
+                  className="flex items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-accent"
+                >
+                  <ShieldAlert className="h-4 w-4 text-primary" /> Что сервис не сделает
+                </a>
+              </li>
+              <li>
+                <a
+                  href="#faq"
+                  className="flex items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-accent"
+                >
                   <Sparkles className="h-4 w-4 text-primary" /> Частые вопросы
                 </a>
               </li>
@@ -269,7 +415,11 @@ export default function HelpPage() {
           <div className="grid gap-4 p-5 sm:grid-cols-3">
             {[
               { icon: Upload, t: "Загружаете фото", d: "и пару строк о товаре" },
-              { icon: MousePointerClick, t: "Нажимаете кнопку", d: "ИИ делает остальное на сервере" },
+              {
+                icon: MousePointerClick,
+                t: "Нажимаете кнопку",
+                d: "ИИ делает остальное на сервере",
+              },
               { icon: Download, t: "Скачиваете результат", d: "он же остаётся в «Моих карточках»" },
             ].map((x) => (
               <div key={x.t} className="flex items-start gap-3">
@@ -297,7 +447,9 @@ export default function HelpPage() {
                   {i + 1} · {s.eyebrow}
                 </p>
                 <h2 className="text-xl font-bold tracking-tight [text-wrap:balance]">{s.title}</h2>
-                <p className="mt-2 max-w-3xl text-[15px] leading-7 text-muted-foreground">{s.lead}</p>
+                <p className="mt-2 max-w-3xl text-[15px] leading-7 text-muted-foreground">
+                  {s.lead}
+                </p>
                 <div className="mt-3 flex flex-wrap items-center gap-3">
                   <Link
                     href={s.href}
@@ -314,8 +466,16 @@ export default function HelpPage() {
 
             <div className="grid gap-6 lg:grid-cols-[1.25fr_1fr]">
               <div className="overflow-hidden rounded-2xl border bg-card">
-                <Image src={s.screenshot.src} alt={s.screenshot.alt} width={1440} height={1000} className="w-full" />
-                <p className="border-t px-4 py-2 text-xs text-muted-foreground">{s.screenshot.alt}</p>
+                <Image
+                  src={s.screenshot.src}
+                  alt={s.screenshot.alt}
+                  width={1440}
+                  height={1000}
+                  className="w-full"
+                />
+                <p className="border-t px-4 py-2 text-xs text-muted-foreground">
+                  {s.screenshot.alt}
+                </p>
               </div>
               <ol className="space-y-3">
                 {s.steps.map((st, j) => (
@@ -325,7 +485,9 @@ export default function HelpPage() {
                     </span>
                     <div>
                       <p className="text-sm font-medium">{st.title}</p>
-                      <p className="mt-0.5 text-[13px] leading-5 text-muted-foreground">{st.text}</p>
+                      <p className="mt-0.5 text-[13px] leading-5 text-muted-foreground">
+                        {st.text}
+                      </p>
                     </div>
                   </li>
                 ))}
@@ -336,8 +498,16 @@ export default function HelpPage() {
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:max-w-2xl">
                 {s.examples.map((ex) => (
                   <figure key={ex.src} className="overflow-hidden rounded-xl border bg-card">
-                    <Image src={ex.src} alt={ex.alt} width={720} height={960} className="aspect-[3/4] w-full object-cover" />
-                    <figcaption className="px-2.5 py-1.5 text-[11px] text-muted-foreground">{ex.alt}</figcaption>
+                    <Image
+                      src={ex.src}
+                      alt={ex.alt}
+                      width={720}
+                      height={960}
+                      className="aspect-[3/4] w-full object-cover"
+                    />
+                    <figcaption className="px-2.5 py-1.5 text-[11px] text-muted-foreground">
+                      {ex.alt}
+                    </figcaption>
                   </figure>
                 ))}
               </div>
@@ -364,20 +534,41 @@ export default function HelpPage() {
             <div className="rounded-2xl border bg-card p-5 text-sm leading-6">
               <p>
                 <strong>1 ген = 1 ₽.</strong> При регистрации — {WELCOME_SPARKS} генов в подарок.
-                Пополняете баланс пакетом или своей суммой, платите генами за готовые изображения и SEO.
-                Подписок нет, гены не сгорают.
+                Пополняете баланс пакетом или своей суммой, платите генами за готовые изображения и
+                SEO. Подписок нет, гены не сгорают.
               </p>
               <ul className="mt-3 space-y-1.5">
-                <li className="flex justify-between"><span>Инфографика</span><strong>{PRICES.infographic} 🧬</strong></li>
-                <li className="flex justify-between"><span>Фото товара</span><strong>{PRICES.generate} 🧬</strong></li>
-                <li className="flex justify-between"><span>Рекламный креатив</span><strong>{PRICES.banner} 🧬</strong></li>
-                <li className="flex justify-between"><span>Анализ карточки</span><strong>{PRICES.analyze} 🧬</strong></li>
-                <li className="flex justify-between"><span>SEO-тексты</span><strong>{PRICES.seo} 🧬</strong></li>
+                <li className="flex justify-between">
+                  <span>Инфографика</span>
+                  <strong>{PRICES.infographic} 🧬</strong>
+                </li>
+                <li className="flex justify-between">
+                  <span>Фото товара</span>
+                  <strong>{PRICES.generate} 🧬</strong>
+                </li>
+                <li className="flex justify-between">
+                  <span>Рекламный креатив</span>
+                  <strong>{PRICES.banner} 🧬</strong>
+                </li>
+                <li className="flex justify-between">
+                  <span>Анализ карточки</span>
+                  <strong>{PRICES.analyze} 🧬</strong>
+                </li>
+                <li className="flex justify-between">
+                  <span>SEO-тексты</span>
+                  <strong>{PRICES.seo} 🧬</strong>
+                </li>
               </ul>
               <p className="mt-3 text-muted-foreground">
                 Списание — только за успешный результат. Полный прайс —{" "}
-                <Link href="/pricing" className="text-primary hover:underline">на странице тарифов</Link>, пополнить —{" "}
-                <Link href="/billing" className="text-primary hover:underline">в разделе «Баланс»</Link>.
+                <Link href="/pricing" className="text-primary hover:underline">
+                  на странице тарифов
+                </Link>
+                , пополнить —{" "}
+                <Link href="/billing" className="text-primary hover:underline">
+                  в разделе «Баланс»
+                </Link>
+                .
               </p>
             </div>
             <div className="rounded-2xl border bg-card p-5 text-sm">
@@ -390,10 +581,52 @@ export default function HelpPage() {
                 ))}
               </ul>
               <div className="mt-4 overflow-hidden rounded-xl border">
-                <Image src="/help/billing.jpg" alt="Раздел «Баланс и пополнение»" width={1440} height={1000} className="w-full" />
+                <Image
+                  src="/help/billing.jpg"
+                  alt="Раздел «Баланс и пополнение»"
+                  width={1440}
+                  height={1000}
+                  className="w-full"
+                />
               </div>
             </div>
           </div>
+        </section>
+
+        {/* Limits — читать до списания генов */}
+        <section id="limits" className="scroll-mt-20 space-y-5">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-500/10 text-amber-600">
+              <ShieldAlert className="h-5 w-5" />
+            </div>
+            <div>
+              <h2 className="text-xl font-bold tracking-tight">Что сервис не сделает</h2>
+              <p className="text-sm text-muted-foreground">
+                Прочитайте до первой генерации: это сэкономит гены и время.
+              </p>
+            </div>
+          </div>
+          <ol className="grid gap-3 md:grid-cols-2">
+            {LIMITS.map((l, i) => (
+              <li key={l.title} className="flex gap-3 rounded-xl border bg-card p-4">
+                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-amber-500/15 text-xs font-bold text-amber-700">
+                  {i + 1}
+                </span>
+                <div>
+                  <p className="text-sm font-medium [text-wrap:balance]">{l.title}</p>
+                  <p className="mt-1 text-[13px] leading-6 text-muted-foreground">{l.text}</p>
+                </div>
+              </li>
+            ))}
+          </ol>
+          <p className="text-sm text-muted-foreground">
+            Результат генерации носит вероятностный характер, полные условия —{" "}
+            <Link href="/offer" className="text-primary hover:underline">
+              в публичной оферте
+            </Link>
+            . Если сервис ошибся сам (сбой, пустая картинка, чужой объект на карточке), напишите
+            нам, гены вернём.
+          </p>
         </section>
 
         {/* My cards */}
@@ -408,13 +641,23 @@ export default function HelpPage() {
               вернуться через неделю, скачать в другом размере или собрать из чистого фото
               инфографику. Ничего не теряется, даже если закрыть вкладку во время генерации.
             </p>
-            <Link href="/cards" className="mt-3 inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline">
+            <Link
+              href="/cards"
+              className="mt-3 inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline"
+            >
               Открыть «Мои карточки» <ArrowRight className="h-4 w-4" />
             </Link>
           </div>
           <div className="grid grid-cols-3 gap-2">
             {["/examples/dress.jpg", "/examples/coat.jpg", "/examples/jeans.jpg"].map((src) => (
-              <Image key={src} src={src} alt="Пример сохранённой карточки" width={360} height={480} className="aspect-[3/4] w-full rounded-lg object-cover" />
+              <Image
+                key={src}
+                src={src}
+                alt="Пример сохранённой карточки"
+                width={360}
+                height={480}
+                className="aspect-[3/4] w-full rounded-lg object-cover"
+              />
             ))}
           </div>
         </section>
@@ -439,10 +682,14 @@ export default function HelpPage() {
           </div>
           <p className="text-sm text-muted-foreground">
             Не нашли ответ — напишите нам через{" "}
-            <a href="/support" className="text-primary hover:underline">форму поддержки</a>{" "}
+            <a href="/support" className="text-primary hover:underline">
+              форму поддержки
+            </a>{" "}
             или на{" "}
-            <a href="mailto:admin@kartogen.ru" className="text-primary hover:underline">admin@kartogen.ru</a>.
-            Поддержка работает с 10:00 до 20:00 по Москве — отвечаем в течение часа.
+            <a href="mailto:admin@kartogen.ru" className="text-primary hover:underline">
+              admin@kartogen.ru
+            </a>
+            . Поддержка работает с 10:00 до 20:00 по Москве — отвечаем в течение часа.
           </p>
         </section>
       </div>

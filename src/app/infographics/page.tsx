@@ -307,6 +307,15 @@ export default function InfographicsPage() {
               label="Загрузите фото товара"
               hint="ИИ распознает товар и предложит данные"
             />
+            {/* Граница модели — сказать до списания генов, а не в поддержке
+                (21.09.2026: чертёж с размерами, четыре попытки). */}
+            <p className="text-[11px] leading-4 text-muted-foreground">
+              Модель перерисовывает фото заново: чертежи, этикетки и мелкие надписи воспроизводятся
+              приблизительно. Размеры и характеристики впишите в преимущества.{" "}
+              <a href="/help#limits" target="_blank" className="text-primary hover:underline">
+                Подробнее
+              </a>
+            </p>
             <Button
               onClick={handleAutofill}
               disabled={autofilling || !reference}
@@ -377,9 +386,15 @@ export default function InfographicsPage() {
                     id="note"
                     value={userNote}
                     onChange={(e) => setUserNote(e.target.value)}
-                    placeholder="Необязательно"
+                    placeholder="Пожелания к тексту: что подчеркнуть, чего не писать"
                     className="min-h-[56px]"
                   />
+                  {/* Поле читает только копирайтер (заголовок и плашки); в
+                      промпт картинки оно не попадает — люди писали сюда про фон. */}
+                  <p className="text-[11px] leading-4 text-muted-foreground">
+                    Влияет на заголовок и плашки. Фон и сцену задают режим «Фон карточки», стиль и
+                    референс.
+                  </p>
                 </div>
               </div>
             </details>
@@ -445,8 +460,16 @@ export default function InfographicsPage() {
                 <div className="grid grid-cols-2 gap-2">
                   {(
                     [
-                      { keep: true, title: "Как на фото", desc: "Оставить ваш фон, стиль — только на плашки" },
-                      { keep: false, title: "Заменить под стиль", desc: "ИИ соберёт фон под выбранный стиль" },
+                      {
+                        keep: true,
+                        title: "Как на фото",
+                        desc: "Оставить ваш фон, стиль — только на плашки",
+                      },
+                      {
+                        keep: false,
+                        title: "Заменить под стиль",
+                        desc: "ИИ соберёт фон под выбранный стиль",
+                      },
                     ] as const
                   ).map((o) => (
                     <button
@@ -465,6 +488,13 @@ export default function InfographicsPage() {
                     </button>
                   ))}
                 </div>
+                <p className="text-[11px] leading-4 text-muted-foreground">
+                  Режимы взаимоисключающие: «Как на фото» не меняет сцену даже по комментарию,
+                  «Заменить под стиль» перерисовывает фон целиком.{" "}
+                  <a href="/help#limits" target="_blank" className="text-primary hover:underline">
+                    Подробнее
+                  </a>
+                </p>
               </div>
             )}
 
@@ -493,10 +523,10 @@ export default function InfographicsPage() {
                   <div className="space-y-3 rounded-xl border border-amber-500/40 bg-amber-500/5 p-4 text-sm">
                     <p className="font-medium">На фото не видно товара</p>
                     <p className="text-muted-foreground">
-                      ИИ видит на фото: <b>{photoWarning.seen || "не товар"}</b>. Инфографика строится
-                      вокруг товара на фото — здесь модели не за что зацепиться, и результат будет
-                      случайным, а гены спишутся. Загрузите фото самого товара (вещь, упаковка,
-                      предмет) или продолжайте на свой риск.
+                      ИИ видит на фото: <b>{photoWarning.seen || "не товар"}</b>. Инфографика
+                      строится вокруг товара на фото — здесь модели не за что зацепиться, и
+                      результат будет случайным, а гены спишутся. Загрузите фото самого товара
+                      (вещь, упаковка, предмет) или продолжайте на свой риск.
                     </p>
                     <div className="flex flex-col gap-2 sm:flex-row">
                       <Button
@@ -506,7 +536,11 @@ export default function InfographicsPage() {
                       >
                         Заменить фото
                       </Button>
-                      <Button variant="outline" className="flex-1" onClick={() => setPhotoAck(true)}>
+                      <Button
+                        variant="outline"
+                        className="flex-1"
+                        onClick={() => setPhotoAck(true)}
+                      >
                         Всё равно сгенерировать
                       </Button>
                     </div>
@@ -584,7 +618,11 @@ export default function InfographicsPage() {
 
             {baseImageUrl && brief && (
               <>
-                <InfographicExportPanel baseSrc={baseImageUrl} brief={brief} textBaked={textBaked} />
+                <InfographicExportPanel
+                  baseSrc={baseImageUrl}
+                  brief={brief}
+                  textBaked={textBaked}
+                />
                 <p className="mt-2 text-center text-xs text-muted-foreground">
                   Карточка сохранена — она всегда доступна в{" "}
                   <a href="/cards" className="underline underline-offset-2 hover:text-foreground">
