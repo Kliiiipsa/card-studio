@@ -31,6 +31,10 @@ const PACK_BUTTON: Record<string, { variant: "outline" | "default"; className?: 
     variant: "default",
     className: "bg-blue-600 text-white shadow-sm hover:bg-blue-700",
   },
+  s3000: {
+    variant: "default",
+    className: "bg-gradient-to-r from-violet-600 to-blue-600 text-white shadow-sm hover:opacity-90",
+  },
 };
 
 const TX_LABEL: Record<string, string> = {

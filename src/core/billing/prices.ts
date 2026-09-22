@@ -130,6 +130,9 @@ export const TOPUP_PACKAGES: TopupPackage[] = [
   { id: "s200", sparks: 200, bonus: 10, priceRub: 200 },
   { id: "s500", sparks: 500, bonus: 35, priceRub: 500 },
   { id: "s1000", sparks: 1000, bonus: 100, priceRub: 1000 },
+  // 3000 + 500 (≈17 %, решение владельца 2026-09-22): пакет для тех, кто уже
+  // тратит сотни генов в неделю; выручка с гена ≈ 0,78 ₽ после комиссии и налога
+  { id: "s3000", sparks: 3000, bonus: 500, priceRub: 3000 },
 ];
 
 /**

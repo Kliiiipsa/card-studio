@@ -93,7 +93,7 @@ export default function PricingPage() {
 
         <section className="space-y-4">
           <h2 className="text-lg font-semibold">Пакеты генов</h2>
-          <div className="grid gap-3 sm:grid-cols-3">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {TOPUP_PACKAGES.map((p) => (
               <div key={p.id} className="rounded-xl border bg-card p-5">
                 <div className="flex items-center gap-1.5 text-2xl font-bold">

@@ -64,8 +64,8 @@ const COST_RUB: Partial<Record<SparkAction, number>> = {
   infographic: 4.58,
   video: 29.62,
 };
-/** выручка с гена в худшем случае (пакет 1000 после комиссии и налога) */
-const RUB_PER_SPARK = 0.832;
+/** выручка с гена в худшем случае (пакет 3000+500 после комиссии и налога, 2026-09-22) */
+const RUB_PER_SPARK = 0.784;
 
 function randomCode(prefix: string): string {
   const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -117,12 +117,7 @@ export function PromoManager() {
 
       {(["general", "nsdream"] as PromoGroup[]).map((group) => (
         <TabsContent key={group} value={group} className="space-y-4">
-          <CreateForm
-            group={group}
-            saving={saving}
-            setSaving={setSaving}
-            onCreated={load}
-          />
+          <CreateForm group={group} saving={saving} setSaving={setSaving} onCreated={load} />
           <CodeList
             codes={(codes ?? []).filter((c) => c.group === group)}
             loading={codes === null}
@@ -336,7 +331,8 @@ function CreateForm({
         {type === "price_list" && (
           <div className="rounded-lg border p-3">
             <p className="mb-2 text-xs font-medium">
-              Цены для этого промокода <span className="text-muted-foreground">(пусто = обычная цена)</span>
+              Цены для этого промокода{" "}
+              <span className="text-muted-foreground">(пусто = обычная цена)</span>
             </p>
             <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
               {PRICED_ACTIONS.map((a) => {
@@ -388,8 +384,9 @@ function CreateForm({
 
         {worstCost !== null && (
           <p className="text-xs text-muted-foreground">
-            Максимальная стоимость акции: около <strong className="text-foreground">{worstCost} ₽</strong>{" "}
-            — если все применившие потратят гены на видео (самая дорогая для нас услуга).
+            Максимальная стоимость акции: около{" "}
+            <strong className="text-foreground">{worstCost} ₽</strong> — если все применившие
+            потратят гены на видео (самая дорогая для нас услуга).
           </p>
         )}
 
@@ -464,10 +461,7 @@ function CodeList({
                       {c.type === "price_list" && c.prices && (
                         <span>
                           {Object.entries(c.prices)
-                            .map(
-                              ([a, v]) =>
-                                `${ACTION_LABELS[a as SparkAction] ?? a} ${v} 🧬`,
-                            )
+                            .map(([a, v]) => `${ACTION_LABELS[a as SparkAction] ?? a} ${v} 🧬`)
                             .join(" · ")}
                           {c.usesLimit ? ` · лимит ${c.usesLimit} генераций` : ""}
                         </span>
@@ -478,7 +472,9 @@ function CodeList({
                       {c.maxRedemptions ? ` из ${c.maxRedemptions}` : " (без лимита)"}
                     </td>
                     <td className="px-4 py-2.5 text-xs text-muted-foreground">
-                      {c.expiresAt ? new Date(c.expiresAt).toLocaleDateString("ru-RU") : "бессрочно"}
+                      {c.expiresAt
+                        ? new Date(c.expiresAt).toLocaleDateString("ru-RU")
+                        : "бессрочно"}
                     </td>
                     <td className="px-4 py-2.5 text-right">
                       <div className="flex items-center justify-end gap-2">
