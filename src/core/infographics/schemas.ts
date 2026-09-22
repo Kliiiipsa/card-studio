@@ -132,6 +132,8 @@ export const layoutPlanSchema = z
         seen: z.string().max(200).optional(),
         // photo | graphic | document — для graphic образец стиля картинкой не отдаём
         kind: z.string().max(20).optional(),
+        // есть ли человек на фото — без него образец картинкой не отдаём
+        people: z.any().optional(),
       })
       .optional(),
   })

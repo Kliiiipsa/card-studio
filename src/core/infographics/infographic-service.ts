@@ -200,14 +200,14 @@ async function analyzeLayoutUncached(
             args.productName
               ? `; пользователь называет товар «${args.productName.slice(0, 80)}»${args.category ? `, категория «${args.category.slice(0, 60)}»` : ""} — если само изображение и есть товар (постер, картина, фотопечать, обои, принт, чехол с рисунком), это isProduct=true`
               : ""
-          }; isProduct=false, если это документ, скан страницы, текст, скриншот интерфейса, таблица, презентация, пустой фон или неразборчивое изображение. seen — что именно на фото, 3–6 слов по-русски. kind — ПРИРОДА картинки, независимо от isProduct: "photo" — фотография реального предмета, вещи, человека, еды, техники; "graphic" — плоская графика: логотип, иконка, значок, иллюстрация, векторный рисунок, обложка, скриншот; "document" — скан, страница с текстом, таблица. Логотип программы — это isProduct=true, но kind="graphic".${
+          }; isProduct=false, если это документ, скан страницы, текст, скриншот интерфейса, таблица, презентация, пустой фон или неразборчивое изображение. seen — что именно на фото, 3–6 слов по-русски. kind — ПРИРОДА картинки, независимо от isProduct: "photo" — фотография реального предмета, вещи, человека, еды, техники; "graphic" — плоская графика: логотип, иконка, значок, иллюстрация, векторный рисунок, обложка, скриншот; "document" — скан, страница с текстом, таблица. Логотип программы — это isProduct=true, но kind="graphic". people — есть ли на фото ЧЕЛОВЕК (модель в одежде, лицо, руки, тело), true/false; животные и манекены — false.${
             args.wantArt
               ? `
 11) Поле art — арт-дирекшн ИМЕННО под этот товар: mood — короткое настроение по-английски; productColors — до 3 доминирующих цветов товара (hex или английские названия); scenes — 2–3 РАЗНЫХ варианта уместного окружения/фона для этого конкретного товара, по-английски, каждый одним конкретным предложением (поверхность, место, свет; без людей и без текста). Варианты должны заметно отличаться друг от друга. НЕ предлагай шаблонную «белую студию с растением в горшке».`
               : ""
           }
 
-Верни JSON: { version:1, mode, product:{x,y,w,h}, freeZones:[{x,y,w,h}], safeMargins:{top,bottom,left,right}, headline:{box:{x,y,w,h},align,fontScale,maxLines,plate,side}, subheadline?, benefits:[{index,box,align,fontScale,plate,icon}], callouts:[], photo:{isProduct:true|false, seen:"…", kind:"photo"|"graphic"|"document"}${
+Верни JSON: { version:1, mode, product:{x,y,w,h}, freeZones:[{x,y,w,h}], safeMargins:{top,bottom,left,right}, headline:{box:{x,y,w,h},align,fontScale,maxLines,plate,side}, subheadline?, benefits:[{index,box,align,fontScale,plate,icon}], callouts:[], photo:{isProduct:true|false, seen:"…", kind:"photo"|"graphic"|"document", people:true|false}${
             args.wantArt ? ", art:{mood,productColors:[],scenes:[]}" : ""
           }, notes? }`,
           imageDataUrl: image,
@@ -535,11 +535,20 @@ function buildBaseRequest(args: InfographicBaseArgs, bake: boolean): BuiltReques
   // сторону — чуть слабее перенос стиля, в другую — чужой человек на карточке.
   const photoKind = args.brief.layoutPlan?.photo?.kind;
   const photoIsPhotographic = photoKind === "photo";
+  // 2026-09-22, «Магний» на фото льва с шимпанзе: vision честно сказал «фото»,
+  // товара на нём нет, и модель снова взяла женщину с образца «Чистый
+  // маркетплейс». Все образцы библиотеки — карточки с людьми, и любая ошибка
+  // распознавания кончается чужим человеком на карточке. Поэтому образец
+  // картинкой уходит в модель ТОЛЬКО когда на фото клиента сам есть человек
+  // (одежда на модели): там образец с моделью уместен, а личность пришпилена
+  // к первой картинке. Для предметов стиль идёт словами из профиля.
+  const photoHasPerson = args.brief.layoutPlan?.photo?.people === true;
   const styleReferenceImage =
     args.styleReferenceImage ??
     (args.productImage &&
     photoIsProduct &&
     photoIsPhotographic &&
+    photoHasPerson &&
     args.brief.styleProfile?.source === "library"
       ? STYLE_REF_IMAGES[args.brief.styleProfile.id]
       : undefined);
@@ -568,6 +577,7 @@ function buildBaseRequest(args: InfographicBaseArgs, bake: boolean): BuiltReques
       refKind,
       adaptive,
       photoKind,
+      photoHasPerson,
     });
 
   // Custom style reference + product photo: give the model BOTH images — the

@@ -252,6 +252,7 @@ function genSections(g: Generation): Section[] {
                       ? "фото"
                       : undefined,
                 p.photoCheck.isProduct === false ? "не товар" : undefined,
+                p.photoCheck.people === true ? "есть человек" : "без людей",
               ]
                 .filter(Boolean)
                 .join(" · ")

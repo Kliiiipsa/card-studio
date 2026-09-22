@@ -80,6 +80,10 @@ export function buildInfographicImagePrompt(
     "leave generous empty space for future text overlay",
     "Do not render any text, letters, numbers, logos, badges, icons, labels, callouts or infographic elements.",
     "Do not copy any product, text or logo from the reference — only its style.",
+    // люди — только те, что есть на фото клиента (2026-09-22, «Магний»/лев)
+    layoutPlan?.photo?.people
+      ? "The only person allowed is the one in the user's product photo — never add or substitute another person"
+      : "No people at all: no models, faces, hands or silhouettes",
     "marketplace product photography, high quality, sharp, realistic, undistorted product",
   ]
     .filter(Boolean)
@@ -267,6 +271,8 @@ export function buildBakedCardPrompt(args: {
    * нет, и модель его выдумывает. Вместо этого логотип сам становится героем.
    */
   photoKind?: "photo" | "graphic" | "document";
+  /** на фото клиента есть человек — только тогда на карточке может быть человек */
+  photoHasPerson?: boolean;
 }): string {
   const { productName, headline, subheadline, benefits, type, style, styleProfile, layoutPlan } =
     args;
@@ -332,8 +338,18 @@ export function buildBakedCardPrompt(args: {
     .filter((b) => b.length > 2)
     .join(", ");
 
+  // Жёсткое правило про людей (2026-09-22): образцы стилей — карточки с
+  // моделями, и при любой промашке распознавания модель тащила их на карточку
+  // с крепежом/магнием. Люди на карточке — только те, что есть на фото клиента.
+  const peopleRule = args.hasProductImage
+    ? args.photoHasPerson
+      ? "PEOPLE: the only person allowed on this card is the one visible in the user's product photo (same identity, face, body and clothing). Never add or substitute any other person, model, face, hand or body — not from a style reference, not from imagination."
+      : "PEOPLE: there is NO person in the user's product photo, so the card must contain NO people at all — no models, faces, hands, silhouettes or mannequins, and nothing borrowed from any style reference. Only the user's product and the environment."
+    : "PEOPLE: do not add any people, models, faces or hands unless the product itself is worn by a person by nature (clothing); then use a generic, non-identifiable model.";
+
   return [
     base,
+    peopleRule,
     `Card purpose: ${spec.intent}.`,
     "Portrait 3:4 composition, product as the hero with tasteful clean space for text.",
     describeBakedStyle(style, styleProfile, sceneMode) + ".",

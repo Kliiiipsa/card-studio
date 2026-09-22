@@ -106,6 +106,13 @@ export type PhotoCheck = {
    * тёмного»). Образец картинкой отдаём только для kind=photo.
    */
   kind?: "photo" | "graphic" | "document";
+  /**
+   * Есть ли на фото человек. Библиотечный образец стиля (на всех — люди)
+   * уходит в модель картинкой только при people=true: иначе любая ошибка
+   * распознавания кончается чужой женщиной на карточке (2026-09-22, «Магний»
+   * на фото льва). undefined = не знаем = считаем, что людей нет.
+   */
+  people?: boolean;
 };
 
 export type FallbackPlanParams = {
@@ -219,7 +226,7 @@ export function fallbackLayoutPlan(p: FallbackPlanParams): LayoutPlan {
  */
 function sanitizePhoto(raw: unknown): PhotoCheck | undefined {
   if (!raw || typeof raw !== "object") return undefined;
-  const r = raw as { isProduct?: unknown; seen?: unknown; kind?: unknown };
+  const r = raw as { isProduct?: unknown; seen?: unknown; kind?: unknown; people?: unknown };
   if (r.isProduct === undefined || r.isProduct === null) return undefined;
   const kindRaw = typeof r.kind === "string" ? r.kind.trim().toLowerCase() : "";
   const kind: PhotoCheck["kind"] | undefined =
@@ -235,7 +242,15 @@ function sanitizePhoto(raw: unknown): PhotoCheck | undefined {
           : true;
   const seen =
     typeof r.seen === "string" && r.seen.trim() ? r.seen.trim().slice(0, 200) : undefined;
-  return { isProduct, seen, kind };
+  // people: только явное true (boolean или строка "true"/"да") — всё остальное «нет»
+  const pv = r.people;
+  const people =
+    typeof pv === "boolean"
+      ? pv
+      : typeof pv === "string"
+        ? /^(true|yes|да|1)$/i.test(pv.trim())
+        : false;
+  return { isProduct, seen, kind, people };
 }
 
 /** Clamp vision art direction to safe sizes; drop it entirely when empty. */
