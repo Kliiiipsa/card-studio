@@ -23,7 +23,9 @@ import {
   Megaphone,
   Mail,
   Bell,
+  Coins,
 } from "lucide-react";
+import type { SpendReport } from "@/core/billing/spend-report";
 import { Markdown } from "@/components/blog/markdown";
 import { AppShell } from "@/components/layout/app-shell";
 import { Card, CardContent } from "@/components/ui/card";
@@ -453,6 +455,19 @@ export default function AdminPage() {
   };
   const [report, setReport] = React.useState<CostReport | null>(null);
   const [sources, setSources] = React.useState<SourceRow[] | null>(null);
+  // «Расходы»: подарочные гены по дням и их себестоимость
+  const [spend, setSpend] = React.useState<SpendReport | null>(null);
+  const [spendDays, setSpendDays] = React.useState<7 | 30 | 90>(30);
+  const [spendAll, setSpendAll] = React.useState(false);
+  const [spendLoading, setSpendLoading] = React.useState(false);
+  const loadSpend = React.useCallback((days: number, all: boolean) => {
+    setSpendLoading(true);
+    fetch(`/api/admin/reports/spend?days=${days}${all ? "&all=1" : ""}`)
+      .then((r) => r.json())
+      .then((d) => setSpend(Array.isArray(d?.days) ? d : null))
+      .catch(() => setSpend(null))
+      .finally(() => setSpendLoading(false));
+  }, []);
   // публичный Telegram-бот: люди / проверки / переходы / регистрации — только цифры
   type Tri = { today: number; d30: number; all: number };
   type TgStats = {
@@ -834,6 +849,15 @@ export default function AdminPage() {
             </TabsTrigger>
             <TabsTrigger value="transactions" className="gap-1.5">
               <ListOrdered className="h-4 w-4" /> Транзакции
+            </TabsTrigger>
+            <TabsTrigger
+              value="spend"
+              className="gap-1.5"
+              onClick={() => {
+                if (!spend && !spendLoading) loadSpend(spendDays, spendAll);
+              }}
+            >
+              <Coins className="h-4 w-4" /> Расходы
             </TabsTrigger>
             <TabsTrigger value="generations" className="gap-1.5">
               <Clapperboard className="h-4 w-4" /> Генерации
@@ -1264,6 +1288,180 @@ export default function AdminPage() {
                       </tbody>
                     </table>
                   </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* SPEND — сколько подарочных генов люди тратят в день и во что это нам обходится */}
+          <TabsContent value="spend">
+            <Card>
+              <CardContent className="space-y-4 p-4">
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="text-sm font-medium">Подарочные гены по дням</p>
+                  <div className="ml-auto flex flex-wrap items-center gap-1.5">
+                    {([7, 30, 90] as const).map((d) => (
+                      <Button
+                        key={d}
+                        size="sm"
+                        variant={spendDays === d ? "default" : "outline"}
+                        onClick={() => {
+                          setSpendDays(d);
+                          loadSpend(d, spendAll);
+                        }}
+                        disabled={spendLoading}
+                      >
+                        {d} дней
+                      </Button>
+                    ))}
+                    <label className="ml-2 flex cursor-pointer select-none items-center gap-1.5 text-xs text-muted-foreground">
+                      <input
+                        type="checkbox"
+                        checked={spendAll}
+                        onChange={(e) => {
+                          setSpendAll(e.target.checked);
+                          loadSpend(spendDays, e.target.checked);
+                        }}
+                        className="h-3.5 w-3.5 accent-primary"
+                      />
+                      С тестовыми
+                    </label>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => loadSpend(spendDays, spendAll)}
+                      disabled={spendLoading}
+                    >
+                      {spendLoading ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <RefreshCw className="h-3.5 w-3.5" />
+                      )}
+                      Обновить
+                    </Button>
+                  </div>
+                </div>
+
+                {spend === null ? (
+                  <p className="text-xs text-muted-foreground">
+                    {spendLoading ? "Считаем…" : "Нажмите «Обновить», чтобы посчитать."}
+                  </p>
+                ) : (
+                  <>
+                    <div className="grid gap-3 sm:grid-cols-3">
+                      <div className="rounded-lg border bg-muted/30 p-3">
+                        <p className="text-xs text-muted-foreground">
+                          Бесплатных генов за {spend.periodDays} дн.
+                        </p>
+                        <p className="mt-1 text-xl font-semibold tabular-nums">
+                          {spend.totals.freeGenes.toLocaleString("ru-RU")} 🧬
+                          <span className="ml-1.5 text-sm font-normal text-muted-foreground">
+                            = {spend.totals.freeGenes.toLocaleString("ru-RU")} ₽ по прайсу
+                          </span>
+                        </p>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          в среднем {spend.avgFreeGenesPerDay.toLocaleString("ru-RU")} 🧬 в день
+                        </p>
+                      </div>
+                      <div className="rounded-lg border bg-muted/30 p-3">
+                        <p className="text-xs text-muted-foreground">
+                          Себестоимость fal этих генов
+                        </p>
+                        <p className="mt-1 text-xl font-semibold tabular-nums">
+                          {spend.totals.freeCostRub.toLocaleString("ru-RU")} ₽
+                        </p>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          в среднем {spend.avgFreeCostRubPerDay.toLocaleString("ru-RU")} ₽ в день ·
+                          курс {spend.rubPerUsd} ₽/$
+                        </p>
+                      </div>
+                      <div className="rounded-lg border bg-muted/30 p-3">
+                        <p className="text-xs text-muted-foreground">Оплаченных генов потрачено</p>
+                        <p className="mt-1 text-xl font-semibold tabular-nums">
+                          {spend.totals.paidGenes.toLocaleString("ru-RU")} 🧬
+                        </p>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          себестоимость {spend.totals.paidCostRub.toLocaleString("ru-RU")} ₽ ·{" "}
+                          {spend.totals.users} чел. тратили
+                        </p>
+                      </div>
+                    </div>
+
+                    {spend.byAction.length > 0 && (
+                      <p className="text-xs text-muted-foreground">
+                        На что уходят подарочные:{" "}
+                        {spend.byAction
+                          .filter((a) => a.freeGenes > 0)
+                          .map(
+                            (a) =>
+                              `${ACTION_LABELS[a.action as keyof typeof ACTION_LABELS] ?? a.action} ${a.freeGenes.toLocaleString("ru-RU")} 🧬`,
+                          )
+                          .join(" · ")}
+                      </p>
+                    )}
+
+                    {spend.days.length === 0 ? (
+                      <p className="text-sm text-muted-foreground">За период списаний не было.</p>
+                    ) : (
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-sm">
+                          <thead>
+                            <tr className="border-b text-left text-xs text-muted-foreground">
+                              <th className="py-2 pr-4 font-medium">Дата</th>
+                              <th className="py-2 pr-4 text-right font-medium">Бесплатных 🧬</th>
+                              <th className="py-2 pr-4 text-right font-medium">= ₽ по прайсу</th>
+                              <th className="py-2 pr-4 text-right font-medium">Себест. fal ₽</th>
+                              <th className="py-2 pr-4 text-right font-medium">Платных 🧬</th>
+                              <th className="py-2 pr-4 text-right font-medium">Списаний</th>
+                              <th className="py-2 text-right font-medium">Людей</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {spend.days.map((d) => (
+                              <tr key={d.date} className="border-b last:border-0 tabular-nums">
+                                <td className="whitespace-nowrap py-2 pr-4 text-muted-foreground">
+                                  {new Date(`${d.date}T12:00:00+03:00`).toLocaleDateString(
+                                    "ru-RU",
+                                    {
+                                      day: "2-digit",
+                                      month: "2-digit",
+                                      weekday: "short",
+                                    },
+                                  )}
+                                </td>
+                                <td className="py-2 pr-4 text-right font-semibold">
+                                  {d.freeGenes}
+                                </td>
+                                <td className="py-2 pr-4 text-right">{d.freeGenes} ₽</td>
+                                <td className="py-2 pr-4 text-right">
+                                  {d.freeCostRub} ₽
+                                  {d.estimated > 0 && (
+                                    <span
+                                      className="ml-0.5 text-muted-foreground"
+                                      title={`${d.estimated} списаний без замера fal — оценка по типичной себестоимости`}
+                                    >
+                                      ≈
+                                    </span>
+                                  )}
+                                </td>
+                                <td className="py-2 pr-4 text-right">{d.paidGenes}</td>
+                                <td className="py-2 pr-4 text-right">{d.charges}</td>
+                                <td className="py-2 text-right">{d.users}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+
+                    <p className="text-[11px] leading-4 text-muted-foreground">
+                      Бесплатные гены: стартовый бонус, промокоды, бонус к пакету и ручные
+                      начисления. Списание сначала съедает подарочные, потом оплаченные. «₽ по
+                      прайсу» — номинал 1 ген = 1 ₽, «себестоимость fal» — что реально ушло
+                      провайдеру по замеру каждой генерации (знак «≈» — замера не было, взята
+                      типичная оценка). Возвраты за неудачные генерации вычтены.
+                    </p>
+                  </>
                 )}
               </CardContent>
             </Card>

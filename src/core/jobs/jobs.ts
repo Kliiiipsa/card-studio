@@ -211,6 +211,24 @@ export async function falSpendUsdSince(hours: number): Promise<number> {
   return Number(rows[0].usd ?? 0);
 }
 
+/**
+ * Реальная себестоимость (USD) по списку задач — для отчёта «Расходы»: списание
+ * `gen:<jobId>` связывается с замером payload.falCostUsd той же задачи.
+ */
+export async function falCostForJobs(ids: string[]): Promise<Map<string, number>> {
+  const out = new Map<string, number>();
+  if (!ids.length) return out;
+  await ensureSchema();
+  const { rows } = await getPool().query<{ id: string; usd: string | null }>(
+    `select id, (payload->>'falCostUsd')::numeric as usd
+       from gen_jobs
+      where id = any($1) and payload ? 'falCostUsd'`,
+    [ids],
+  );
+  for (const r of rows) if (r.usd !== null) out.set(r.id, Number(r.usd));
+  return out;
+}
+
 /** Aggregate storage usage for the admin dashboard. */
 export async function storageStats(): Promise<{ count: number; bytes: number }> {
   await ensureSchema();

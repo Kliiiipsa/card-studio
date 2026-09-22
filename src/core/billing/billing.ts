@@ -183,6 +183,28 @@ export async function listTransactions(opts: {
 }
 
 /**
+ * Весь журнал в хронологическом порядке — для отчёта «Расходы», где надо
+ * прогнать баланс каждого пользователя с нуля (какие списания шли из подарочных
+ * генов, какие из оплаченных). Объём небольшой (тысячи строк), читаем целиком.
+ */
+export async function allTransactionsAsc(): Promise<SparkTransaction[]> {
+  await ensureSchema();
+  const { rows } = await getPool().query(
+    `select * from billing_tx order by created_at asc, id asc`,
+  );
+  return rows.map((r) => ({
+    id: Number(r.id),
+    email: r.email,
+    amount: r.amount,
+    type: r.type,
+    action: r.action,
+    reference: r.reference,
+    comment: r.comment,
+    createdAt: new Date(r.created_at).toISOString(),
+  }));
+}
+
+/**
  * РЕАЛЬНЫЕ платежи (ЮKassa, reference 'yk-…') за конкретный МОСКОВСКИЙ день —
  * для выгрузки чеков в «Отчётах». Промо-начисления и бонусы сюда НЕ попадают:
  * чек = поступление денег. Границы дня считаем в +03:00 (налоговая отчётность
