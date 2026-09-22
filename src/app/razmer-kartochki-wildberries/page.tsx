@@ -1,6 +1,16 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArticlePage, H2, P, Table, Ul, Tip, SITE, type Faq } from "@/components/seo/article-page";
+import {
+  ArticlePage,
+  H2,
+  P,
+  Table,
+  Ul,
+  Tip,
+  Figure,
+  SITE,
+  type Faq,
+} from "@/components/seo/article-page";
 import { WELCOME_SPARKS } from "@/core/billing/prices";
 
 /* ------------------------------------------------------------------ */
@@ -11,7 +21,7 @@ import { WELCOME_SPARKS } from "@/core/billing/prices";
 /* ------------------------------------------------------------------ */
 
 const PATH = "/razmer-kartochki-wildberries";
-const UPDATED = "7 сентября 2026";
+const UPDATED = "22 сентября 2026";
 
 export const metadata: Metadata = {
   title: "Размер карточки Wildberries 2026: требования к фото — Kartogen",
@@ -98,6 +108,12 @@ export default function Page() {
           так площадка показывает карточку в поисковой выдаче, на странице товара и в приложении.
           Ниже — требования, по которым модерация принимает или отклоняет фото.
         </P>
+        <Figure
+          src="/seo/razmer-kartochki-wildberries.png"
+          alt="Схема размера карточки Wildberries: вертикаль 3:4, 900×1200 пикселей, заголовок в верхней трети, товар 70–85% высоты, отступы 4%, вид миниатюры в выдаче"
+          caption="Размер карточки Wildberries 2026: 3:4, 900×1200 или 1200×1600 px, зоны заголовка и товара и как карточка выглядит в выдаче"
+        />
+        <P>Цифры из схемы по пунктам:</P>
         <Table
           head={["Параметр", "Требование", "Комментарий"]}
           rows={[
@@ -164,6 +180,14 @@ export default function Page() {
               нечитаем, а товар не узнаётся — это и увидит покупатель в выдаче.
             </>,
           ]}
+        />
+        <Figure
+          src="/examples/thermos.jpg"
+          alt="Пример карточки Wildberries в формате 3:4, 900×1200 пикселей: термос, заголовок сверху, плашки с преимуществами по краям"
+          caption="Пример карточки в 3:4 на 900×1200 px: товар 80% высоты, заголовок в верхней трети, плашки в свободных зонах. Сделана в Kartogen"
+          width={900}
+          height={1200}
+          className="mx-auto max-w-xs"
         />
       </section>
 

@@ -119,10 +119,13 @@ export default function Page() {
         button: "Сделать инфографику",
       }}
       related={[
+        { href: "/generator-kartochek", label: "Генератор карточек WB и Ozon: цены и шаги" },
+        { href: "/dizayn-kartochki-tovara", label: "Дизайн карточки товара: 8 стилей" },
         { href: "/infografika", label: "Что писать на слайдах инфографики" },
         { href: "/infografika-marketplace", label: "Инфографика для маркетплейсов: 4 способа" },
         { href: "/photo", label: "Фото товара нейросетью" },
         { href: "/razmer-kartochki-wildberries", label: "Размер карточки Wildberries" },
+        { href: "/razmer-kartochki-ozon", label: "Размер карточки Ozon" },
         { href: "/check", label: "Бесплатный анализ карточки" },
       ]}
       disclaimer="Kartogen — независимый сервис и не аффилирован с Wildberries и Ozon. «Wildberries» и «Ozon» — товарные знаки их правообладателей. Наблюдения о поведении моделей основаны на работе нашего сервиса и могут отличаться от вашего опыта с другими инструментами."

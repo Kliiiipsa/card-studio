@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { SiteLinks } from "@/components/seo/site-links";
 import { SeoFacts } from "@/components/seo/facts";
 import { cookies } from "next/headers";
@@ -237,6 +238,38 @@ export function Ul({ items }: { items: React.ReactNode[] }) {
         <li key={i}>{it}</li>
       ))}
     </ul>
+  );
+}
+
+/**
+ * Иллюстрация со схемой/примером: у справочников про размеры не было ни одной
+ * картинки (аудит 22.09.2026), а сниппет с картинкой в выдаче кликают заметно
+ * чаще. Файл — обычный PNG/JPG из /public, чтобы попадал в Яндекс.Картинки.
+ */
+export function Figure({
+  src,
+  alt,
+  caption,
+  width = 1200,
+  height = 900,
+  className,
+}: {
+  src: string;
+  alt: string;
+  caption?: string;
+  width?: number;
+  height?: number;
+  className?: string;
+}) {
+  return (
+    <figure className={"mt-5 overflow-hidden rounded-xl border bg-card " + (className ?? "")}>
+      <Image src={src} alt={alt} width={width} height={height} className="w-full" />
+      {caption && (
+        <figcaption className="border-t px-4 py-2 text-xs text-muted-foreground">
+          {caption}
+        </figcaption>
+      )}
+    </figure>
   );
 }
 

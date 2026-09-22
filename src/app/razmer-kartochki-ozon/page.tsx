@@ -1,6 +1,16 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArticlePage, H2, P, Table, Ul, Tip, SITE, type Faq } from "@/components/seo/article-page";
+import {
+  ArticlePage,
+  H2,
+  P,
+  Table,
+  Ul,
+  Tip,
+  Figure,
+  SITE,
+  type Faq,
+} from "@/components/seo/article-page";
 import { WELCOME_SPARKS } from "@/core/billing/prices";
 
 /* ------------------------------------------------------------------ */
@@ -15,7 +25,7 @@ import { WELCOME_SPARKS } from "@/core/billing/prices";
 /* ------------------------------------------------------------------ */
 
 const PATH = "/razmer-kartochki-ozon";
-const UPDATED = "15 сентября 2026";
+const UPDATED = "22 сентября 2026";
 
 export const metadata: Metadata = {
   title: "Размер карточки Ozon 2026: размер инфографики и фото — Kartogen",
@@ -104,6 +114,11 @@ export default function Page() {
           3:4, как у Wildberries. Квадрат остался только в категории Fresh. Ниже требования, по
           которым модерация принимает или отклоняет файлы.
         </P>
+        <Figure
+          src="/seo/razmer-kartochki-ozon.png"
+          alt="Схема размера карточки Ozon 2026: вертикаль 3:4 на 900×1200 или 1200×1600 пикселей для всех категорий и квадрат 1:1 только для Ozon Fresh, товар не меньше двух третей кадра"
+          caption="Размер карточки Ozon 2026: 3:4 для всех категорий, квадрат 1:1 только для Fresh, до 15 изображений"
+        />
         <Table
           head={["Параметр", "Требование", "Комментарий"]}
           rows={[
@@ -157,6 +172,14 @@ export default function Page() {
           поля сверху и снизу, а текст на нём станет мельче соседних. Делайте всю серию в одном
           размере.
         </P>
+        <Figure
+          src="/examples/organizer.jpg"
+          alt="Пример слайда инфографики для Ozon в формате 3:4, 900×1200 пикселей: органайзер, заголовок и плашки с характеристиками"
+          caption="Слайд инфографики в 3:4 на 900×1200 px: такой размер подходит и для обложки, и для остальных слайдов карточки Ozon. Сделан в Kartogen"
+          width={900}
+          height={1200}
+          className="mx-auto max-w-xs"
+        />
         <Ul
           items={[
             <>

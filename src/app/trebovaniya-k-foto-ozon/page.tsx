@@ -1,6 +1,16 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArticlePage, H2, P, Table, Ul, Tip, SITE, type Faq } from "@/components/seo/article-page";
+import {
+  ArticlePage,
+  H2,
+  P,
+  Table,
+  Ul,
+  Tip,
+  Figure,
+  SITE,
+  type Faq,
+} from "@/components/seo/article-page";
 
 /* ------------------------------------------------------------------ */
 /* Справочная SEO-страница под запрос «требования к фото ozon»:        */
@@ -9,7 +19,7 @@ import { ArticlePage, H2, P, Table, Ul, Tip, SITE, type Faq } from "@/components
 /* ------------------------------------------------------------------ */
 
 const PATH = "/trebovaniya-k-foto-ozon";
-const UPDATED = "15 сентября 2026";
+const UPDATED = "22 сентября 2026";
 
 export const metadata: Metadata = {
   title: "Требования к фото Ozon 2026: главное фото, размеры, модерация — Kartogen",
@@ -102,6 +112,11 @@ export default function Page() {
           обложке Ozon запрещён полностью. Он допускается, но площадка ограничивает долю графики и
           характер надписей, а для части категорий требует чистый кадр.
         </P>
+        <Figure
+          src="/seo/trebovaniya-k-foto-ozon.png"
+          alt="Требования к главному фото Ozon: пройдёт модерацию, если товар занимает не меньше двух третей кадра и текст описательный; отклонят за цены, скидки, призывы, чужие логотипы и мелкий товар. Категории с обязательно чистой обложкой: одежда, обувь, аксессуары, Fresh, Селект"
+          caption="Главное фото Ozon: что пройдёт модерацию, за что отклонят и в каких категориях обложка должна быть без графики"
+        />
         <Table
           head={["Правило", "Главное фото", "Дополнительные фото"]}
           rows={[

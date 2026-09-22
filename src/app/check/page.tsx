@@ -57,7 +57,8 @@ export default function QuickCheckPage() {
         body: JSON.stringify({ imageDataUrl: image }),
       });
       const data = (await res.json()) as (QuickCheck & { error?: string }) | { error?: string };
-      if (!res.ok) throw new Error(("error" in data && data.error) || "Не получилось, попробуйте ещё раз.");
+      if (!res.ok)
+        throw new Error(("error" in data && data.error) || "Не получилось, попробуйте ещё раз.");
       setResult(data as QuickCheck);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Не получилось, попробуйте ещё раз.");
@@ -83,7 +84,8 @@ export default function QuickCheckPage() {
     : [];
 
   return (
-    <main className="mx-auto min-h-dvh w-full max-w-2xl px-4 py-10">
+    // <main> живёт в layout.tsx: там же под инструментом справочный текст и FAQ
+    <div className="mx-auto min-h-dvh w-full max-w-2xl px-4 py-10">
       {/* мини-шапка */}
       <div className="mb-8 flex items-center justify-between">
         <Link href="/" className="text-lg font-semibold">
@@ -94,9 +96,7 @@ export default function QuickCheckPage() {
         </Button>
       </div>
 
-      <h1 className="text-2xl font-bold [text-wrap:balance]">
-        Бесплатный анализ карточки товара
-      </h1>
+      <h1 className="text-2xl font-bold [text-wrap:balance]">Бесплатный анализ карточки товара</h1>
       <p className="mt-2 text-sm text-muted-foreground">
         Загрузите фото карточки или товара — ИИ оценит её как покупатель на Wildberries и подскажет,
         что мешает продажам. Без регистрации.
@@ -153,7 +153,9 @@ export default function QuickCheckPage() {
               </div>
               <p className="mt-1 text-sm font-medium">{result.tip.issue}</p>
               {result.tip.fix && (
-                <p className="mt-1 text-sm text-muted-foreground">Как исправить: {result.tip.fix}</p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Как исправить: {result.tip.fix}
+                </p>
               )}
             </div>
 
@@ -184,6 +186,6 @@ export default function QuickCheckPage() {
           </CardContent>
         </Card>
       )}
-    </main>
+    </div>
   );
 }
