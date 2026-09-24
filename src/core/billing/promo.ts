@@ -290,9 +290,10 @@ export async function revokeRedemption(
       return { ok: false, clawedBack: 0 };
     }
     const r = toRedemption(rows[0]);
-    await client.query(`update promo_codes set redeemed_count = greatest(redeemed_count - 1, 0) where code = $1`, [
-      r.code,
-    ]);
+    await client.query(
+      `update promo_codes set redeemed_count = greatest(redeemed_count - 1, 0) where code = $1`,
+      [r.code],
+    );
     await client.query("commit");
 
     let clawedBack = 0;
@@ -361,16 +362,18 @@ export async function redeemPromo(args: {
     );
     if (mine.rows[0]) throw new PromoError("Вы уже применяли этот промокод.");
 
-    // защита от ферм: код на гены не даём аккаунту, который ещё не платил
+    // Защита от ферм: код на гены не даём аккаунту, который ещё не платил.
+    // «Платил» = пришли деньги через ЮKassa. До разделения типов (24.09.2026)
+    // условие было просто type='topup' и пропускало тех, кому гены начислили
+    // промокодом, — то есть ферму, выстроенную на самих промокодах.
     if (c.requireTopup) {
       const paid = await client.query(
-        `select 1 from billing_tx where email = $1 and type = 'topup' limit 1`,
+        `select 1 from billing_tx where email = $1 and type = 'topup'
+           and reference like 'yk-%' limit 1`,
         [args.email],
       );
       if (!paid.rows[0]) {
-        throw new PromoError(
-          "Этот промокод доступен после первого пополнения баланса.",
-        );
+        throw new PromoError("Этот промокод доступен после первого пополнения баланса.");
       }
     }
     // тот же код с того же IP другим аккаунтом — почти всегда накрутка
@@ -400,9 +403,10 @@ export async function redeemPromo(args: {
         c.type === "price_list" && c.prices ? JSON.stringify(c.prices) : null,
       ],
     );
-    await client.query(`update promo_codes set redeemed_count = redeemed_count + 1 where code = $1`, [
-      code,
-    ]);
+    await client.query(
+      `update promo_codes set redeemed_count = redeemed_count + 1 where code = $1`,
+      [code],
+    );
     await client.query("commit");
 
     if (c.type === "sparks") {
@@ -434,7 +438,9 @@ export async function redeemPromo(args: {
     const { balance } = await applyTx({
       email: args.email,
       amount: granted.sparks,
-      type: "topup",
+      // именно bonus, а не topup: денег за эти гены не приходило, возврату
+      // деньгами они не подлежат и в выручку попадать не должны
+      type: "bonus",
       reference: `promo:${granted.code}:${args.email}`,
       comment: `Промокод ${granted.code}`,
     });

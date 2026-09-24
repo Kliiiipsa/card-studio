@@ -1,7 +1,7 @@
-import { applyTx } from "@/core/billing/billing";
+import { applyTx, getBalance } from "@/core/billing/billing";
 import { getPayment, type YooPayment } from "@/core/billing/yookassa";
 import { markTopupBonusUsed } from "@/core/billing/promo";
-import { rewardOnFirstPayment } from "@/core/referrals/referrals";
+import { rewardOnPayment } from "@/core/referrals/referrals";
 
 /**
  * Проверить платёж у ЮKassa и зачислить гены. Идемпотентно: reference
@@ -41,22 +41,55 @@ export async function verifyAndCredit(paymentId: string): Promise<{
       : 0;
   const totalBonus = Math.max(packBonus, 0) + promoGranted;
 
-  const { balance, applied } = await applyTx({
+  // Деньги и подарки — РАЗНЫЕ записи в журнале (с 24.09.2026). Раньше бонус
+  // сидел внутри суммы пополнения, а его размер приходилось выковыривать из
+  // комментария регуляркой — для отчётов терпимо, для расчёта возврата денег
+  // нет. Теперь сумма записи `topup` равна рублям платежа (1 ген = 1 ₽),
+  // поэтому «сколько человек заплатил» — это один SUM.
+  const { balance: afterTopup, applied } = await applyTx({
     email,
-    amount: sparks + totalBonus,
+    amount: sparks,
     type: "topup",
     reference: `yk-${payment.id}`,
-    comment:
-      `ЮKassa: ${payment.amount.value} ₽` +
-      (totalBonus > 0
-        ? ` (+${totalBonus} бонус${promoGranted ? `, промокод ${promoCode}` : ""})`
-        : "") +
-      `, платёж ${payment.id}`,
+    comment: `ЮKassa: ${payment.amount.value} ₽, платёж ${payment.id}`,
   });
-  // Приглашённый впервые заплатил настоящими деньгами — награждаем
-  // пригласившего. Идемпотентно (reference + флаг payout_granted), поэтому
-  // безопасно вызывать на каждом зачислении; ошибки не влияют на платёж.
-  if (applied) await rewardOnFirstPayment(email).catch(() => undefined);
+  let balance = afterTopup;
 
-  return { payment, credited: applied, sparksTotal: sparks + totalBonus, balance };
+  // Дальше идём ВСЕГДА, а не только при applied: каждое начисление защищено
+  // своим reference, зато повторный вызов (вебхук + возврат на страницу)
+  // достроит то, что не успело записаться, если процесс упал посередине.
+  if (totalBonus > 0) {
+    const bonusTx = await applyTx({
+      email,
+      amount: totalBonus,
+      type: "bonus",
+      reference: `yk-${payment.id}:bonus`,
+      comment:
+        `Бонус к пополнению: пакет` +
+        (promoGranted ? ` + промокод ${promoCode} (+${promoGranted})` : "") +
+        `, платёж ${payment.id}`,
+    });
+    balance = bonusTx.balance;
+  }
+
+  // Реферальные: пригласившему процент с КАЖДОГО пополнения, приглашённому —
+  // процент к первому. Идемпотентно по id платежа; ошибки не трогают платёж.
+  // База начисления — РУБЛИ платежа, а не гены на балансе. Сейчас это одно и
+  // то же (1 ген = 1 ₽, оферта п. 6.3), но берём сумму у ЮKassa: правило в
+  // оферте сформулировано именно про уплаченные деньги, и если прайс когда-то
+  // разойдётся с номиналом, начисление останется верным.
+  const paidRub = Math.floor(Number(payment.amount.value) || 0);
+  const { refereeBonus } = await rewardOnPayment({
+    refereeEmail: email,
+    paidRub,
+    paymentId: payment.id,
+  }).catch(() => ({ refereeBonus: 0 }));
+  if (refereeBonus > 0) balance = await getBalance(email);
+
+  return {
+    payment,
+    credited: applied,
+    sparksTotal: sparks + totalBonus + refereeBonus,
+    balance,
+  };
 }

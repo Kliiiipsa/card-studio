@@ -1,31 +1,34 @@
 import "server-only";
 import { Pool } from "pg";
 import { randomInt } from "node:crypto";
-import { applyTx } from "@/core/billing/billing";
-import { REFERRAL } from "@/core/billing/prices";
+import { applyTx, getBalance } from "@/core/billing/billing";
+import { REFERRAL, referralGenes } from "@/core/billing/prices";
 import { canonicalEmail } from "@/core/auth/domains";
 import { wasDeleted } from "@/core/auth/deletion";
 import { registrationIps } from "@/core/auth/consent";
 
 /**
- * Реферальная программа «приведи друга».
+ * Реферальная программа «приведи друга» (схема владельца, 2026-09-24).
  *
- * Схема выплат (см. REFERRAL в prices.ts):
- *  - приглашённый получает бонус СРАЗУ при регистрации по ссылке;
- *  - пригласивший получает награду ТОЛЬКО когда приглашённый впервые оплатил.
+ * Обе награды — процент от РУБЛЕЙ, которые приглашённый реально заплатил:
+ *  - пригласившему 10 % с КАЖДОГО пополнения друга, бессрочно;
+ *  - приглашённому 15 % к ПЕРВОМУ пополнению, поверх пакетного бонуса и промокода.
  *
- * Почему так: регистрацию подделать легко, оплату — нет. Если платить за
- * регистрацию, программа становится станком по бесплатным генам поверх уже
- * существующего приветственного бонуса.
+ * За регистрацию не платим НИЧЕГО — сознательное решение. Приветственные гены
+ * на новый ящик у нас и так есть, и любая добавка к ним расширяет дыру для ферм
+ * из почтовых адресов. Награду, которую нельзя получить без оплаты, накрутить
+ * невозможно, а накрутка через настоящую оплату нам выгодна.
  *
  * Антифрод: самоприглашение по канонической почте отсекается, удалённые
- * аккаунты не получают бонус повторно, совпадение IP приглашённого с IP
- * регистрации пригласившего помечает связь как подозрительную — бонус и
- * выплата в этом случае не начисляются, но строка видна в админке, и владелец
- * может начислить гены вручную, если это ложное срабатывание (офис, семья).
+ * аккаунты не награждаются повторно, совпадение IP приглашённого с IP
+ * регистрации пригласившего помечает связь как подозрительную — начислений по
+ * ней нет, но строка видна в админке, и владелец может начислить вручную, если
+ * это ложное срабатывание (офис, семья).
  *
  * Все операции идемпотентны: строка связи — по первичному ключу приглашённого,
- * начисления — по уникальному reference в billing_tx.
+ * начисления — по уникальному reference в billing_tx (привязан к id платежа).
+ * Счётчики в referral_signups двигаются ТОЛЬКО когда начисление реально
+ * применилось — иначе повторный вызов зачисления раздул бы статистику.
  */
 
 export type ReferralStats = {
@@ -43,6 +46,8 @@ export type AdminReferralRow = {
   signups: number;
   paid: number;
   earned: number;
+  /** рублей пополнили приглашённые — наша выручка с этого канала */
+  paidRub: number;
   suspicious: number;
   lastAt: string | null;
 };
@@ -110,6 +115,13 @@ function ensureSchema(): Promise<void> {
           clicks int not null default 0,
           primary key (code, day)
         );
+        -- Схема процентов (2026-09-24). payout_granted остаётся как «друг хоть
+        -- раз платил», но сумма награды больше не константа, поэтому копим её
+        -- в earned_genes, а не умножаем количество на ставку.
+        alter table referral_signups add column if not exists first_topup_granted boolean not null default false;
+        alter table referral_signups add column if not exists earned_genes int not null default 0;
+        alter table referral_signups add column if not exists payments int not null default 0;
+        alter table referral_signups add column if not exists paid_rub int not null default 0;
       `);
     })().catch((e) => {
       schemaReady = null;
@@ -177,26 +189,28 @@ export async function recordClick(code: string): Promise<void> {
 }
 
 /**
- * Привязать регистрацию к пригласившему и, если всё чисто, начислить бонус
- * приглашённому. Вызывается на всех трёх путях регистрации (код по почте,
- * мгновенный режим, Яндекс ID). Никогда не бросает исключений.
+ * Привязать регистрацию к пригласившему. Денег и генов здесь НЕ начисляется
+ * никому — награды платятся только с оплаты, см. rewardOnPayment. Вызывается на
+ * всех трёх путях регистрации (код по почте, мгновенный режим, Яндекс ID).
+ * Никогда не бросает исключений: сорванная привязка не должна ломать
+ * регистрацию.
  */
 export async function linkSignup(args: {
   refereeEmail: string;
   code: string;
   ip?: string | null;
-}): Promise<{ linked: boolean; bonus: number }> {
-  if (!referralsEnabled()) return { linked: false, bonus: 0 };
+}): Promise<{ linked: boolean }> {
+  if (!referralsEnabled()) return { linked: false };
   try {
     await ensureSchema();
     const code = args.code.trim().toUpperCase();
-    if (!/^[A-Z0-9]{4,12}$/.test(code)) return { linked: false, bonus: 0 };
+    if (!/^[A-Z0-9]{4,12}$/.test(code)) return { linked: false };
 
     const referrer = await codeOwner(code);
-    if (!referrer) return { linked: false, bonus: 0 };
+    if (!referrer) return { linked: false };
     // самоприглашение: тот же ящик или его plus-вариант
     if (canonicalEmail(referrer) === canonicalEmail(args.refereeEmail)) {
-      return { linked: false, bonus: 0 };
+      return { linked: false };
     }
     // повторная регистрация после удаления аккаунта бонусов не даёт
     const deleted = await wasDeleted(args.refereeEmail).catch(() => false);
@@ -210,79 +224,199 @@ export async function linkSignup(args: {
     const suspicious = sameIp || deleted;
 
     const inserted = await getPool().query<{ referee_email: string }>(
-      `insert into referral_signups (referee_email, referrer_email, code, ip, suspicious, bonus_granted)
-       values ($1, $2, $3, $4, $5, $6)
+      `insert into referral_signups (referee_email, referrer_email, code, ip, suspicious)
+       values ($1, $2, $3, $4, $5)
        on conflict (referee_email) do nothing
        returning referee_email`,
-      [args.refereeEmail, referrer, code, args.ip ?? null, suspicious, !suspicious],
+      [args.refereeEmail, referrer, code, args.ip ?? null, suspicious],
     );
-    if (!inserted.rows[0]) return { linked: false, bonus: 0 }; // уже привязан
+    if (!inserted.rows[0]) return { linked: false }; // уже привязан
     if (suspicious) {
       console.warn(
-        `[referral] подозрительная связь ${args.refereeEmail} ← ${referrer} (${sameIp ? "тот же IP" : "удалённый аккаунт"}) — бонус не начислен`,
+        `[referral] подозрительная связь ${args.refereeEmail} ← ${referrer} (${sameIp ? "тот же IP" : "удалённый аккаунт"}) — начислений по ней не будет`,
       );
-      return { linked: true, bonus: 0 };
     }
-
-    await applyTx({
-      email: args.refereeEmail,
-      amount: REFERRAL.refereeBonus,
-      type: "topup",
-      reference: `ref-join:${canonicalEmail(args.refereeEmail)}`,
-      comment: `Бонус за регистрацию по приглашению (код ${code})`,
-    });
-    return { linked: true, bonus: REFERRAL.refereeBonus };
+    return { linked: true };
   } catch (e) {
     console.error("[referral] linkSignup failed:", e);
-    return { linked: false, bonus: 0 };
+    return { linked: false };
   }
 }
 
 /**
- * Первая РЕАЛЬНАЯ оплата приглашённого — награждаем пригласившего.
- * Вызывается из зачисления платежа ЮKassa; идемпотентно и не бросает.
+ * Оплата приглашённого — начисляем обе стороны процентом от РУБЛЕЙ платежа.
+ *
+ * Вызывается из зачисления платежа ЮKassa на КАЖДОМ пополнении (пригласивший
+ * получает свои 10 % бессрочно), приглашённому 15 % достаются только с первого.
+ *
+ * Идемпотентность двухуровневая: reference в billing_tx привязан к id платежа,
+ * поэтому повторный вызов (вебхук + возврат на страницу) ничего не задваивает,
+ * а счётчики в referral_signups двигаются только при applied === true. Поэтому
+ * функцию безопасно звать и на повторном зачислении — она ещё и чинит случай,
+ * когда процесс упал между зачислением и наградой.
+ *
+ * Никогда не бросает: сбой начисления не должен ломать платёж.
  */
-export async function rewardOnFirstPayment(refereeEmail: string): Promise<void> {
-  if (!referralsEnabled()) return;
+export async function rewardOnPayment(args: {
+  refereeEmail: string;
+  paidRub: number;
+  paymentId: string;
+}): Promise<{ refereeBonus: number }> {
+  if (!referralsEnabled() || args.paidRub <= 0) return { refereeBonus: 0 };
   try {
     await ensureSchema();
     const { rows } = await getPool().query<{
       referrer_email: string;
       suspicious: boolean;
-      payout_granted: boolean;
+      first_topup_granted: boolean;
     }>(
-      `select referrer_email, suspicious, payout_granted
+      `select referrer_email, suspicious, first_topup_granted
          from referral_signups where referee_email = $1`,
-      [refereeEmail],
+      [args.refereeEmail],
     );
     const row = rows[0];
-    if (!row || row.payout_granted) return;
+    if (!row) return { refereeBonus: 0 };
     if (row.suspicious) {
       console.warn(
-        `[referral] выплата за ${refereeEmail} пропущена: связь помечена подозрительной`,
+        `[referral] начисления за платёж ${args.paymentId} пропущены: связь ${args.refereeEmail} помечена подозрительной`,
       );
-      return;
+      return { refereeBonus: 0 };
     }
+
+    // 1. Пригласившему — 10 % с этого пополнения
+    const reward = referralGenes(args.paidRub, REFERRAL.referrerPercent);
     const { applied } = await applyTx({
       email: row.referrer_email,
-      amount: REFERRAL.referrerReward,
-      type: "topup",
-      reference: `ref-reward:${canonicalEmail(refereeEmail)}`,
-      comment: "Награда за приглашённого друга: он оплатил первый пакет",
+      amount: reward,
+      type: "bonus",
+      reference: `ref-pay:${args.paymentId}`,
+      // почту друга намеренно не пишем: пригласивший и так знает, кого звал,
+      // а журнал видят поддержка и владелец
+      comment: `Награда за друга: ${REFERRAL.referrerPercent}% с его пополнения на ${args.paidRub} ₽`,
     });
-    await getPool().query(
-      `update referral_signups set payout_granted = true, paid_at = now()
-        where referee_email = $1`,
-      [refereeEmail],
-    );
     if (applied) {
+      await getPool().query(
+        `update referral_signups
+            set payout_granted = true,
+                paid_at = coalesce(paid_at, now()),
+                payments = payments + 1,
+                paid_rub = paid_rub + $2,
+                earned_genes = earned_genes + $3
+          where referee_email = $1`,
+        [args.refereeEmail, args.paidRub, reward],
+      );
       console.log(
-        `[referral] ${row.referrer_email} получил ${REFERRAL.referrerReward} генов за ${refereeEmail}`,
+        `[referral] ${row.referrer_email} получил ${reward} генов с пополнения ${args.refereeEmail} на ${args.paidRub} ₽`,
       );
     }
+
+    // 2. Приглашённому — 15 % к ПЕРВОМУ пополнению.
+    // Флаг занимаем атомарным UPDATE ДО начисления: два платежа, пришедшие
+    // почти одновременно, иначе оба увидели бы false и бонус начислился дважды
+    // (reference спасает только от повтора ОДНОГО платежа). Если начисление
+    // сорвалось — флаг отпускаем, иначе человек потеряет свой бонус навсегда.
+    if (row.first_topup_granted) return { refereeBonus: 0 };
+    const claimed = await getPool().query<{ referee_email: string }>(
+      `update referral_signups set first_topup_granted = true
+        where referee_email = $1 and first_topup_granted = false
+        returning referee_email`,
+      [args.refereeEmail],
+    );
+    if (!claimed.rows[0]) return { refereeBonus: 0 };
+    const refereeBonus = referralGenes(args.paidRub, REFERRAL.refereeFirstTopupPercent);
+    try {
+      const first = await applyTx({
+        email: args.refereeEmail,
+        amount: refereeBonus,
+        type: "bonus",
+        reference: `ref-first:${args.paymentId}`,
+        comment: `Бонус по приглашению: ${REFERRAL.refereeFirstTopupPercent}% к первому пополнению`,
+      });
+      return { refereeBonus: first.applied ? refereeBonus : 0 };
+    } catch (e) {
+      await getPool()
+        .query(`update referral_signups set first_topup_granted = false where referee_email = $1`, [
+          args.refereeEmail,
+        ])
+        .catch(() => undefined);
+      throw e;
+    }
   } catch (e) {
-    console.error("[referral] rewardOnFirstPayment failed:", e);
+    console.error("[referral] rewardOnPayment failed:", e);
+    return { refereeBonus: 0 };
   }
+}
+
+/**
+ * Откат реферальных начислений по платежу, за который вернули деньги.
+ *
+ * Возвраты у нас ручные (заявление в поддержку → возврат в кабинете ЮKassa),
+ * автоматического вебхука на refund нет, поэтому это инструмент владельца:
+ * вызывается из админки по id платежа. Без него пункт «если другу вернули
+ * деньги, начисленные гены снимаются» на странице приглашений был бы обещанием
+ * без механизма.
+ *
+ * Снимаем с защитой от ухода в минус: если человек уже потратил эти гены,
+ * забираем сколько есть и пишем сколько не добрали — решение по остатку за
+ * владельцем, автоматически загонять клиента в долг мы не будем.
+ */
+export async function reverseForPayment(paymentId: string): Promise<{
+  reversed: { email: string; amount: number; taken: number }[];
+}> {
+  if (!referralsEnabled()) return { reversed: [] };
+  await ensureSchema();
+  const { rows } = await getPool().query<{ email: string; amount: number; reference: string }>(
+    `select email, amount, reference from billing_tx
+      where type = 'bonus' and reference in ($1, $2) and amount > 0`,
+    [`ref-pay:${paymentId}`, `ref-first:${paymentId}`],
+  );
+  const reversed: { email: string; amount: number; taken: number }[] = [];
+  for (const r of rows) {
+    const balance = await getBalance(r.email);
+    const taken = Math.min(balance, r.amount);
+    if (taken > 0) {
+      await applyTx({
+        email: r.email,
+        amount: -taken,
+        type: "admin",
+        reference: `ref-reverse:${r.reference}`,
+        comment: `Откат реферального начисления: возврат платежа ${paymentId}`,
+        guardNonNegative: true,
+      });
+    }
+    reversed.push({ email: r.email, amount: r.amount, taken });
+  }
+  // Откатываем счётчики связи. Сумму платежа берём из самой записи пополнения
+  // (с 24.09.2026 она равна рублям), а не пересчитываем из награды обратно —
+  // деление с округлением вниз не обратимо.
+  const payRow = rows.find((r) => r.reference === `ref-pay:${paymentId}`);
+  if (payRow) {
+    const paid = await getPool().query<{ amount: number; email: string }>(
+      `select amount, email from billing_tx where reference = $1 and type = 'topup'`,
+      [`yk-${paymentId}`],
+    );
+    const refereeEmail = paid.rows[0]?.email;
+    if (refereeEmail) {
+      await getPool().query(
+        `update referral_signups
+            set payments = greatest(payments - 1, 0),
+                paid_rub = greatest(paid_rub - $2, 0),
+                earned_genes = greatest(earned_genes - $3, 0)
+          where referee_email = $1`,
+        [refereeEmail, paid.rows[0].amount, payRow.amount],
+      );
+    }
+  }
+  // приглашённому возвращаем право на бонус к первому пополнению: его оплата
+  // отменена, значит первого пополнения фактически не было
+  const firstRow = rows.find((r) => r.reference === `ref-first:${paymentId}`);
+  if (firstRow) {
+    await getPool().query(
+      `update referral_signups set first_topup_granted = false where referee_email = $1`,
+      [firstRow.email],
+    );
+  }
+  return { reversed };
 }
 
 /** Сводка для страницы «Пригласить друга». */
@@ -296,9 +430,10 @@ export async function referralStats(email: string): Promise<ReferralStats | null
       "select sum(clicks)::text as n from referral_clicks where code = $1",
       [code],
     ),
-    getPool().query<{ total: string; paid: string }>(
+    getPool().query<{ total: string; paid: string; earned: string }>(
       `select count(*)::text as total,
-              count(*) filter (where payout_granted)::text as paid
+              count(*) filter (where payout_granted)::text as paid,
+              coalesce(sum(earned_genes), 0)::text as earned
          from referral_signups where referrer_email = $1`,
       [email],
     ),
@@ -311,7 +446,7 @@ export async function referralStats(email: string): Promise<ReferralStats | null
     clicks: Number(clicks.rows[0]?.n ?? 0),
     signups: total,
     paid,
-    earnedGenes: paid * REFERRAL.referrerReward,
+    earnedGenes: Number(signups.rows[0]?.earned ?? 0),
     pendingSignups: total - paid,
   };
 }
@@ -319,33 +454,38 @@ export async function referralStats(email: string): Promise<ReferralStats | null
 /** Кто кого привёл — для админки. */
 export async function adminReferralSummary(): Promise<{
   rows: AdminReferralRow[];
-  totals: { signups: number; paid: number; earned: number; suspicious: number };
+  totals: { signups: number; paid: number; earned: number; paidRub: number; suspicious: number };
 }> {
   if (!referralsEnabled())
-    return { rows: [], totals: { signups: 0, paid: 0, earned: 0, suspicious: 0 } };
+    return { rows: [], totals: { signups: 0, paid: 0, earned: 0, paidRub: 0, suspicious: 0 } };
   await ensureSchema();
   const { rows } = await getPool().query<{
     referrer_email: string;
     signups: string;
     paid: string;
+    earned: string;
+    paid_rub: string;
     suspicious: string;
     last_at: string | null;
   }>(
     `select referrer_email,
             count(*)::text as signups,
             count(*) filter (where payout_granted)::text as paid,
+            coalesce(sum(earned_genes), 0)::text as earned,
+            coalesce(sum(paid_rub), 0)::text as paid_rub,
             count(*) filter (where suspicious)::text as suspicious,
             max(created_at) as last_at
        from referral_signups
       group by referrer_email
-      order by count(*) filter (where payout_granted) desc, count(*) desc
+      order by coalesce(sum(paid_rub), 0) desc, count(*) desc
       limit 100`,
   );
   const out = rows.map((r) => ({
     referrer: r.referrer_email,
     signups: Number(r.signups),
     paid: Number(r.paid),
-    earned: Number(r.paid) * REFERRAL.referrerReward,
+    earned: Number(r.earned),
+    paidRub: Number(r.paid_rub),
     suspicious: Number(r.suspicious),
     lastAt: r.last_at ? new Date(r.last_at).toISOString() : null,
   }));
@@ -355,6 +495,7 @@ export async function adminReferralSummary(): Promise<{
       signups: out.reduce((a, r) => a + r.signups, 0),
       paid: out.reduce((a, r) => a + r.paid, 0),
       earned: out.reduce((a, r) => a + r.earned, 0),
+      paidRub: out.reduce((a, r) => a + r.paidRub, 0),
       suspicious: out.reduce((a, r) => a + r.suspicious, 0),
     },
   };

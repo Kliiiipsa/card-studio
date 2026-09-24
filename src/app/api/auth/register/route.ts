@@ -109,13 +109,11 @@ export async function POST(req: Request) {
         userAgent: req.headers.get("user-agent"),
       });
       const welcome = await grantWelcomeBonus(email);
-      // приглашение по ссылке друга: связь + бонус приглашённому (идемпотентно)
-      const ref = body.ref
-        ? await linkSignup({ refereeEmail: email, code: body.ref, ip })
-        : { bonus: 0 };
-      const balance = ref.bonus ? (welcome ?? 0) + ref.bonus : welcome;
+      // Приглашение по ссылке друга: только привязка, генов за регистрацию не
+      // даём никому — награды платятся процентом с первого пополнения.
+      if (body.ref) await linkSignup({ refereeEmail: email, code: body.ref, ip });
       return respondWithSession(
-        { registered: true, balance: balance ?? undefined },
+        { registered: true, balance: welcome ?? undefined },
         confirmed.user,
       );
     }

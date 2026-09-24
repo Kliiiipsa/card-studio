@@ -463,12 +463,20 @@ export default function AdminPage() {
     signups: number;
     paid: number;
     earned: number;
+    /** рублей пополнили приглашённые — выручка с канала */
+    paidRub: number;
     suspicious: number;
     lastAt: string | null;
   };
   const [refs, setRefs] = React.useState<{
     rows: RefRow[];
-    totals: { signups: number; paid: number; earned: number; suspicious: number } | null;
+    totals: {
+      signups: number;
+      paid: number;
+      earned: number;
+      paidRub: number;
+      suspicious: number;
+    } | null;
   } | null>(null);
   const [spend, setSpend] = React.useState<SpendReport | null>(null);
   const [spendDays, setSpendDays] = React.useState<7 | 30 | 90>(30);
@@ -1662,6 +1670,10 @@ export default function AdminPage() {
                         <dd className="text-right font-medium">{refs.totals?.signups ?? 0} чел.</dd>
                         <dt className="text-muted-foreground">Из них оплатили</dt>
                         <dd className="text-right font-medium">{refs.totals?.paid ?? 0} чел.</dd>
+                        <dt className="text-muted-foreground">Пополнили на</dt>
+                        <dd className="text-right font-medium">
+                          {(refs.totals?.paidRub ?? 0).toLocaleString("ru-RU")} ₽
+                        </dd>
                         <dt className="text-muted-foreground">Выплачено пригласившим</dt>
                         <dd className="text-right font-medium">
                           {(refs.totals?.earned ?? 0).toLocaleString("ru-RU")} 🧬
@@ -1684,6 +1696,7 @@ export default function AdminPage() {
                               <th className="py-2 pr-4 font-medium">Кто пригласил</th>
                               <th className="py-2 pr-4 text-right font-medium">Пришло</th>
                               <th className="py-2 pr-4 text-right font-medium">Оплатили</th>
+                              <th className="py-2 pr-4 text-right font-medium">Пополнили</th>
                               <th className="py-2 text-right font-medium">Начислено</th>
                             </tr>
                           </thead>
@@ -1700,6 +1713,9 @@ export default function AdminPage() {
                                 </td>
                                 <td className="py-2 pr-4 text-right tabular-nums">{r.signups}</td>
                                 <td className="py-2 pr-4 text-right tabular-nums">{r.paid}</td>
+                                <td className="py-2 pr-4 text-right tabular-nums">
+                                  {r.paidRub.toLocaleString("ru-RU")} ₽
+                                </td>
                                 <td className="py-2 text-right tabular-nums">{r.earned} 🧬</td>
                               </tr>
                             ))}
@@ -1707,10 +1723,13 @@ export default function AdminPage() {
                         </table>
                       </div>
                       <p className="text-[11px] leading-4 text-muted-foreground">
-                        Награда пригласившему начисляется только после первой реальной оплаты
-                        приглашённого. «Подозр.» — совпал IP регистрации с пригласившим или аккаунт
-                        уже удалялся: бонус и выплата по такой связи не начисляются, при ложном
-                        срабатывании начислите гены вручную во вкладке «Пользователи».
+                        За регистрацию не платим никому. Пригласившему идёт процент с каждого
+                        пополнения друга, приглашённому — процент к первому; база — рубли платежа,
+                        без бонусов пакета и промокодов. «Подозр.» — совпал IP регистрации с
+                        пригласившим или аккаунт уже удалялся: начислений по такой связи нет, при
+                        ложном срабатывании начислите гены вручную во вкладке «Пользователи». Если
+                        вернули деньги за пополнение, откатите начисления: POST /api/admin/referrals
+                        с телом {"{ paymentId }"}.
                       </p>
                     </>
                   )}

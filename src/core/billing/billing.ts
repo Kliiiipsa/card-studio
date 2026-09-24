@@ -6,7 +6,31 @@ import { Pool } from "pg";
  * When no Postgres is configured (pure-local demo), billing is disabled and
  * everything is free — the callers check `billingEnabled()`.
  */
-export type TxType = "welcome" | "topup" | "charge" | "refund" | "admin";
+/**
+ * Тип операции. Разделение topup/bonus введено 2026-09-24 и несёт денежный
+ * смысл, а не косметический:
+ *
+ *  - `topup` — ТОЛЬКО реальные деньги. С 24.09.2026 сумма такой записи равна
+ *    рублям, которые человек заплатил (1 ген = 1 ₽), поэтому «сколько заплатил»
+ *    считается одним SUM, а не разбором комментария.
+ *  - `bonus` — подарочные гены, за которые денег не приходило: бонус пакета,
+ *    промокод, реферальные начисления. Возврату деньгами не подлежат (оферта
+ *    п. 9.9), в базу расчёта возврата не входят.
+ *
+ * До 24.09.2026 бонус пакета сидел ВНУТРИ суммы записи `topup`, а число пряталось
+ * в комментарии. Старые строки так и остались — их разбирает legacyBonusInComment.
+ */
+export type TxType = "welcome" | "topup" | "bonus" | "charge" | "refund" | "admin";
+
+/**
+ * Бонус, зашитый в сумму пополнения ДО разделения типов (24.09.2026):
+ * комментарий вида «ЮKassa: 200 ₽ (+35 бонус, промокод X), платёж …».
+ * Для новых записей всегда 0 — бонус лежит отдельной строкой типа `bonus`.
+ */
+export function legacyBonusInComment(comment: string | null): number {
+  const m = /\(\+(\d+)\s*бонус/.exec(comment ?? "");
+  return m ? Number(m[1]) : 0;
+}
 
 export type SparkTransaction = {
   id: number;
@@ -242,6 +266,79 @@ export async function totalUserBalance(): Promise<{ totalGenes: number; accounts
        from billing_balance`,
   );
   return { totalGenes: Number(rows[0].total ?? 0), accounts: Number(rows[0].accounts) };
+}
+
+export type RefundEstimate = {
+  /** рублей реально заплачено через ЮKassa */
+  paidRub: number;
+  /** стоимость фактически оказанных услуг по прайсу (списания минус возвраты) */
+  servicesRub: number;
+  /** сколько подарено бонусных генов — справочно, в расчёт НЕ входит */
+  bonusGenes: number;
+  /** к возврату деньгами */
+  refundableRub: number;
+  balance: number;
+};
+
+/**
+ * Сколько денег вернуть по заявлению (оферта п. 9.9–9.10).
+ *
+ * Формула: уплаченные рубли − стоимость фактически оказанных услуг по прайсу,
+ * не больше уплаченного и не меньше нуля. Бонусные гены не участвуют: они не
+ * увеличивают сумму возврата и не уменьшают её.
+ *
+ * Почему именно так. Баланс — один котёл, и вопрос «человек потратил бонусные
+ * гены или свои» не имеет ответа: любое деление было бы нашей выдумкой, и в
+ * споре нас на ней поймают. Считать надо не котлы, а две честные цифры —
+ * сколько заплатил и на сколько получил услуг. Формула заодно закрывает схему
+ * «пополнился на 100, взял 100 бонусом, потратил всё, требую 100 назад»:
+ * услуг оказано на 100 ₽, возвращать нечего.
+ *
+ * Потолок по текущему балансу — страховка от ручных списаний админа: если гены
+ * уже сняли с баланса, вернуть за них деньги нельзя.
+ */
+export async function estimateRefund(email: string): Promise<RefundEstimate> {
+  await ensureSchema();
+  const { rows } = await getPool().query<{
+    type: string;
+    amount: number;
+    reference: string | null;
+    comment: string | null;
+  }>("select type, amount, reference, comment from billing_tx where email = $1", [email]);
+
+  let paidRub = 0;
+  let servicesRub = 0;
+  let bonusGenes = 0;
+  for (const r of rows) {
+    switch (r.type) {
+      case "topup":
+        // деньги — только ЮKassa; промо-начисления и демо-оплаты деньгами не были
+        if (r.reference?.startsWith("yk-")) {
+          const legacy = Math.min(legacyBonusInComment(r.comment), r.amount);
+          paidRub += r.amount - legacy;
+          bonusGenes += legacy;
+        } else {
+          bonusGenes += r.amount;
+        }
+        break;
+      case "bonus":
+      case "welcome":
+        bonusGenes += r.amount;
+        break;
+      case "charge":
+        servicesRub += -r.amount;
+        break;
+      case "refund":
+        // гены вернули за неудачную генерацию — услуга не была оказана
+        servicesRub -= r.amount;
+        break;
+      default:
+        break;
+    }
+  }
+  const balance = await getBalance(email);
+  const refundableRub = Math.max(0, Math.min(paidRub - Math.max(servicesRub, 0), paidRub, balance));
+  return { paidRub, servicesRub: Math.max(servicesRub, 0), bonusGenes, refundableRub, balance };
 }
 
 /** balances for the admin table, keyed by email */

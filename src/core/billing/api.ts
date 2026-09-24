@@ -155,9 +155,9 @@ export async function reserveSparks(
   });
   if (insufficient) {
     throw new AppError(
-      `Недостаточно генов: нужно ${ctx.price} ${SPARK}, на балансе ${
-        await getBalance(ctx.email)
-      } ${SPARK}. Пополните баланс в профиле.`,
+      `Недостаточно генов: нужно ${ctx.price} ${SPARK}, на балансе ${await getBalance(
+        ctx.email,
+      )} ${SPARK}. Пополните баланс в профиле.`,
       402,
     );
   }

@@ -38,7 +38,10 @@ function authHeader(): string {
   return "Basic " + Buffer.from(`${shopId}:${secret}`).toString("base64");
 }
 
-async function yooFetch(path: string, init?: RequestInit & { idempotenceKey?: string }): Promise<YooPayment> {
+async function yooFetch(
+  path: string,
+  init?: RequestInit & { idempotenceKey?: string },
+): Promise<YooPayment> {
   const res = await fetch(API + path, {
     ...init,
     headers: {
@@ -56,7 +59,9 @@ async function yooFetch(path: string, init?: RequestInit & { idempotenceKey?: st
   };
   if (!res.ok) {
     // тело ошибки ЮKassa: { type: "error", code, description }
-    throw new Error(`ЮKassa ${res.status}: ${body.description ?? body.code ?? "неизвестная ошибка"}`);
+    throw new Error(
+      `ЮKassa ${res.status}: ${body.description ?? body.code ?? "неизвестная ошибка"}`,
+    );
   }
   return body;
 }

@@ -52,12 +52,10 @@ export async function POST(req: Request) {
           });
         }
         const welcome = await grantWelcomeBonus(result.user.email);
-        // приглашение по ссылке друга: связь + бонус приглашённому (идемпотентно)
-        const ref = body.ref
-          ? await linkSignup({ refereeEmail: result.user.email, code: body.ref, ip })
-          : { bonus: 0 };
-        const balance = ref.bonus ? (welcome ?? 0) + ref.bonus : welcome;
-        return respondWithSession({ ok: true, balance: balance ?? undefined }, result.user);
+        // Приглашение по ссылке друга: только привязка, генов за регистрацию не
+        // даём никому — награды платятся процентом с первого пополнения.
+        if (body.ref) await linkSignup({ refereeEmail: result.user.email, code: body.ref, ip });
+        return respondWithSession({ ok: true, balance: welcome ?? undefined }, result.user);
       }
       case "invalid":
         throw new AppError(`Неверный код. Осталось попыток: ${result.attemptsLeft}.`, 400);

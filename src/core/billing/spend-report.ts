@@ -1,5 +1,5 @@
 import "server-only";
-import { allTransactionsAsc, type SparkTransaction } from "./billing";
+import { allTransactionsAsc, legacyBonusInComment } from "./billing";
 import { falCostForJobs } from "@/core/jobs/jobs";
 import { FAL_COST_PER_GENE, RUB_PER_USD } from "./prices";
 import { isHiddenAccount } from "@/core/auth/hidden-accounts";
@@ -56,12 +56,6 @@ const MSK_OFFSET_MS = 3 * 3600_000;
 const mskDate = (iso: string): string =>
   new Date(new Date(iso).getTime() + MSK_OFFSET_MS).toISOString().slice(0, 10);
 
-/** бонус пакета/промокода внутри ЮKassa-транзакции: «(+35 бонус, промокод X)» */
-function bonusInTopup(t: SparkTransaction): number {
-  const m = /\(\+(\d+)\s*бонус/.exec(t.comment ?? "");
-  return m ? Number(m[1]) : 0;
-}
-
 type Pools = { free: number; paid: number; paidConsumed: number };
 
 type ChargeSlice = {
@@ -101,15 +95,20 @@ export async function buildSpendReport(opts: {
     const amt = t.amount;
     switch (t.type) {
       case "welcome":
+      case "bonus":
+        // с 24.09.2026 подарочные гены приходят отдельной записью: бонус
+        // пакета, промокод, реферальные начисления
         p.free += amt;
         break;
       case "topup": {
         if (t.reference?.startsWith("yk-")) {
-          const bonus = Math.min(bonusInTopup(t), amt);
+          // до 24.09.2026 бонус пакета сидел внутри суммы пополнения —
+          // старые строки разбираем по комментарию, у новых legacy = 0
+          const bonus = Math.min(legacyBonusInComment(t.comment), amt);
           p.paid += amt - bonus;
           p.free += bonus;
         } else {
-          // промокод, демо-оплата — денег не было
+          // промокод (до разделения типов), демо-оплата — денег не было
           p.free += amt;
         }
         break;

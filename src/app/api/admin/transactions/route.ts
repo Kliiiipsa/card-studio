@@ -1,7 +1,7 @@
 import { ok, fail } from "@/lib/api";
 import { AppError } from "@/lib/errors";
 import { sessionFromRequest } from "@/core/auth/session";
-import { billingEnabled, listTransactions } from "@/core/billing/billing";
+import { billingEnabled, estimateRefund, listTransactions } from "@/core/billing/billing";
 import { isHiddenAccount } from "@/core/auth/hidden-accounts";
 
 export const runtime = "nodejs";
@@ -18,9 +18,11 @@ export async function GET(req: Request) {
     const rows = await listTransactions({ email, limit: 200 });
     // Прячем транзакции тестовых/владельческих аккаунтов по умолчанию.
     // Если админ явно смотрит одну почту (?email=) — показываем как есть.
-    const transactions =
-      email || showAll ? rows : rows.filter((t) => !isHiddenAccount(t.email));
-    return ok({ transactions });
+    const transactions = email || showAll ? rows : rows.filter((t) => !isHiddenAccount(t.email));
+    // По конкретной почте сразу считаем, сколько денег вернуть по заявлению
+    // (оферта п. 9.10): поддержке не придётся складывать журнал вручную.
+    const refund = email ? await estimateRefund(email) : null;
+    return ok({ transactions, refund });
   } catch (err) {
     return fail(err);
   }
