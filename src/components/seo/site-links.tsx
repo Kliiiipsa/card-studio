@@ -21,12 +21,14 @@ export const SITE_LINK_GROUPS: { title: string; links: { href: string; label: st
       { href: "/photo", label: "Фото товара нейросетью" },
       { href: "/neuroset-infografika", label: "Нейросеть для инфографики" },
       { href: "/check", label: "Бесплатный анализ карточки" },
+      { href: "/video-dlya-kartochki-tovara", label: "Видео для карточки товара" },
     ],
   },
   {
     title: "Гайды",
     links: [
       { href: "/dizayn-kartochki-tovara", label: "Дизайн карточки товара" },
+      { href: "/seo-opisanie-tovara", label: "SEO-описание для карточки" },
       { href: "/infografika-marketplace", label: "Инфографика для маркетплейсов" },
       { href: "/infografika", label: "Инфографика для карточки Wildberries" },
       { href: "/wildberries", label: "Карточки для Wildberries" },

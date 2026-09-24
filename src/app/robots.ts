@@ -22,6 +22,8 @@ export default function robots(): MetadataRoute.Robots {
           "/razmer-kartochki-wildberries",
           "/trebovaniya-k-foto-ozon",
           "/razmer-kartochki-ozon",
+          "/seo-opisanie-tovara",
+          "/video-dlya-kartochki-tovara",
           "/check",
           "/blog",
           "/examples/",

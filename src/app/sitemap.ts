@@ -23,6 +23,8 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: `${SITE_URL}/razmer-kartochki-wildberries`, changeFrequency: "monthly", priority: 0.7 },
     { url: `${SITE_URL}/trebovaniya-k-foto-ozon`, changeFrequency: "monthly", priority: 0.7 },
     { url: `${SITE_URL}/razmer-kartochki-ozon`, changeFrequency: "monthly", priority: 0.7 },
+    { url: `${SITE_URL}/seo-opisanie-tovara`, changeFrequency: "monthly", priority: 0.8 },
+    { url: `${SITE_URL}/video-dlya-kartochki-tovara`, changeFrequency: "monthly", priority: 0.8 },
     { url: `${SITE_URL}/check`, changeFrequency: "monthly", priority: 0.8 },
     { url: `${SITE_URL}/help`, changeFrequency: "monthly", priority: 0.7 },
     { url: `${SITE_URL}/blog`, changeFrequency: "weekly", priority: 0.7 },

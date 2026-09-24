@@ -44,6 +44,8 @@ export async function middleware(req: NextRequest) {
     pathname === "/razmer-kartochki-wildberries" || // SEO-справочник: размер фото WB
     pathname === "/trebovaniya-k-foto-ozon" || // SEO-справочник: требования к фото Ozon
     pathname === "/razmer-kartochki-ozon" || // SEO-справочник: размер инфографики и фото Ozon
+    pathname === "/seo-opisanie-tovara" || // SEO: «seo-описание / название карточки»
+    pathname === "/video-dlya-kartochki-tovara" || // SEO: «видео для карточки товара»
     pathname === "/check" || // бесплатная экспресс-проверка карточки (лид-магнит)
     pathname === "/api/public/quick-check" || // её API: свои лимиты по IP + дневной потолок
     pathname === "/api/tg/webhook" || // Telegram-бот: свой секрет в заголовке, без сессии
