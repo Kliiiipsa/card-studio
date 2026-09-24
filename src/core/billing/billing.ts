@@ -332,6 +332,12 @@ export async function estimateRefund(email: string): Promise<RefundEstimate> {
         // гены вернули за неудачную генерацию — услуга не была оказана
         servicesRub -= r.amount;
         break;
+      case "admin":
+        // ручное начисление владельца — такой же подарок, денег за него не
+        // приходило; ручное списание в базу возврата не лезет, но потолок по
+        // балансу его уже учитывает
+        if (r.amount > 0) bonusGenes += r.amount;
+        break;
       default:
         break;
     }
