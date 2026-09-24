@@ -25,6 +25,8 @@ export type Notice = {
   url: string | null;
   /** показывать полосой во всю ширину под шапкой — для важного (техработы, акция) */
   banner: boolean;
+  /** кому: null — всем, иначе одному аккаунту (реферальные начисления, поддержка) */
+  email: string | null;
   active: boolean;
   createdAt: string;
   expiresAt: string | null;
@@ -75,6 +77,11 @@ function ensureSchema(): Promise<void> {
         );
         create index if not exists notices_active_idx on notices (active, created_at desc);
         alter table notices add column if not exists banner boolean not null default false;
+        -- Личные уведомления (24.09.2026): null = всем, иначе одному аккаунту.
+        -- Понадобилось для реферальных начислений («вам начислено N генов за
+        -- друга»), но годится и для поддержки: «разобрались, гены вернули».
+        alter table notices add column if not exists email text;
+        create index if not exists notices_email_idx on notices (email, created_at desc);
         create table if not exists notice_reads (
           email text not null,
           notice_id bigint not null references notices (id) on delete cascade,
@@ -97,6 +104,7 @@ type Row = {
   body: string;
   url: string | null;
   banner: boolean;
+  email: string | null;
   active: boolean;
   created_at: Date;
   expires_at: Date | null;
@@ -110,6 +118,7 @@ function toNotice(r: Row): Notice {
     body: r.body,
     url: r.url,
     banner: r.banner,
+    email: r.email ?? null,
     active: r.active,
     createdAt: r.created_at.toISOString(),
     expiresAt: r.expires_at ? r.expires_at.toISOString() : null,
@@ -126,6 +135,8 @@ export async function listForUser(email: string, limit = 20): Promise<NoticeForU
        left join notice_reads r on r.notice_id = n.id and r.email = $1
       where n.active
         and (n.expires_at is null or n.expires_at > now())
+        -- общие уведомления плюс личные, адресованные этому аккаунту
+        and (n.email is null or n.email = $1)
       order by n.created_at desc
       limit $2`,
     [email, limit],
@@ -147,11 +158,16 @@ export async function markRead(email: string, ids: number[]): Promise<void> {
 
 /* --------------------------------- админка -------------------------------- */
 
+/**
+ * Список для админки — только ОБЩИЕ уведомления. Личные создаются кодом
+ * автоматически (реферальные начисления) и забили бы собой весь список, а
+ * управлять ими вручную незачем.
+ */
 export async function listAll(limit = 100): Promise<Notice[]> {
   if (!noticesEnabled()) return [];
   await ensureSchema();
   const { rows } = await getPool().query<Row>(
-    `select * from notices order by created_at desc limit $1`,
+    `select * from notices where email is null order by created_at desc limit $1`,
     [limit],
   );
   return rows.map(toNotice);
@@ -163,22 +179,52 @@ export async function createNotice(args: {
   body: string;
   url?: string | null;
   banner?: boolean;
+  /** кому: не задан — всем, иначе одному аккаунту */
+  email?: string | null;
   expiresAt?: string | null;
 }): Promise<Notice> {
   await ensureSchema();
   const { rows } = await getPool().query<Row>(
-    `insert into notices (kind, title, body, url, banner, expires_at)
-     values ($1, $2, $3, $4, $5, $6) returning *`,
+    `insert into notices (kind, title, body, url, banner, email, expires_at)
+     values ($1, $2, $3, $4, $5, $6, $7) returning *`,
     [
       args.kind,
       args.title.slice(0, 120),
       args.body.slice(0, 2000),
       args.url?.slice(0, 300) || null,
       args.banner ?? false,
+      args.email || null,
       args.expiresAt || null,
     ],
   );
   return toNotice(rows[0]);
+}
+
+/**
+ * Личное уведомление одному человеку. Никогда не бросает и не ставит баннер:
+ * вызывается из денежных путей (начисление реферальных), где упавшее
+ * уведомление не должно ронять начисление.
+ */
+export async function notifyUser(args: {
+  email: string;
+  title: string;
+  body: string;
+  url?: string | null;
+  kind?: NoticeKind;
+}): Promise<void> {
+  if (!noticesEnabled()) return;
+  try {
+    await createNotice({
+      kind: args.kind ?? "info",
+      title: args.title,
+      body: args.body,
+      url: args.url ?? null,
+      banner: false,
+      email: args.email,
+    });
+  } catch (e) {
+    console.error("[notices] личное уведомление не создано:", e);
+  }
 }
 
 export async function setActive(id: number, active: boolean): Promise<void> {

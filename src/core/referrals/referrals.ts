@@ -2,7 +2,8 @@ import "server-only";
 import { Pool } from "pg";
 import { randomInt } from "node:crypto";
 import { applyTx, getBalance } from "@/core/billing/billing";
-import { REFERRAL, referralGenes } from "@/core/billing/prices";
+import { REFERRAL, referralGenes, gens } from "@/core/billing/prices";
+import { notifyUser } from "@/core/notices/notices";
 import { canonicalEmail } from "@/core/auth/domains";
 import { wasDeleted } from "@/core/auth/deletion";
 import { registrationIps } from "@/core/auth/consent";
@@ -316,6 +317,15 @@ export async function rewardOnPayment(args: {
           where referee_email = $1`,
         [args.refereeEmail, args.paidRub, reward],
       );
+      // Молча начислить — значит не начислить: человек не заметит гены на
+      // балансе и решит, что программа не работает. Почту друга не пишем.
+      await notifyUser({
+        email: row.referrer_email,
+        kind: "promo",
+        title: `Вам начислено ${gens(reward)} за приглашённого друга`,
+        body: `Друг, пришедший по вашей ссылке, пополнил баланс на ${args.paidRub} ₽ — вам начислено ${REFERRAL.referrerPercent}% генами. Так будет с каждым его пополнением.`,
+        url: "/invite",
+      });
       console.log(
         `[referral] ${row.referrer_email} получил ${reward} генов с пополнения ${args.refereeEmail} на ${args.paidRub} ₽`,
       );
@@ -352,6 +362,13 @@ export async function rewardOnPayment(args: {
         await releaseFirstTopup(args.refereeEmail);
         return { refereeBonus: 0 };
       }
+      await notifyUser({
+        email: args.refereeEmail,
+        kind: "promo",
+        title: `Бонус по приглашению: ${gens(refereeBonus)}`,
+        body: `Вы пришли по ссылке друга, поэтому к первому пополнению мы добавили ${REFERRAL.refereeFirstTopupPercent}% генами сверх бонуса пакета. Гены уже на балансе.`,
+        url: "/billing",
+      });
       return { refereeBonus };
     } catch (e) {
       await releaseFirstTopup(args.refereeEmail);

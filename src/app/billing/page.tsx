@@ -1,5 +1,6 @@
 "use client";
 import * as React from "react";
+import Link from "next/link";
 import * as Dialog from "@radix-ui/react-dialog";
 import { Dna, Loader2, CreditCard, X, Gift, ShoppingCart, ShieldCheck, Ticket } from "lucide-react";
 import { AppShell } from "@/components/layout/app-shell";
@@ -16,6 +17,7 @@ import {
   PRICES,
   ACTION_LABELS,
   CUSTOM_TOPUP,
+  REFERRAL,
   customTopup,
   gens,
   genWord,
@@ -49,7 +51,15 @@ const TX_LABEL: Record<string, string> = {
 };
 
 export default function BillingPage() {
-  const { balance, role, fetchMe, banners: bannersAllowed } = useProfileStore();
+  const {
+    balance,
+    role,
+    fetchMe,
+    banners: bannersAllowed,
+    referrals: referralsAllowed,
+  } = useProfileStore();
+  // врезка «пригласите коллегу» — показываем только сразу после удачной оплаты
+  const [justPaid, setJustPaid] = React.useState(false);
   const [buying, setBuying] = React.useState<TopupPackage | null>(null);
   const [paying, setPaying] = React.useState(false);
   const [customAmount, setCustomAmount] = React.useState("");
@@ -148,6 +158,9 @@ export default function BillingPage() {
               ? `Оплата прошла — зачислено ${gens(data.sparks)}`
               : "Оплата прошла — гены зачислены",
           );
+          // момент, когда про приглашения уместно сказать: человек только что
+          // заплатил и доволен. Врезка показывается один раз после оплаты.
+          setJustPaid(true);
           loadHistory();
           return;
         }
@@ -231,6 +244,29 @@ export default function BillingPage() {
             </p>
           </CardContent>
         </Card>
+
+        {/* Приглашение коллеге — сразу после оплаты, и только тем, кому раздел
+            доступен: иначе ссылка вела бы на закрытую страницу. */}
+        {justPaid && referralsAllowed && (
+          <Card className="border-primary/30 bg-primary/5">
+            <CardContent className="flex flex-wrap items-center gap-4 p-5">
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-semibold">Понравилось? Позовите коллегу</p>
+                <p className="mt-1 text-[13px] leading-5 text-muted-foreground">
+                  Друг пополнит баланс — вам придёт {REFERRAL.referrerPercent}% генами от его суммы,
+                  и так с каждого его пополнения. Ему — плюс {REFERRAL.refereeFirstTopupPercent}% к
+                  первому пополнению.
+                </p>
+              </div>
+              <Link href="/invite" className="shrink-0">
+                <Button variant="outline">
+                  <Gift className="h-4 w-4" />
+                  Взять ссылку
+                </Button>
+              </Link>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Packages */}
         <div>
