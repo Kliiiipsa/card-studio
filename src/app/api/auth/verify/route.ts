@@ -6,6 +6,7 @@ import { respondWithSession } from "@/core/auth/cookies";
 import { grantWelcomeBonus } from "@/core/billing/welcome";
 import { recordConsent } from "@/core/auth/consent";
 import { recordMarketingConsent } from "@/core/auth/marketing-consent";
+import { linkSignup } from "@/core/referrals/referrals";
 import { clientIp } from "@/lib/request-ip";
 import { enforceRateLimit } from "@/lib/rate-limit";
 
@@ -16,6 +17,8 @@ const schema = z.object({
   code: z.string().regex(/^\d{6}$/, "Код — 6 цифр из письма."),
   /** необязательная галочка «получать советы и новости» с формы регистрации */
   newsletter: z.boolean().optional(),
+  /** код пригласившего из ссылки /r/CODE — необязательно */
+  ref: z.string().max(12).optional(),
 });
 
 export async function POST(req: Request) {
@@ -48,7 +51,12 @@ export async function POST(req: Request) {
             userAgent: req.headers.get("user-agent"),
           });
         }
-        const balance = await grantWelcomeBonus(result.user.email);
+        const welcome = await grantWelcomeBonus(result.user.email);
+        // приглашение по ссылке друга: связь + бонус приглашённому (идемпотентно)
+        const ref = body.ref
+          ? await linkSignup({ refereeEmail: result.user.email, code: body.ref, ip })
+          : { bonus: 0 };
+        const balance = ref.bonus ? (welcome ?? 0) + ref.bonus : welcome;
         return respondWithSession({ ok: true, balance: balance ?? undefined }, result.user);
       }
       case "invalid":

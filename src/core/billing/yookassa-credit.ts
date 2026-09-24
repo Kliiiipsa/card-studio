@@ -1,6 +1,7 @@
 import { applyTx } from "@/core/billing/billing";
 import { getPayment, type YooPayment } from "@/core/billing/yookassa";
 import { markTopupBonusUsed } from "@/core/billing/promo";
+import { rewardOnFirstPayment } from "@/core/referrals/referrals";
 
 /**
  * Проверить платёж у ЮKassa и зачислить гены. Идемпотентно: reference
@@ -47,8 +48,15 @@ export async function verifyAndCredit(paymentId: string): Promise<{
     reference: `yk-${payment.id}`,
     comment:
       `ЮKassa: ${payment.amount.value} ₽` +
-      (totalBonus > 0 ? ` (+${totalBonus} бонус${promoGranted ? `, промокод ${promoCode}` : ""})` : "") +
+      (totalBonus > 0
+        ? ` (+${totalBonus} бонус${promoGranted ? `, промокод ${promoCode}` : ""})`
+        : "") +
       `, платёж ${payment.id}`,
   });
+  // Приглашённый впервые заплатил настоящими деньгами — награждаем
+  // пригласившего. Идемпотентно (reference + флаг payout_granted), поэтому
+  // безопасно вызывать на каждом зачислении; ошибки не влияют на платёж.
+  if (applied) await rewardOnFirstPayment(email).catch(() => undefined);
+
   return { payment, credited: applied, sparksTotal: sparks + totalBonus, balance };
 }

@@ -14,6 +14,7 @@ import {
   Clapperboard,
   Scale,
   Megaphone,
+  Gift,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -31,6 +32,7 @@ export const NAV: NavItem[] = [
   { href: "/analysis", label: "Анализ и улучшение", icon: ScanSearch },
   { href: "/compare", label: "Сравнение карточек", icon: Scale },
   { href: "/cards", label: "Мои карточки", icon: Images },
+  { href: "/invite", label: "Пригласить друга", icon: Gift, badge: "новое" },
   { href: "/help", label: "Как это работает", icon: CircleHelp },
 ];
 

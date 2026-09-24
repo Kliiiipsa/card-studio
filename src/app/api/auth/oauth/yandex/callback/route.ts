@@ -5,6 +5,7 @@ import { normalizeEmail } from "@/core/auth/domains";
 import { recordConsent } from "@/core/auth/consent";
 import { saveAttribution } from "@/core/analytics/attribution";
 import { grantWelcomeBonus } from "@/core/billing/welcome";
+import { linkSignup } from "@/core/referrals/referrals";
 import { createSessionToken, SESSION_COOKIE, SESSION_MAX_AGE } from "@/core/auth/session";
 import { clientIp } from "@/lib/request-ip";
 
@@ -69,6 +70,16 @@ export async function GET(req: Request) {
         userAgent: req.headers.get("user-agent"),
       }).catch(() => undefined);
       await grantWelcomeBonus(email).catch(() => undefined);
+      // приглашение по ссылке друга: код лежит в cookie kg_ref (localStorage
+      // серверу не виден, а вход через Яндекс ID идёт целиком на сервере)
+      // имя cookie дублируем строкой, как kg_attr выше: lib/referral.ts —
+      // клиентский модуль, и его экспорты на сервере становятся прокси
+      const refCode = readCookie(req, "kg_ref");
+      if (refCode) {
+        await linkSignup({ refereeEmail: email, code: refCode, ip: clientIp(req) }).catch(
+          () => undefined,
+        );
+      }
       // Источник (UTM) — из cookie kg_attr, которую пишет клиент при заходе с
       // рекламной ссылки (localStorage серверу не виден). First-touch на email.
       const rawAttr = readCookie(req, "kg_attr");

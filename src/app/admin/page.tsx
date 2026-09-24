@@ -457,6 +457,19 @@ export default function AdminPage() {
   const [report, setReport] = React.useState<CostReport | null>(null);
   const [sources, setSources] = React.useState<SourceRow[] | null>(null);
   // «Расходы»: подарочные гены по дням и их себестоимость
+  // «Приведи друга»: кто кого привёл и сколько на этом заработал
+  type RefRow = {
+    referrer: string;
+    signups: number;
+    paid: number;
+    earned: number;
+    suspicious: number;
+    lastAt: string | null;
+  };
+  const [refs, setRefs] = React.useState<{
+    rows: RefRow[];
+    totals: { signups: number; paid: number; earned: number; suspicious: number } | null;
+  } | null>(null);
   const [spend, setSpend] = React.useState<SpendReport | null>(null);
   const [spendDays, setSpendDays] = React.useState<7 | 30 | 90>(30);
   const [spendAll, setSpendAll] = React.useState(false);
@@ -497,6 +510,10 @@ export default function AdminPage() {
         .then((r) => r.json())
         .then((d) => setTgStats(d?.users ? d : null))
         .catch(() => setTgStats(null)),
+      fetch("/api/admin/referrals")
+        .then((r) => r.json())
+        .then((d) => setRefs(Array.isArray(d?.rows) ? d : null))
+        .catch(() => setRefs(null)),
     ]).finally(() => setReportLoading(false));
   }, []);
   const downloadReceipts = async () => {
@@ -1606,6 +1623,96 @@ export default function AdminPage() {
                         в личном кабинете fal.ai.
                       </p>
                     </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* «Приведи друга»: кто приглашает и сколько это приносит */}
+              <Card>
+                <CardContent className="space-y-3 p-4">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-sm font-medium">Приглашения друзей</p>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={loadReport}
+                      disabled={reportLoading}
+                    >
+                      {reportLoading ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <RefreshCw className="h-3.5 w-3.5" />
+                      )}
+                      Обновить
+                    </Button>
+                  </div>
+                  {refs === null ? (
+                    <p className="text-xs text-muted-foreground">
+                      {reportLoading ? "Считаем…" : "Нажмите «Обновить», чтобы посчитать."}
+                    </p>
+                  ) : refs.rows.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">
+                      Приглашений пока нет. Ссылка у каждого пользователя в разделе «Пригласить
+                      друга».
+                    </p>
+                  ) : (
+                    <>
+                      <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                        <dt className="text-muted-foreground">Пришло по приглашениям</dt>
+                        <dd className="text-right font-medium">{refs.totals?.signups ?? 0} чел.</dd>
+                        <dt className="text-muted-foreground">Из них оплатили</dt>
+                        <dd className="text-right font-medium">{refs.totals?.paid ?? 0} чел.</dd>
+                        <dt className="text-muted-foreground">Выплачено пригласившим</dt>
+                        <dd className="text-right font-medium">
+                          {(refs.totals?.earned ?? 0).toLocaleString("ru-RU")} 🧬
+                        </dd>
+                        {(refs.totals?.suspicious ?? 0) > 0 && (
+                          <>
+                            <dt className="text-amber-600 dark:text-amber-400">
+                              Подозрительных связей
+                            </dt>
+                            <dd className="text-right font-medium text-amber-600 dark:text-amber-400">
+                              {refs.totals?.suspicious}
+                            </dd>
+                          </>
+                        )}
+                      </dl>
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-sm">
+                          <thead>
+                            <tr className="border-b text-left text-xs text-muted-foreground">
+                              <th className="py-2 pr-4 font-medium">Кто пригласил</th>
+                              <th className="py-2 pr-4 text-right font-medium">Пришло</th>
+                              <th className="py-2 pr-4 text-right font-medium">Оплатили</th>
+                              <th className="py-2 text-right font-medium">Начислено</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {refs.rows.map((r) => (
+                              <tr key={r.referrer} className="border-b last:border-0">
+                                <td className="py-2 pr-4">
+                                  {r.referrer}
+                                  {r.suspicious > 0 && (
+                                    <span className="ml-1.5 text-xs text-amber-600 dark:text-amber-400">
+                                      ({r.suspicious} подозр.)
+                                    </span>
+                                  )}
+                                </td>
+                                <td className="py-2 pr-4 text-right tabular-nums">{r.signups}</td>
+                                <td className="py-2 pr-4 text-right tabular-nums">{r.paid}</td>
+                                <td className="py-2 text-right tabular-nums">{r.earned} 🧬</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                      <p className="text-[11px] leading-4 text-muted-foreground">
+                        Награда пригласившему начисляется только после первой реальной оплаты
+                        приглашённого. «Подозр.» — совпал IP регистрации с пригласившим или аккаунт
+                        уже удалялся: бонус и выплата по такой связи не начисляются, при ложном
+                        срабатывании начислите гены вручную во вкладке «Пользователи».
+                      </p>
+                    </>
                   )}
                 </CardContent>
               </Card>

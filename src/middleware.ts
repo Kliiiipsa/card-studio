@@ -50,6 +50,7 @@ export async function middleware(req: NextRequest) {
     pathname === "/api/public/quick-check" || // её API: свои лимиты по IP + дневной потолок
     pathname === "/api/tg/webhook" || // Telegram-бот: свой секрет в заголовке, без сессии
     pathname === "/tg" || // ссылка из бота: счётчик переходов + редирект на главную с UTM
+    pathname.startsWith("/r/") || // реферальная ссылка: счётчик + редирект на главную с ?ref=
     pathname === "/blog" ||
     pathname.startsWith("/blog/") || // блог — публичный контент для поиска и нейровыдачи
     pathname.startsWith("/login") ||

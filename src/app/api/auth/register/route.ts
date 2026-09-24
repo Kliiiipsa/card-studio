@@ -8,6 +8,7 @@ import { respondWithSession } from "@/core/auth/cookies";
 import { grantWelcomeBonus } from "@/core/billing/welcome";
 import { recordConsent } from "@/core/auth/consent";
 import { saveAttribution } from "@/core/analytics/attribution";
+import { linkSignup } from "@/core/referrals/referrals";
 import { clientIp } from "@/lib/request-ip";
 import { enforceRateLimit } from "@/lib/rate-limit";
 
@@ -21,6 +22,8 @@ const schema = z.object({
     .max(72, "Пароль слишком длинный."),
   inviteCode: z.string().max(64).optional(),
   acceptTerms: z.boolean().optional(),
+  /** код пригласившего из ссылки /r/CODE — необязательно */
+  ref: z.string().max(12).optional(),
   // источник перехода (UTM) для атрибуции по каналам — необязательно
   attribution: z
     .object({
@@ -105,8 +108,16 @@ export async function POST(req: Request) {
         ip,
         userAgent: req.headers.get("user-agent"),
       });
-      const balance = await grantWelcomeBonus(email);
-      return respondWithSession({ registered: true, balance: balance ?? undefined }, confirmed.user);
+      const welcome = await grantWelcomeBonus(email);
+      // приглашение по ссылке друга: связь + бонус приглашённому (идемпотентно)
+      const ref = body.ref
+        ? await linkSignup({ refereeEmail: email, code: body.ref, ip })
+        : { bonus: 0 };
+      const balance = ref.bonus ? (welcome ?? 0) + ref.bonus : welcome;
+      return respondWithSession(
+        { registered: true, balance: balance ?? undefined },
+        confirmed.user,
+      );
     }
 
     if (isSmtpConfigured()) {

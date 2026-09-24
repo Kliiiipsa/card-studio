@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Loader2, MailCheck, UserPlus, Eye, EyeOff } from "lucide-react";
 import { reachGoal, GOALS } from "@/components/analytics/yandex-metrica";
 import { getAttribution } from "@/lib/attribution";
+import { getReferral } from "@/lib/referral";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -73,6 +74,7 @@ export default function RegisterPage() {
         inviteCode: inviteCode.trim() || undefined,
         acceptTerms: agreed,
         attribution: getAttribution(),
+        ref: getReferral(),
       })) as {
         sent?: boolean;
         devCode?: string;
@@ -105,7 +107,12 @@ export default function RegisterPage() {
     setError(null);
     setBusy(true);
     try {
-      await post("/api/auth/verify", { email: email.trim(), code: code.trim(), newsletter });
+      await post("/api/auth/verify", {
+        email: email.trim(),
+        code: code.trim(),
+        newsletter,
+        ref: getReferral(),
+      });
       reachGoal(GOALS.register);
       router.replace("/dashboard");
       router.refresh();
@@ -209,11 +216,19 @@ export default function RegisterPage() {
                 />
                 <span>
                   Я принимаю{" "}
-                  <Link href="/terms" target="_blank" className="font-medium text-primary hover:underline">
+                  <Link
+                    href="/terms"
+                    target="_blank"
+                    className="font-medium text-primary hover:underline"
+                  >
                     Пользовательское соглашение
                   </Link>{" "}
                   и даю согласие на обработку персональных данных согласно{" "}
-                  <Link href="/privacy" target="_blank" className="font-medium text-primary hover:underline">
+                  <Link
+                    href="/privacy"
+                    target="_blank"
+                    className="font-medium text-primary hover:underline"
+                  >
                     Политике
                   </Link>
                   .
