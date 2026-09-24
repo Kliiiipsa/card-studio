@@ -4,6 +4,7 @@ import { sessionFromRequest } from "@/core/auth/session";
 import { billingEnabled, getBalance } from "@/core/billing/billing";
 import { photoFixEnabled, photoV2Enabled } from "@/core/ai/photo-fix";
 import { bannersEnabled } from "@/core/banners/banner-service";
+import { referralsVisible } from "@/core/referrals/referrals";
 
 export const runtime = "nodejs";
 
@@ -24,6 +25,8 @@ export async function GET(req: Request) {
       photoV2: photoV2Enabled(session.role),
       // «Рекламные баннеры» — новый раздел, пока только админ (BANNERS=all раскатает)
       banners: bannersEnabled(session.role),
+      // «Пригласить друга» — закрыт до проверки цепочки начислений (REFERRALS=all)
+      referrals: referralsVisible(session.role),
     });
   } catch (err) {
     return fail(err);

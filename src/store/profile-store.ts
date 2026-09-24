@@ -16,6 +16,8 @@ type ProfileState = {
   photoV2: boolean;
   /** раздел «Рекламные баннеры» доступен этому аккаунту (гейт на сервере) */
   banners: boolean;
+  /** раздел «Пригласить друга» доступен этому аккаунту (гейт на сервере) */
+  referrals: boolean;
   loaded: boolean;
   fetchMe: () => Promise<void>;
   setBalance: (balance: number) => void;
@@ -29,6 +31,7 @@ export const useProfileStore = create<ProfileState>((set, get) => ({
   photoFix: false,
   photoV2: false,
   banners: false,
+  referrals: false,
   loaded: false,
   fetchMe: async () => {
     try {
@@ -41,6 +44,7 @@ export const useProfileStore = create<ProfileState>((set, get) => ({
         photoFix?: boolean;
         photoV2?: boolean;
         banners?: boolean;
+        referrals?: boolean;
       };
       set({
         email: data.email,
@@ -49,6 +53,7 @@ export const useProfileStore = create<ProfileState>((set, get) => ({
         photoFix: !!data.photoFix,
         photoV2: !!data.photoV2,
         banners: !!data.banners,
+        referrals: !!data.referrals,
         loaded: true,
       });
     } catch {
@@ -66,6 +71,7 @@ export const useProfileStore = create<ProfileState>((set, get) => ({
       photoFix: false,
       photoV2: false,
       banners: false,
+      referrals: false,
       loaded: false,
     }),
 }));

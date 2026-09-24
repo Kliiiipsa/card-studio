@@ -55,6 +55,21 @@ export function referralsEnabled(): boolean {
   return Boolean(process.env.DATABASE_URL || process.env.PGHOST);
 }
 
+/**
+ * Видимость раздела «Пригласить друга». 24.09.2026 закрыт по требованию
+ * владельца сразу после выкладки: программа выдаёт гены, и открывать её всем
+ * можно только после ручной проверки цепочки на живом аккаунте.
+ * Раскатка на всех — переменная REFERRALS=all на проде, без выкладки кода
+ * (тот же приём, что у BANNERS и NOTICES).
+ *
+ * Начисления это НЕ выключает: если человек уже перешёл по ссылке админа и
+ * зарегистрировался, связь и бонус отработают — иначе проверить цепочку
+ * было бы невозможно.
+ */
+export function referralsVisible(role?: string | null): boolean {
+  return role === "admin" || process.env.REFERRALS === "all";
+}
+
 let pool: Pool | null = null;
 let schemaReady: Promise<void> | null = null;
 

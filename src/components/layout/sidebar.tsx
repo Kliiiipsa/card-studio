@@ -32,9 +32,21 @@ export const NAV: NavItem[] = [
   { href: "/analysis", label: "Анализ и улучшение", icon: ScanSearch },
   { href: "/compare", label: "Сравнение карточек", icon: Scale },
   { href: "/cards", label: "Мои карточки", icon: Images },
-  { href: "/invite", label: "Пригласить друга", icon: Gift, badge: "новое" },
   { href: "/help", label: "Как это работает", icon: CircleHelp },
 ];
+
+/**
+ * «Пригласить друга» под гейтом (админ или REFERRALS=all). Закрыт 24.09.2026
+ * сразу после выкладки: раздел раздаёт гены, и открывать его всем можно
+ * только после ручной проверки цепочки начислений. Настоящая защита — на
+ * сервере (/api/referrals и сама страница), меню лишь не показывает пункт.
+ */
+const INVITE_ITEM: NavItem = {
+  href: "/invite",
+  label: "Пригласить друга",
+  icon: Gift,
+  badge: "новое",
+};
 
 /**
  * «Рекламные креативы» под гейтом (админ или BANNERS=all — раскатано всем
@@ -52,14 +64,22 @@ const BANNERS_ITEM: NavItem = {
 export function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
   const banners = useProfileStore((s) => s.banners);
+  const referrals = useProfileStore((s) => s.referrals);
   const items = React.useMemo(() => {
-    if (!banners) return NAV;
-    // рядом с «Инфографикой» — соседняя по смыслу услуга
-    const at = NAV.findIndex((i) => i.href === "/infographics");
-    const next = [...NAV];
-    next.splice(at + 1, 0, BANNERS_ITEM);
+    let next = NAV;
+    if (banners) {
+      // рядом с «Инфографикой» — соседняя по смыслу услуга
+      const at = NAV.findIndex((i) => i.href === "/infographics");
+      next = [...NAV];
+      next.splice(at + 1, 0, BANNERS_ITEM);
+    }
+    if (referrals) {
+      const at = next.findIndex((i) => i.href === "/help");
+      next = [...next];
+      next.splice(at < 0 ? next.length : at, 0, INVITE_ITEM);
+    }
     return next;
-  }, [banners]);
+  }, [banners, referrals]);
   return (
     <>
       {items.map((item) => {
