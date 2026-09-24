@@ -85,6 +85,8 @@ function sourceLabel(u: AdminUser): {
 const TX_LABEL: Record<string, string> = {
   welcome: "Бонус",
   topup: "Пополнение",
+  // деньги (topup) и подарки (bonus) разделены с 24.09.2026
+  bonus: "Бонусные гены",
   charge: "Списание",
   refund: "Возврат",
   admin: "Корректировка",

@@ -40,6 +40,9 @@ const PACK_BUTTON: Record<string, { variant: "outline" | "default"; className?: 
 const TX_LABEL: Record<string, string> = {
   welcome: "Бонус за регистрацию",
   topup: "Пополнение",
+  // подарочные гены: бонус пакета, промокод, приглашения — отдельной строкой
+  // с 24.09.2026, до этого бонус пакета входил в сумму «Пополнения»
+  bonus: "Бонусные гены",
   charge: "Списание",
   refund: "Возврат",
   admin: "Корректировка",
