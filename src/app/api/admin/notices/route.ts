@@ -46,6 +46,10 @@ const createSchema = z.object({
     .nullable()
     .optional(),
   banner: z.boolean().optional(),
+  // личное уведомление одному аккаунту (не задано — всем). Для поддержки:
+  // «разобрались с вашей генерацией, гены вернули». В общий список админки
+  // такие не попадают — там только объявления для всех.
+  email: z.string().email().max(200).nullable().optional(),
   expiresAt: z.string().nullable().optional(),
 });
 
