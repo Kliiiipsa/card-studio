@@ -372,6 +372,149 @@ function FieldRow({ field }: { field: Field }) {
   );
 }
 
+type RefundEstimate = {
+  paidRub: number;
+  servicesRub: number;
+  bonusGenes: number;
+  refundableRub: number;
+  balance: number;
+};
+
+/**
+ * Возврат денег по заявлению (оферта п. 9.9–9.12).
+ *
+ * Деньги возвращаются руками в кабинете ЮKassa — здесь оформляются
+ * последствия: остаток генов аннулируется, реферальные начисления с платежа
+ * откатываются. Без этого шага человек получал назад деньги и оставался с
+ * генами, за которые их вернули.
+ *
+ * Сначала «Посчитать» — видно, сколько платил, на сколько получил услуг и
+ * сколько вернуть. Списание только после явного подтверждения.
+ */
+function RefundPanel() {
+  const [email, setEmail] = React.useState("");
+  const [paymentId, setPaymentId] = React.useState("");
+  const [est, setEst] = React.useState<RefundEstimate | null>(null);
+  const [busy, setBusy] = React.useState(false);
+  const [confirming, setConfirming] = React.useState(false);
+
+  const calc = async () => {
+    if (!email.trim()) return;
+    setBusy(true);
+    setEst(null);
+    setConfirming(false);
+    try {
+      const r = await fetch(`/api/admin/refund?email=${encodeURIComponent(email.trim())}`);
+      const d = await r.json();
+      if (!r.ok) throw new Error(d?.error ?? "Не удалось посчитать");
+      setEst(d.data ?? d);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Не удалось посчитать");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const apply = async () => {
+    setBusy(true);
+    try {
+      const r = await fetch("/api/admin/refund", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          email: email.trim(),
+          paymentId: paymentId.trim() || undefined,
+          confirm: true,
+        }),
+      });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d?.error ?? "Не удалось оформить");
+      const res = d.data ?? d;
+      toast.success(
+        `Аннулировано ${res.annulledGenes} генов` +
+          (res.referrals?.length ? `, откачено реферальных: ${res.referrals.length}` : ""),
+      );
+      setEst(null);
+      setConfirming(false);
+      setPaymentId("");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Не удалось оформить");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Card className="mb-4">
+      <CardContent className="space-y-3 p-4">
+        <p className="text-sm font-medium">Возврат денег по заявлению</p>
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <Input
+            placeholder="почта аккаунта"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className="sm:max-w-xs"
+          />
+          <Input
+            placeholder="id платежа ЮKassa (необязательно)"
+            value={paymentId}
+            onChange={(e) => setPaymentId(e.target.value)}
+            className="sm:max-w-xs"
+          />
+          <Button variant="outline" onClick={calc} disabled={busy || !email.trim()}>
+            {busy && <Loader2 className="h-4 w-4 animate-spin" />}
+            Посчитать
+          </Button>
+        </div>
+
+        {est && (
+          <>
+            <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm sm:max-w-md">
+              <dt className="text-muted-foreground">Заплатил деньгами</dt>
+              <dd className="text-right font-medium">{est.paidRub.toLocaleString("ru-RU")} ₽</dd>
+              <dt className="text-muted-foreground">Получил услуг по прайсу</dt>
+              <dd className="text-right font-medium">
+                {est.servicesRub.toLocaleString("ru-RU")} ₽
+              </dd>
+              <dt className="text-muted-foreground">Бонусных генов получено</dt>
+              <dd className="text-right font-medium">
+                {est.bonusGenes.toLocaleString("ru-RU")} 🧬
+              </dd>
+              <dt className="text-muted-foreground">Сейчас на балансе</dt>
+              <dd className="text-right font-medium">{est.balance.toLocaleString("ru-RU")} 🧬</dd>
+              <dt className="font-medium">К возврату</dt>
+              <dd className="text-right text-base font-bold">
+                {est.refundableRub.toLocaleString("ru-RU")} ₽
+              </dd>
+            </dl>
+            <p className="text-xs leading-5 text-muted-foreground">
+              Сначала верните {est.refundableRub.toLocaleString("ru-RU")} ₽ в кабинете ЮKassa, потом
+              нажмите кнопку ниже: она аннулирует остаток {est.balance.toLocaleString("ru-RU")} 🧬
+              {paymentId.trim() ? " и откатит реферальные начисления с указанного платежа" : ""}.
+              Отменяется только ручным начислением обратно.
+            </p>
+            {confirming ? (
+              <div className="flex flex-wrap gap-2">
+                <Button variant="destructive" onClick={apply} disabled={busy}>
+                  {busy && <Loader2 className="h-4 w-4 animate-spin" />}
+                  Да, аннулировать {est.balance.toLocaleString("ru-RU")} 🧬
+                </Button>
+                <Button variant="outline" onClick={() => setConfirming(false)} disabled={busy}>
+                  Отмена
+                </Button>
+              </div>
+            ) : (
+              <Button variant="outline" onClick={() => setConfirming(true)} disabled={busy}>
+                Оформить возврат в учёте
+              </Button>
+            )}
+          </>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function AdminPage() {
   const [users, setUsers] = React.useState<AdminUser[] | null>(null);
   const [txs, setTxs] = React.useState<SparkTransaction[] | null>(null);
@@ -1258,6 +1401,7 @@ export default function AdminPage() {
 
           {/* TRANSACTIONS */}
           <TabsContent value="transactions">
+            <RefundPanel />
             <Card>
               <CardContent className="p-4">
                 <label className="mb-3 flex cursor-pointer select-none items-center gap-1.5 text-xs text-muted-foreground">
