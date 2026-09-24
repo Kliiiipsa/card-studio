@@ -1,5 +1,13 @@
 import "server-only";
-import { applyTx, estimateRefund, getBalance, type RefundEstimate } from "./billing";
+import {
+  applyTx,
+  estimateRefund,
+  getBalance,
+  paymentOwner,
+  recordRefund,
+  type RefundEstimate,
+} from "./billing";
+import { AppError } from "@/lib/errors";
 import { reverseForPayment } from "@/core/referrals/referrals";
 
 /**
@@ -41,6 +49,16 @@ export async function processRefund(args: {
   amountRub?: number;
   comment?: string;
 }): Promise<RefundResult> {
+  // Ошибка в id платежа задела бы чужую реферальную цепочку — проверяем, что
+  // платёж вообще наш и принадлежит этому человеку.
+  if (args.paymentId) {
+    const owner = await paymentOwner(args.paymentId);
+    if (!owner) throw new AppError(`Платёж ${args.paymentId} не найден в журнале.`, 400);
+    if (owner !== args.email) {
+      throw new AppError(`Платёж ${args.paymentId} принадлежит другому аккаунту.`, 400);
+    }
+  }
+
   const estimate = await estimateRefund(args.email);
   const refundedRub = Number.isFinite(args.amountRub as number)
     ? Math.max(0, Math.floor(args.amountRub as number))
@@ -50,17 +68,20 @@ export async function processRefund(args: {
     ? (await reverseForPayment(args.paymentId).catch(() => ({ reversed: [] }))).reversed
     : [];
 
-  // баланс перечитываем: откат реферальных мог его уменьшить
-  const balance = await getBalance(args.email);
+  // Обнуляем остаток. Баланс перечитываем (откат реферальных мог его уменьшить)
+  // и повторяем попытку, если человек успел потратить гены между чтением и
+  // списанием: guardNonNegative в этом случае откатывает операцию целиком.
   let annulledGenes = 0;
-  if (balance > 0) {
-    const { applied } = await applyTx({
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const balance = await getBalance(args.email);
+    if (balance <= 0) break;
+    const { applied, insufficient } = await applyTx({
       email: args.email,
       amount: -balance,
       type: "admin",
-      // привязка к платежу делает повтор безопасным; без платежа хватает даты —
-      // после первого обнуления баланс всё равно ноль и шаг пропускается
-      reference: `refund-annul:${args.email}:${args.paymentId ?? new Date().toISOString().slice(0, 10)}`,
+      // в reference попадает и остаток: повтор с тем же балансом — no-op,
+      // а новая попытка после списания получит свой reference и пройдёт
+      reference: `refund-annul:${args.email}:${args.paymentId ?? new Date().toISOString().slice(0, 10)}:${balance}`,
       comment:
         `Возврат денежных средств ${refundedRub} ₽ по заявлению (оферта п. 9.10–9.11): ` +
         `остаток ${balance} генов аннулирован` +
@@ -68,8 +89,20 @@ export async function processRefund(args: {
         (args.comment ? `. ${args.comment}` : ""),
       guardNonNegative: true,
     });
-    if (applied) annulledGenes = balance;
+    if (applied) {
+      annulledGenes = balance;
+      break;
+    }
+    if (!insufficient) break; // повтор той же операции — уже применена
   }
+
+  await recordRefund({
+    email: args.email,
+    paymentId: args.paymentId,
+    amountRub: refundedRub,
+    genesAnnulled: annulledGenes,
+    comment: args.comment,
+  });
 
   console.log(
     `[refund] ${args.email}: вернули ${refundedRub} ₽, аннулировали ${annulledGenes} генов` +

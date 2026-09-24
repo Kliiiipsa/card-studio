@@ -1,4 +1,5 @@
 import { Pool } from "pg";
+import { ensureBillingSchema } from "@/core/billing/billing";
 
 /**
  * Атрибуция регистраций по каналам (UTM). Клиент запоминает ПЕРВЫЙ источник
@@ -134,7 +135,9 @@ export type SourceRow = {
  */
 export async function attributionSummary(): Promise<SourceRow[]> {
   if (!enabled()) return [];
-  await ensureSchema();
+  // свои таблицы + таблицы биллинга: запрос читает billing_tx и billing_refunds
+  // чужим пулом, а их создаёт модуль биллинга
+  await Promise.all([ensureSchema(), ensureBillingSchema()]);
   const { rows } = await getPool().query<{
     source: string;
     registrations: string;
@@ -154,15 +157,21 @@ export async function attributionSummary(): Promise<SourceRow[]> {
        from billing_tx
        where type = 'topup' and reference like 'yk-%'
        group by email
+     ),
+     -- возвраты вычитаем из выручки: иначе канал выглядел бы прибыльнее, чем
+     -- есть, и CAC по нему считался бы неверно
+     ref as (
+       select email, sum(amount_rub) as rub from billing_refunds group by email
      )
      select coalesce(a.source, '(без метки)')      as source,
        count(*)::int                               as registrations,
        count(*) filter (where u.verified)::int     as verified,
        count(p.email)::int                         as paying,
-       coalesce(sum(p.rub), 0)::int                as revenue
+       greatest(coalesce(sum(p.rub), 0) - coalesce(sum(r.rub), 0), 0)::int as revenue
      from auth_users u
      left join attr a on a.email = u.email
      left join pay p  on p.email = u.email
+     left join ref r  on r.email = u.email
      where u.role <> 'admin'
      group by 1
      order by paying desc, registrations desc`,

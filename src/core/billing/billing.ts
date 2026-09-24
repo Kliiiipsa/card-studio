@@ -5,7 +5,11 @@ import { Pool } from "pg";
  * (the source of truth for disputes); billing_balance keeps the cached total.
  * When no Postgres is configured (pure-local demo), billing is disabled and
  * everything is free — the callers check `billingEnabled()`.
+ *
+ * Рядом живёт billing_refunds — реестр возвратов денег: сколько кому вернули
+ * и сколько генов при этом аннулировали (оферта п. 9.10–9.11).
  */
+
 /**
  * Тип операции. Разделение topup/bonus введено 2026-09-24 и несёт денежный
  * смысл, а не косметический:
@@ -78,6 +82,21 @@ function ensureSchema(): Promise<void> {
           created_at timestamptz not null default now()
         );
         create index if not exists billing_tx_email_idx on billing_tx (email, created_at desc);
+        -- Реестр возвратов денег (24.09.2026). Нужен, чтобы формула п. 9.10
+        -- помнила, сколько человеку уже вернули: иначе после возврата и нового
+        -- пополнения она предлагала вернуть всю сумму заново, включая бонус
+        -- пакета, и цикл можно было повторять. Заодно это учёт возвратов для
+        -- отчётности — сумма отсюда вычитается из выручки.
+        create table if not exists billing_refunds (
+          id bigserial primary key,
+          email text not null,
+          payment_id text,
+          amount_rub int not null,
+          genes_annulled int not null default 0,
+          comment text,
+          created_at timestamptz not null default now()
+        );
+        create index if not exists billing_refunds_email_idx on billing_refunds (email);
       `);
     })().catch((e) => {
       schemaReady = null;
@@ -85,6 +104,16 @@ function ensureSchema(): Promise<void> {
     });
   }
   return schemaReady;
+}
+
+/**
+ * Гарантировать, что таблицы биллинга созданы. Нужно тем модулям, которые
+ * читают billing_tx / billing_refunds своим пулом (отчёт по источникам): у них
+ * своя ensureSchema, и без этого вызова запрос мог упасть на свежем деплое,
+ * если до него никто не трогал баланс.
+ */
+export async function ensureBillingSchema(): Promise<void> {
+  await ensureSchema();
 }
 
 export async function getBalance(email: string): Promise<number> {
@@ -269,9 +298,11 @@ export async function totalUserBalance(): Promise<{ totalGenes: number; accounts
 }
 
 export type RefundEstimate = {
-  /** рублей реально заплачено через ЮKassa */
+  /** рублей реально заплачено через ЮKassa за всё время */
   paidRub: number;
-  /** стоимость фактически оказанных услуг по прайсу (списания минус возвраты) */
+  /** рублей уже возвращено по прошлым заявлениям */
+  refundedRub: number;
+  /** стоимость фактически оказанных услуг по прайсу (списания минус возвраты генов) */
   servicesRub: number;
   /** сколько подарено бонусных генов — справочно, в расчёт НЕ входит */
   bonusGenes: number;
@@ -279,6 +310,45 @@ export type RefundEstimate = {
   refundableRub: number;
   balance: number;
 };
+
+/**
+ * Чей это платёж ЮKassa. Нужно при оформлении возврата: если владелец ошибётся
+ * в id платежа, откат реферальных начислений задел бы чужую цепочку.
+ */
+export async function paymentOwner(paymentId: string): Promise<string | null> {
+  await ensureSchema();
+  const { rows } = await getPool().query<{ email: string }>(
+    "select email from billing_tx where reference = $1 and type = 'topup'",
+    [`yk-${paymentId}`],
+  );
+  return rows[0]?.email ?? null;
+}
+
+/** Сколько денег человеку уже вернули по прошлым заявлениям. */
+export async function refundedTotal(email: string): Promise<number> {
+  await ensureSchema();
+  const { rows } = await getPool().query<{ total: string | null }>(
+    "select sum(amount_rub)::text as total from billing_refunds where email = $1",
+    [email],
+  );
+  return Number(rows[0]?.total ?? 0);
+}
+
+/** Записать факт возврата в реестр (вызывается из processRefund). */
+export async function recordRefund(args: {
+  email: string;
+  paymentId?: string;
+  amountRub: number;
+  genesAnnulled: number;
+  comment?: string;
+}): Promise<void> {
+  await ensureSchema();
+  await getPool().query(
+    `insert into billing_refunds (email, payment_id, amount_rub, genes_annulled, comment)
+     values ($1, $2, $3, $4, $5)`,
+    [args.email, args.paymentId ?? null, args.amountRub, args.genesAnnulled, args.comment ?? null],
+  );
+}
 
 /**
  * Сколько денег вернуть по заявлению (оферта п. 9.9–9.10).
@@ -296,6 +366,10 @@ export type RefundEstimate = {
  *
  * Потолок по текущему балансу — страховка от ручных списаний админа: если гены
  * уже сняли с баланса, вернуть за них деньги нельзя.
+ *
+ * Уже возвращённые деньги вычитаются из базы (реестр billing_refunds). Без
+ * этого схема повторялась: человек возвращал 1000 ₽, пополнялся снова, и
+ * формула предлагала вернуть 1100 ₽ — весь новый платёж плюс бонус пакета.
  */
 export async function estimateRefund(email: string): Promise<RefundEstimate> {
   await ensureSchema();
@@ -342,9 +416,12 @@ export async function estimateRefund(email: string): Promise<RefundEstimate> {
         break;
     }
   }
-  const balance = await getBalance(email);
-  const refundableRub = Math.max(0, Math.min(paidRub - Math.max(servicesRub, 0), paidRub, balance));
-  return { paidRub, servicesRub: Math.max(servicesRub, 0), bonusGenes, refundableRub, balance };
+  const [balance, refundedRub] = await Promise.all([getBalance(email), refundedTotal(email)]);
+  const services = Math.max(servicesRub, 0);
+  // сколько денег этого человека ещё «не отработано и не возвращено»
+  const left = paidRub - refundedRub;
+  const refundableRub = Math.max(0, Math.min(left - services, left, balance));
+  return { paidRub, refundedRub, servicesRub: services, bonusGenes, refundableRub, balance };
 }
 
 /** balances for the admin table, keyed by email */

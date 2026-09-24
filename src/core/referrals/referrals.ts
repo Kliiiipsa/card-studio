@@ -243,6 +243,15 @@ export async function linkSignup(args: {
   }
 }
 
+/** Вернуть приглашённому право на бонус к первому пополнению. */
+async function releaseFirstTopup(refereeEmail: string): Promise<void> {
+  await getPool()
+    .query(`update referral_signups set first_topup_granted = false where referee_email = $1`, [
+      refereeEmail,
+    ])
+    .catch(() => undefined);
+}
+
 /**
  * Оплата приглашённого — начисляем обе стороны процентом от РУБЛЕЙ платежа.
  *
@@ -334,13 +343,18 @@ export async function rewardOnPayment(args: {
         reference: `ref-first:${args.paymentId}`,
         comment: `Бонус по приглашению: ${REFERRAL.refereeFirstTopupPercent}% к первому пополнению`,
       });
-      return { refereeBonus: first.applied ? refereeBonus : 0 };
+      if (!first.applied) {
+        // Начисления не было — значит запись с таким reference уже есть. Так
+        // бывает после отката возврата: reverseForPayment вернул право на
+        // бонус, а платёж переподтвердили (вебхук или возврат на страницу), и
+        // тот же reference не прошёл повторно. Флаг отпускаем, иначе человек
+        // потеряет свои 15 % и на следующем пополнении тоже.
+        await releaseFirstTopup(args.refereeEmail);
+        return { refereeBonus: 0 };
+      }
+      return { refereeBonus };
     } catch (e) {
-      await getPool()
-        .query(`update referral_signups set first_topup_granted = false where referee_email = $1`, [
-          args.refereeEmail,
-        ])
-        .catch(() => undefined);
+      await releaseFirstTopup(args.refereeEmail);
       throw e;
     }
   } catch (e) {

@@ -374,6 +374,7 @@ function FieldRow({ field }: { field: Field }) {
 
 type RefundEstimate = {
   paidRub: number;
+  refundedRub: number;
   servicesRub: number;
   bonusGenes: number;
   refundableRub: number;
@@ -472,6 +473,14 @@ function RefundPanel() {
             <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm sm:max-w-md">
               <dt className="text-muted-foreground">Заплатил деньгами</dt>
               <dd className="text-right font-medium">{est.paidRub.toLocaleString("ru-RU")} ₽</dd>
+              {est.refundedRub > 0 && (
+                <>
+                  <dt className="text-amber-600 dark:text-amber-400">Уже возвращено раньше</dt>
+                  <dd className="text-right font-medium text-amber-600 dark:text-amber-400">
+                    −{est.refundedRub.toLocaleString("ru-RU")} ₽
+                  </dd>
+                </>
+              )}
               <dt className="text-muted-foreground">Получил услуг по прайсу</dt>
               <dd className="text-right font-medium">
                 {est.servicesRub.toLocaleString("ru-RU")} ₽
