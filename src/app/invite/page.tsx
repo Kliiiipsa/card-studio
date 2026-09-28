@@ -27,6 +27,11 @@ import { REFERRAL, gens, referralGenes } from "@/core/billing/prices";
  *  3. Слово «бонус», а не «награда», «вознаграждение», «комиссия»: по такой
  *     лексике начисление физлицу квалифицируется как плата за оказанную услугу
  *     со всеми налоговыми последствиями. Счётчик — «Начислено бонусов».
+ *
+ * 28.09.2026: рядом со ссылкой показываем сам код. Ссылка запоминается в
+ * браузере друга и теряется при смене устройства; код он введёт руками на
+ * странице баланса. Заодно убраны последние обещания без срока («не перестаёт
+ * работать», «ограничения по времени нет») — то же правило 1.
  */
 
 type Stats = {
@@ -42,7 +47,7 @@ type Stats = {
 export default function InvitePage() {
   const [stats, setStats] = React.useState<Stats | null>(null);
   const [loading, setLoading] = React.useState(true);
-  const [copied, setCopied] = React.useState<"link" | "text" | null>(null);
+  const [copied, setCopied] = React.useState<"link" | "code" | "text" | null>(null);
 
   React.useEffect(() => {
     fetch("/api/referrals")
@@ -53,15 +58,23 @@ export default function InvitePage() {
   }, []);
 
   const shareText = stats
-    ? `Делаю карточки для маркетплейсов в Kartogen: фото товара, инфографика с русским текстом и SEO-тексты за минуты. По моей ссылке дают +${REFERRAL.refereeFirstTopupPercent}% генов к первому пополнению: ${stats.link}`
+    ? `Делаю карточки для маркетплейсов в Kartogen: фото товара, инфографика с русским текстом и SEO-тексты за минуты. По моей ссылке дают +${REFERRAL.refereeFirstTopupPercent}% генов к первому пополнению: ${stats.link}\nЕсли ссылка не сработала, введите код ${stats.code} на странице «Баланс» в поле промокода.`
     : "";
 
-  const copy = async (what: "link" | "text") => {
+  const copy = async (what: "link" | "code" | "text") => {
     if (!stats) return;
     try {
-      await navigator.clipboard.writeText(what === "link" ? stats.link : shareText);
+      await navigator.clipboard.writeText(
+        what === "link" ? stats.link : what === "code" ? stats.code : shareText,
+      );
       setCopied(what);
-      toast.success(what === "link" ? "Ссылка скопирована" : "Текст скопирован");
+      toast.success(
+        what === "link"
+          ? "Ссылка скопирована"
+          : what === "code"
+            ? "Код скопирован"
+            : "Текст скопирован",
+      );
       setTimeout(() => setCopied(null), 2000);
     } catch {
       toast.error("Не удалось скопировать — выделите текст вручную");
@@ -84,10 +97,9 @@ export default function InvitePage() {
                 </h2>
                 <p className="mt-1.5 text-sm leading-6 text-muted-foreground">
                   Друг пополняет баланс — вам приходит {REFERRAL.referrerPercent}% генами от суммы,
-                  которую он заплатил. Не один раз, а с каждого его пополнения, сколько бы их ни
-                  было. Ему тоже выгодно: к первому пополнению он получит +
-                  {REFERRAL.refereeFirstTopupPercent}% генов сверх обычного бонуса пакета.
-                  Количество друзей не ограничено.
+                  которую он заплатил. Не один раз, а с каждого его пополнения. Ему тоже выгодно: к
+                  первому пополнению он получит +{REFERRAL.refereeFirstTopupPercent}% генов сверх
+                  обычного бонуса пакета. Количество друзей не ограничено.
                 </p>
               </div>
             </div>
@@ -97,7 +109,7 @@ export default function InvitePage() {
         {/* Ссылка */}
         <Card>
           <CardContent className="space-y-3 p-5">
-            <p className="text-sm font-medium">Ваша ссылка</p>
+            <p className="text-sm font-medium">Ваша ссылка и код</p>
             {loading ? (
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <Loader2 className="h-4 w-4 animate-spin" /> Готовим ссылку…
@@ -123,14 +135,36 @@ export default function InvitePage() {
                     Копировать
                   </Button>
                 </div>
-                <Button variant="outline" size="sm" onClick={() => copy("text")}>
-                  {copied === "text" ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-                  Скопировать текст для чата
-                </Button>
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                  <div className="flex items-center gap-3 rounded-lg border bg-muted/40 px-3 py-2">
+                    <span className="text-xs text-muted-foreground">Код</span>
+                    <span className="font-mono text-base font-semibold tracking-[0.18em]">
+                      {stats.code}
+                    </span>
+                  </div>
+                  <Button variant="outline" size="sm" onClick={() => copy("code")}>
+                    {copied === "code" ? (
+                      <Check className="h-4 w-4" />
+                    ) : (
+                      <Copy className="h-4 w-4" />
+                    )}
+                    Копировать код
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={() => copy("text")}>
+                    {copied === "text" ? (
+                      <Check className="h-4 w-4" />
+                    ) : (
+                      <Copy className="h-4 w-4" />
+                    )}
+                    Текст для чата
+                  </Button>
+                </div>
                 <p className="text-xs leading-5 text-muted-foreground">
-                  Отправьте ссылку коллеге в личку или в рабочий чат продавцов. Сам код не меняется
-                  и не перестаёт работать. Если размещаете ссылку публично — в описании ролика, в
-                  канале, в посте, — маркировка рекламы на вашей стороне.
+                  Отправьте ссылку коллеге в личку или в рабочий чат продавцов. Если друг зашёл на
+                  сайт сам, без ссылки, пусть введёт код на странице «Баланс» в поле «Промокод или
+                  код приглашения» — сработает так же. Код у вас один и не меняется. Если размещаете
+                  ссылку или код публично — в описании ролика, в канале, в посте, — маркировка
+                  рекламы на вашей стороне.
                 </p>
               </>
             )}
@@ -149,11 +183,11 @@ export default function InvitePage() {
               },
               {
                 icon: Users,
-                label: "Зарегистрировались",
+                label: "Пришли по приглашению",
                 value: stats.signups.toLocaleString("ru-RU"),
                 hint: stats.pendingSignups
                   ? `${stats.pendingSignups} ещё не пополняли баланс`
-                  : "все, кто пришёл по ссылке",
+                  : "по ссылке или по коду",
               },
               {
                 icon: Wallet,
@@ -185,12 +219,12 @@ export default function InvitePage() {
             <ol className="space-y-3">
               {[
                 {
-                  t: "Отправьте ссылку",
-                  d: "Коллеге-продавцу в личку или в рабочий чат. Один раз скопировали — пользуйтесь всегда.",
+                  t: "Отправьте ссылку или код",
+                  d: "Коллеге-продавцу в личку или в рабочий чат. Ссылка и код у вас одни и те же для всех друзей.",
                 },
                 {
                   t: "Друг регистрируется и пробует",
-                  d: "Приветственные гены он получит как все — на пробу их хватает. За саму регистрацию мы не платим ни ему, ни вам: так программа не превращается в накрутку почтовых ящиков.",
+                  d: `Приветственные гены он получит как все — на пробу их хватает. Если он пришёл не по ссылке, он вводит ваш код на странице «Баланс»: на это есть ${REFERRAL.codeWindowDays} дней после регистрации, до первого пополнения. За саму регистрацию мы не платим ни ему, ни вам: так программа не превращается в накрутку почтовых ящиков.`,
                 },
                 {
                   t: "Друг пополняет баланс",
@@ -198,7 +232,7 @@ export default function InvitePage() {
                 },
                 {
                   t: "И дальше — с каждого пополнения",
-                  d: `Второе, третье, десятое пополнение друга приносят вам те же ${REFERRAL.referrerPercent}%. Ограничения по времени или количеству нет.`,
+                  d: `Второе, третье, десятое пополнение друга приносят вам ${REFERRAL.referrerPercent}% по ставке, которая действует в день его оплаты. Число друзей и пополнений не ограничено.`,
                 },
               ].map((s, i) => (
                 <li key={s.t} className="flex gap-3">
@@ -232,11 +266,16 @@ export default function InvitePage() {
                 новых почтовых ящиках.
               </li>
               <li>
-                • Приглашать себя на второй ящик бессмысленно. Мы смотрим на совпадение почты, на
-                регистрацию друга с того же устройства и сетевого адреса, что и у вас, и на
-                повторную регистрацию после удаления аккаунта. Такие связи помечаются и начислений
-                не дают. Если вы с коллегой правда работаете из одного офиса — напишите на
-                admin@kartogen.ru, разберёмся и начислим руками.
+                • Приглашать себя на второй ящик бессмысленно: свой код на своём же аккаунте не
+                работает. Ещё мы смотрим на регистрацию друга с того же сетевого адреса, что и у
+                вас, и на повторную регистрацию после удаления аккаунта. Один такой признак сам по
+                себе ничего не отменяет — коллеги из одного офиса получают бонусы как все. Решение
+                принимаем по совокупности признаков. Если бонус не пришёл, напишите на
+                admin@kartogen.ru: разберёмся и начислим.
+              </li>
+              <li>
+                • Обменяться кодами друг с другом нельзя. Если человек пришёл по вашему приглашению,
+                его код у вас не сработает — в том числе через общего знакомого.
               </li>
               <li>
                 • Гены с приглашений тратятся как обычные, но не выводятся и не возвращаются
@@ -253,8 +292,10 @@ export default function InvitePage() {
                 сохранятся.
               </li>
               <li>
-                • Друг должен перейти именно по вашей ссылке и зарегистрироваться с неё. Если он
-                зарегистрировался раньше, связь не засчитается.
+                • Друг привязывается к вам одним из двух способов: регистрируется по вашей ссылке
+                или вводит ваш код на странице «Баланс». Код можно ввести в течение{" "}
+                {REFERRAL.codeWindowDays} дней после регистрации и только до первого пополнения.
+                Привязка одна: если друг уже пришёл по чьему-то приглашению, сменить её нельзя.
               </li>
             </ul>
             <p className="text-xs text-muted-foreground">

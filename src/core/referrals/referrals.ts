@@ -7,6 +7,15 @@ import { notifyUser } from "@/core/notices/notices";
 import { canonicalEmail } from "@/core/auth/domains";
 import { wasDeleted } from "@/core/auth/deletion";
 import { registrationIps } from "@/core/auth/consent";
+import { getUser } from "@/core/auth/store-pg";
+import {
+  assessSigns,
+  inviteCycleDepth,
+  inviteDeadline,
+  inviteWindowOpen,
+  parseOpenedAt,
+  type InviteSign,
+} from "./invite-rules";
 
 /**
  * Реферальная программа «приведи друга» (схема владельца, 2026-09-24).
@@ -20,11 +29,14 @@ import { registrationIps } from "@/core/auth/consent";
  * из почтовых адресов. Награду, которую нельзя получить без оплаты, накрутить
  * невозможно, а накрутка через настоящую оплату нам выгодна.
  *
- * Антифрод: самоприглашение по канонической почте отсекается, удалённые
- * аккаунты не награждаются повторно, совпадение IP приглашённого с IP
- * регистрации пригласившего помечает связь как подозрительную — начислений по
- * ней нет, но строка видна в админке, и владелец может начислить вручную, если
- * это ложное срабатывание (офис, семья).
+ * Антифрод: самоприглашение по канонической почте отсекается всегда. Совпадение
+ * IP и повторная регистрация после удаления аккаунта — ПРИЗНАКИ, а не запреты
+ * (оферта п. 6.15, решение владельца 28.09.2026): один признак помечает связь в
+ * админке, но начисления идут; два и больше — связь заблокирована до разбора.
+ * Владелец может заблокировать или разблокировать любую связь вручную.
+ *
+ * Привязка двумя путями: по ссылке при регистрации (linkSignup) и кодом,
+ * введённым вручную в поле промокода (applyInviteCode, правила в invite-rules).
  *
  * Все операции идемпотентны: строка связи — по первичному ключу приглашённого,
  * начисления — по уникальному reference в billing_tx (привязан к id платежа).
@@ -123,6 +135,12 @@ function ensureSchema(): Promise<void> {
         alter table referral_signups add column if not exists earned_genes int not null default 0;
         alter table referral_signups add column if not exists payments int not null default 0;
         alter table referral_signups add column if not exists paid_rub int not null default 0;
+        -- Код приглашения и признаки (2026-09-28). suspicious теперь значит
+        -- «помечено, посмотри», а начисления останавливает только blocked.
+        -- reason — какие признаки совпали; via — как человек привязался.
+        alter table referral_signups add column if not exists blocked boolean not null default false;
+        alter table referral_signups add column if not exists reason text;
+        alter table referral_signups add column if not exists via text not null default 'link';
       `);
     })().catch((e) => {
       schemaReady = null;
@@ -152,6 +170,9 @@ export async function getOrCreateCode(email: string): Promise<string | null> {
   // коллизия кода крайне маловероятна (32^6), но обрабатываем
   for (let attempt = 0; attempt < 6; attempt++) {
     const code = makeCode();
+    // Код приглашения вводится в то же поле, что и промокод, и промокод там
+    // главнее — совпавший код приглашения никогда бы не сработал.
+    if (await isPromoCode(code)) continue;
     const ins = await getPool().query<{ code: string }>(
       `insert into referral_codes (email, code) values ($1, $2)
        on conflict (email) do update set code = referral_codes.code
@@ -161,6 +182,18 @@ export async function getOrCreateCode(email: string): Promise<string | null> {
     if (ins.rows[0]) return ins.rows[0].code;
   }
   return null;
+}
+
+/** Занято ли такое название промокодом. Таблицы может ещё не быть — тогда нет. */
+async function isPromoCode(code: string): Promise<boolean> {
+  try {
+    const { rows } = await getPool().query("select 1 from promo_codes where code = $1 limit 1", [
+      code,
+    ]);
+    return Boolean(rows[0]);
+  } catch {
+    return false;
+  }
 }
 
 /** Кому принадлежит код. */
@@ -213,35 +246,253 @@ export async function linkSignup(args: {
     if (canonicalEmail(referrer) === canonicalEmail(args.refereeEmail)) {
       return { linked: false };
     }
-    // повторная регистрация после удаления аккаунта бонусов не даёт
-    const deleted = await wasDeleted(args.refereeEmail).catch(() => false);
-
-    // IP регистрации пригласившего — грубый, но дешёвый признак накрутки
-    let sameIp = false;
-    if (args.ip) {
-      const ips = await registrationIps([referrer]).catch(() => ({}) as Record<string, string>);
-      sameIp = ips[referrer] === args.ip;
-    }
-    const suspicious = sameIp || deleted;
-
-    const inserted = await getPool().query<{ referee_email: string }>(
-      `insert into referral_signups (referee_email, referrer_email, code, ip, suspicious)
-       values ($1, $2, $3, $4, $5)
-       on conflict (referee_email) do nothing
-       returning referee_email`,
-      [args.refereeEmail, referrer, code, args.ip ?? null, suspicious],
+    const verdict = assessSigns(
+      await collectSigns({ referrer, referee: args.refereeEmail, ip: args.ip }),
     );
-    if (!inserted.rows[0]) return { linked: false }; // уже привязан
-    if (suspicious) {
-      console.warn(
-        `[referral] подозрительная связь ${args.refereeEmail} ← ${referrer} (${sameIp ? "тот же IP" : "удалённый аккаунт"}) — начислений по ней не будет`,
-      );
-    }
-    return { linked: true };
+    const inserted = await insertLink({
+      referee: args.refereeEmail,
+      referrer,
+      code,
+      ip: args.ip,
+      via: "link",
+      verdict,
+    });
+    return { linked: inserted };
   } catch (e) {
     console.error("[referral] linkSignup failed:", e);
     return { linked: false };
   }
+}
+
+/**
+ * Какие признаки накрутки совпали у пары. Сами по себе ничего не запрещают —
+ * см. assessSigns. IP сравниваем с адресом регистрации пригласившего: и тот, с
+ * которого пришёл запрос, и тот, с которого регистрировался приглашённый (при
+ * вводе кода это могут быть разные адреса).
+ */
+async function collectSigns(args: {
+  referrer: string;
+  referee: string;
+  ip?: string | null;
+}): Promise<InviteSign[]> {
+  const signs: InviteSign[] = [];
+  const ips = await registrationIps([args.referrer, args.referee]).catch(
+    () => ({}) as Record<string, string>,
+  );
+  const referrerIp = ips[args.referrer];
+  if (referrerIp && (referrerIp === args.ip || referrerIp === ips[args.referee])) signs.push("ip");
+  if (await wasDeleted(args.referee).catch(() => false)) signs.push("deleted");
+  return signs;
+}
+
+async function insertLink(args: {
+  referee: string;
+  referrer: string;
+  code: string;
+  ip?: string | null;
+  via: "link" | "code";
+  verdict: ReturnType<typeof assessSigns>;
+}): Promise<boolean> {
+  const inserted = await getPool().query<{ referee_email: string }>(
+    `insert into referral_signups
+       (referee_email, referrer_email, code, ip, suspicious, blocked, reason, via)
+     values ($1, $2, $3, $4, $5, $6, $7, $8)
+     on conflict (referee_email) do nothing
+     returning referee_email`,
+    [
+      args.referee,
+      args.referrer,
+      args.code,
+      args.ip ?? null,
+      args.verdict.suspicious,
+      args.verdict.blocked,
+      args.verdict.reason,
+      args.via,
+    ],
+  );
+  if (!inserted.rows[0]) return false; // уже привязан
+  if (args.verdict.suspicious) {
+    console.warn(
+      `[referral] связь ${args.referee} ← ${args.referrer} помечена (${args.verdict.reason})` +
+        (args.verdict.blocked ? " и заблокирована до разбора" : ", начисления идут"),
+    );
+  }
+  return true;
+}
+
+/* ----------------------- код приглашения вручную ----------------------- */
+
+/** Отказ по правилам — показываем человеку текстом, это не сбой сервиса. */
+export class InviteCodeError extends Error {}
+/** Такого кода нет. Отдельный класс: только эти отказы считает лимит попыток. */
+export class InviteCodeNotFound extends InviteCodeError {}
+
+/** День открытия программы всем (см. parseOpenedAt). */
+export function referralsOpenedAt(): Date | null {
+  return parseOpenedAt(process.env.REFERRALS_OPENED_AT);
+}
+
+/** Платил ли аккаунт деньгами. Промокоды и подарки оплатой не считаются. */
+async function hasPaid(email: string): Promise<boolean> {
+  const { rows } = await getPool().query(
+    `select 1 from billing_tx where email = $1 and type = 'topup'
+       and reference like 'yk-%' limit 1`,
+    [email],
+  );
+  return Boolean(rows[0]);
+}
+
+async function referrerOf(email: string): Promise<string | null> {
+  const { rows } = await getPool().query<{ referrer_email: string }>(
+    "select referrer_email from referral_signups where referee_email = $1",
+    [email],
+  );
+  return rows[0]?.referrer_email ?? null;
+}
+
+/**
+ * Привязать уже зарегистрированный аккаунт к пригласившему по коду, введённому
+ * вручную. Те же бонусы, что по ссылке; генов за сам ввод не начисляется.
+ *
+ * Порядок проверок выбран так, чтобы человек получал самую понятную причину
+ * отказа: сначала «это ваш код», потом «вы уже привязаны», и только потом
+ * сроки. В отличие от linkSignup БРОСАЕТ InviteCodeError — здесь человек ждёт
+ * ответа, а не регистрируется мимоходом.
+ */
+export async function applyInviteCode(args: {
+  email: string;
+  code: string;
+  ip?: string | null;
+}): Promise<{ message: string; pending: boolean }> {
+  if (!referralsEnabled()) throw new InviteCodeNotFound("Такого кода нет.");
+  await ensureSchema();
+  const code = args.code.trim().toUpperCase();
+  if (!/^[A-Z0-9]{4,12}$/.test(code)) throw new InviteCodeNotFound("Такого кода нет.");
+  const referrer = await codeOwner(code);
+  if (!referrer) throw new InviteCodeNotFound("Такого кода нет.");
+
+  if (canonicalEmail(referrer) === canonicalEmail(args.email)) {
+    throw new InviteCodeError("Это ваш собственный код. Отправьте его другу.");
+  }
+  if (await referrerOf(args.email)) {
+    throw new InviteCodeError("Вы уже пришли по приглашению, второй код применить нельзя.");
+  }
+  if (await hasPaid(args.email)) {
+    throw new InviteCodeError("Код приглашения действует только до первого пополнения.");
+  }
+  const user = await getUser(args.email);
+  if (!user) throw new InviteCodeError("Не нашли ваш аккаунт. Войдите заново и повторите.");
+  if (!inviteWindowOpen(new Date(user.createdAt), referralsOpenedAt())) {
+    throw new InviteCodeError(
+      `Код приглашения можно ввести в течение ${REFERRAL.codeWindowDays} дней после регистрации. Срок истёк.`,
+    );
+  }
+  const depth = await inviteCycleDepth(args.email, referrer, referrerOf);
+  if (depth === 1) {
+    throw new InviteCodeError(
+      "Этот человек пришёл по вашему приглашению, его код применить нельзя.",
+    );
+  }
+  if (depth > 1) {
+    throw new InviteCodeError(
+      "Этот код применить нельзя: его владелец пришёл по цепочке ваших приглашений.",
+    );
+  }
+
+  const verdict = assessSigns(await collectSigns({ referrer, referee: args.email, ip: args.ip }));
+  const inserted = await insertLink({
+    referee: args.email,
+    referrer,
+    code,
+    ip: args.ip,
+    via: "code",
+    verdict,
+  });
+  if (!inserted) {
+    throw new InviteCodeError("Вы уже пришли по приглашению, второй код применить нельзя.");
+  }
+  if (verdict.blocked) {
+    // обещать +15 % нельзя: начислений по заблокированной связи не будет
+    return {
+      pending: false,
+      message:
+        "Код приглашения принят на проверку. Бонус начислим после неё. Вопросы — admin@kartogen.ru.",
+    };
+  }
+  return {
+    pending: true,
+    message: `Код приглашения принят. К первому пополнению добавим +${REFERRAL.refereeFirstTopupPercent}% генов.`,
+  };
+}
+
+export type InviteStatus = {
+  /** аккаунт привязан к пригласившему (по ссылке или коду) */
+  linked: boolean;
+  /** процент, который добавится к ближайшему первому пополнению, иначе null */
+  pendingPercent: number | null;
+  /** можно ли ещё ввести код */
+  canEnter: boolean;
+  /** до какого дня можно ввести код; null — срок ещё не идёт или ввод закрыт */
+  deadline: string | null;
+};
+
+/** Что показать человеку на странице баланса. Никогда не бросает. */
+export async function inviteStatus(email: string): Promise<InviteStatus> {
+  const none: InviteStatus = {
+    linked: false,
+    pendingPercent: null,
+    canEnter: false,
+    deadline: null,
+  };
+  if (!referralsEnabled()) return none;
+  try {
+    await ensureSchema();
+    const { rows } = await getPool().query<{ blocked: boolean; first_topup_granted: boolean }>(
+      "select blocked, first_topup_granted from referral_signups where referee_email = $1",
+      [email],
+    );
+    const link = rows[0];
+    if (link) {
+      return {
+        linked: true,
+        pendingPercent:
+          !link.blocked && !link.first_topup_granted ? REFERRAL.refereeFirstTopupPercent : null,
+        canEnter: false,
+        deadline: null,
+      };
+    }
+    if (await hasPaid(email)) return none;
+    const user = await getUser(email);
+    if (!user) return none;
+    const registeredAt = new Date(user.createdAt);
+    const openedAt = referralsOpenedAt();
+    const deadline = inviteDeadline(registeredAt, openedAt);
+    return {
+      linked: false,
+      pendingPercent: null,
+      canEnter: inviteWindowOpen(registeredAt, openedAt),
+      deadline: deadline ? deadline.toISOString() : null,
+    };
+  } catch (e) {
+    console.error("[referral] inviteStatus failed:", e);
+    return none;
+  }
+}
+
+/**
+ * Ручное решение владельца по связи (оферта п. 6.15): заблокировать начисления
+ * или вернуть их. Уже начисленные гены не трогает — для этого есть откат по
+ * платежу.
+ */
+export async function setLinkBlocked(referee: string, blocked: boolean): Promise<boolean> {
+  if (!referralsEnabled()) return false;
+  await ensureSchema();
+  const { rowCount } = await getPool().query(
+    `update referral_signups set blocked = $2, suspicious = suspicious or $2
+      where referee_email = $1`,
+    [referee.trim().toLowerCase(), blocked],
+  );
+  return (rowCount ?? 0) > 0;
 }
 
 /** Вернуть приглашённому право на бонус к первому пополнению. */
@@ -277,18 +528,20 @@ export async function rewardOnPayment(args: {
     await ensureSchema();
     const { rows } = await getPool().query<{
       referrer_email: string;
-      suspicious: boolean;
+      blocked: boolean;
       first_topup_granted: boolean;
     }>(
-      `select referrer_email, suspicious, first_topup_granted
+      `select referrer_email, blocked, first_topup_granted
          from referral_signups where referee_email = $1`,
       [args.refereeEmail],
     );
     const row = rows[0];
     if (!row) return { refereeBonus: 0 };
-    if (row.suspicious) {
+    // Останавливает начисления только blocked. Пометка suspicious — повод
+    // владельцу посмотреть, а не отказ (оферта п. 6.15).
+    if (row.blocked) {
       console.warn(
-        `[referral] начисления за платёж ${args.paymentId} пропущены: связь ${args.refereeEmail} помечена подозрительной`,
+        `[referral] начисления за платёж ${args.paymentId} пропущены: связь ${args.refereeEmail} заблокирована`,
       );
       return { refereeBonus: 0 };
     }
@@ -323,7 +576,7 @@ export async function rewardOnPayment(args: {
         email: row.referrer_email,
         kind: "promo",
         title: `Вам начислено ${gens(reward)} за приглашённого друга`,
-        body: `Друг, пришедший по вашей ссылке, пополнил баланс на ${args.paidRub} ₽ — вам начислено ${REFERRAL.referrerPercent}% генами. Так будет с каждым его пополнением.`,
+        body: `Друг, пришедший по вашему приглашению, пополнил баланс на ${args.paidRub} ₽ — вам начислено ${REFERRAL.referrerPercent}% генами. Так будет с каждым его пополнением.`,
         url: "/invite",
       });
       console.log(
@@ -366,7 +619,7 @@ export async function rewardOnPayment(args: {
         email: args.refereeEmail,
         kind: "promo",
         title: `Бонус по приглашению: ${gens(refereeBonus)}`,
-        body: `Вы пришли по ссылке друга, поэтому к первому пополнению мы добавили ${REFERRAL.refereeFirstTopupPercent}% генами сверх бонуса пакета. Гены уже на балансе.`,
+        body: `Вы пришли по приглашению друга, поэтому к первому пополнению мы добавили ${REFERRAL.refereeFirstTopupPercent}% генами сверх бонуса пакета. Гены уже на балансе.`,
         url: "/billing",
       });
       return { refereeBonus };
@@ -484,14 +737,74 @@ export async function referralStats(email: string): Promise<ReferralStats | null
   };
 }
 
+/** Помеченная связь — строка для разбора владельцем. */
+export type AdminFlaggedLink = {
+  referee: string;
+  referrer: string;
+  /** какие признаки совпали: «ip», «deleted», «ip,deleted»; null — блок вручную */
+  reason: string | null;
+  via: string;
+  blocked: boolean;
+  paidRub: number;
+  earned: number;
+  createdAt: string;
+};
+
 /** Кто кого привёл — для админки. */
 export async function adminReferralSummary(): Promise<{
   rows: AdminReferralRow[];
-  totals: { signups: number; paid: number; earned: number; paidRub: number; suspicious: number };
+  totals: {
+    signups: number;
+    paid: number;
+    earned: number;
+    paidRub: number;
+    suspicious: number;
+    /** сколько привязок сделано кодом, а не ссылкой */
+    byCode: number;
+    blocked: number;
+  };
+  flagged: AdminFlaggedLink[];
 }> {
   if (!referralsEnabled())
-    return { rows: [], totals: { signups: 0, paid: 0, earned: 0, paidRub: 0, suspicious: 0 } };
+    return {
+      rows: [],
+      totals: { signups: 0, paid: 0, earned: 0, paidRub: 0, suspicious: 0, byCode: 0, blocked: 0 },
+      flagged: [],
+    };
   await ensureSchema();
+  const [flaggedRes, extra] = await Promise.all([
+    getPool().query<{
+      referee_email: string;
+      referrer_email: string;
+      reason: string | null;
+      via: string;
+      blocked: boolean;
+      paid_rub: number;
+      earned_genes: number;
+      created_at: string;
+    }>(
+      `select referee_email, referrer_email, reason, via, blocked, paid_rub, earned_genes, created_at
+         from referral_signups
+        where suspicious or blocked
+        order by created_at desc
+        limit 100`,
+    ),
+    getPool().query<{ by_code: string; blocked: string }>(
+      `select count(*) filter (where via = 'code')::text as by_code,
+              count(*) filter (where blocked)::text as blocked
+         from referral_signups`,
+    ),
+  ]);
+  const flagged: AdminFlaggedLink[] = flaggedRes.rows.map((r) => ({
+    referee: r.referee_email,
+    referrer: r.referrer_email,
+    reason: r.reason,
+    via: r.via,
+    blocked: r.blocked,
+    paidRub: Number(r.paid_rub),
+    earned: Number(r.earned_genes),
+    createdAt: new Date(r.created_at).toISOString(),
+  }));
   const { rows } = await getPool().query<{
     referrer_email: string;
     signups: string;
@@ -530,6 +843,9 @@ export async function adminReferralSummary(): Promise<{
       earned: out.reduce((a, r) => a + r.earned, 0),
       paidRub: out.reduce((a, r) => a + r.paidRub, 0),
       suspicious: out.reduce((a, r) => a + r.suspicious, 0),
+      byCode: Number(extra.rows[0]?.by_code ?? 0),
+      blocked: Number(extra.rows[0]?.blocked ?? 0),
     },
+    flagged,
   };
 }

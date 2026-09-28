@@ -6,6 +6,7 @@ import {
   referralStats,
   referralsEnabled,
   reverseForPayment,
+  setLinkBlocked,
 } from "@/core/referrals/referrals";
 import { getUser } from "@/core/auth/store-pg";
 import { REFERRAL } from "@/core/billing/prices";
@@ -43,17 +44,30 @@ export async function GET(req: Request) {
 }
 
 /**
- * Откат реферальных начислений по возвращённому платежу.
- * Тело: { paymentId: "2f0c…" } — id платежа ЮKassa, за который вернули деньги.
- * Возвраты ручные, поэтому и откат ручной: владелец вызывает его после того,
- * как вернул деньги в кабинете ЮKassa.
+ * Два ручных действия владельца.
+ *
+ * 1. Откат реферальных начислений по возвращённому платежу.
+ *    Тело: { paymentId: "2f0c…" } — id платежа ЮKassa, за который вернули
+ *    деньги. Возвраты ручные, поэтому и откат ручной.
+ * 2. Решение по помеченной связи (оферта п. 6.15).
+ *    Тело: { referee: "почта приглашённого", blocked: true | false } —
+ *    остановить начисления по связи или вернуть их.
  */
 export async function POST(req: Request) {
   try {
     const session = await sessionFromRequest(req);
     if (session?.role !== "admin") throw new AppError("Только для администратора.", 403);
     if (!referralsEnabled()) throw new AppError("Программа недоступна.", 503);
-    const body = (await req.json().catch(() => ({}))) as { paymentId?: string };
+    const body = (await req.json().catch(() => ({}))) as {
+      paymentId?: string;
+      referee?: string;
+      blocked?: boolean;
+    };
+    if (body.referee && typeof body.blocked === "boolean") {
+      const updated = await setLinkBlocked(body.referee, body.blocked);
+      if (!updated) throw new AppError("Такой связи нет — проверьте почту приглашённого.", 404);
+      return ok({ referee: body.referee.trim().toLowerCase(), blocked: body.blocked });
+    }
     const paymentId = body.paymentId?.trim();
     if (!paymentId) throw new AppError("Укажите paymentId платежа ЮKassa.", 400);
     const result = await reverseForPayment(paymentId);

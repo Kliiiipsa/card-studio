@@ -10,6 +10,7 @@ import {
   revokeRedemption,
   releaseTopupBonus,
   promoEnabled,
+  PromoError,
   type PromoGroup,
 } from "@/core/billing/promo";
 import type { SparkAction } from "@/core/billing/prices";
@@ -26,7 +27,11 @@ async function requireAdmin(req: Request) {
 const priceSchema = z.record(z.number().int().min(0).max(10_000));
 
 const createSchema = z.object({
-  code: z.string().min(3).max(40).regex(/^[A-Za-z0-9_-]+$/, "Только латиница, цифры, дефис."),
+  code: z
+    .string()
+    .min(3)
+    .max(40)
+    .regex(/^[A-Za-z0-9_-]+$/, "Только латиница, цифры, дефис."),
   type: z.enum(["sparks", "topup_bonus", "price_list"]),
   group: z.enum(["general", "nsdream"]).default("general"),
   sparks: z.number().int().min(1).max(100_000).optional(),
@@ -80,9 +85,16 @@ export async function POST(req: Request) {
     return ok({ code });
   } catch (err) {
     // уникальный индекс на код
-    if (err && typeof err === "object" && "code" in err && (err as { code: string }).code === "23505") {
+    if (
+      err &&
+      typeof err === "object" &&
+      "code" in err &&
+      (err as { code: string }).code === "23505"
+    ) {
       return fail(new AppError("Такой промокод уже существует."));
     }
+    // название занято кодом приглашения — понятный отказ, а не сбой
+    if (err instanceof PromoError) return fail(new AppError(err.message, 400));
     return fail(err);
   }
 }

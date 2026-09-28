@@ -8,7 +8,8 @@ import { getPool } from "./store-pg";
  */
 // 2026-09-24: в оферту добавлены формула расчёта возврата (п. 9.10–9.11) и
 // условия реферальной программы (п. 6.11–6.17)
-export const LEGAL_VERSION = "2026-09-24";
+// 2026-09-28: код приглашения, срок его ввода и запрет взаимных связей (п. 6.12)
+export const LEGAL_VERSION = "2026-09-28";
 
 let ready: Promise<void> | null = null;
 function ensure(): Promise<void> {

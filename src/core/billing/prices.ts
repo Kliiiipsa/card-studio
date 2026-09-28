@@ -5,6 +5,8 @@
  * переименование только клиентское.
  * Pure module — safe for both client (price tags on buttons) and server.
  */
+import { INVITE_CODE_DAYS } from "@/core/referrals/invite-rules";
+
 export const SPARK = "🧬";
 
 /** Склонение: 1 ген, 2 гена, 5 генов, 11 генов, 21 ген. */
@@ -148,6 +150,8 @@ export const REFERRAL = {
    * как обман и отталкивает сильнее, чем стоит сэкономленный бонус).
    */
   refereeFirstTopupPercent: 15,
+  /** сколько дней после регистрации можно ввести код приглашения вручную */
+  codeWindowDays: INVITE_CODE_DAYS,
 } as const;
 
 /**

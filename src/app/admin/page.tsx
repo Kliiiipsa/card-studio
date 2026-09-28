@@ -36,6 +36,7 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { toast } from "@/components/ui/toaster";
 import { ACTION_LABELS, PRICES } from "@/core/billing/prices";
+import { SIGN_LABEL } from "@/core/referrals/invite-rules";
 import type { SparkTransaction } from "@/core/billing/billing";
 import { cn } from "@/lib/utils";
 import { ALL_VIDEO_PRESETS } from "@/core/video/presets";
@@ -622,6 +623,17 @@ export default function AdminPage() {
     suspicious: number;
     lastAt: string | null;
   };
+  /** помеченная связь: совпал признак накрутки или владелец заблокировал сам */
+  type RefFlagged = {
+    referee: string;
+    referrer: string;
+    reason: string | null;
+    via: string;
+    blocked: boolean;
+    paidRub: number;
+    earned: number;
+    createdAt: string;
+  };
   const [refs, setRefs] = React.useState<{
     rows: RefRow[];
     totals: {
@@ -630,8 +642,12 @@ export default function AdminPage() {
       earned: number;
       paidRub: number;
       suspicious: number;
+      byCode?: number;
+      blocked?: number;
     } | null;
+    flagged?: RefFlagged[];
   } | null>(null);
+  const [refBusy, setRefBusy] = React.useState<string | null>(null);
   const [spend, setSpend] = React.useState<SpendReport | null>(null);
   const [spendDays, setSpendDays] = React.useState<7 | 30 | 90>(30);
   const [spendAll, setSpendAll] = React.useState(false);
@@ -678,6 +694,30 @@ export default function AdminPage() {
         .catch(() => setRefs(null)),
     ]).finally(() => setReportLoading(false));
   }, []);
+  /** Остановить или вернуть начисления по связи (оферта п. 6.15). */
+  const setRefBlocked = async (referee: string, blocked: boolean) => {
+    const question = blocked
+      ? `Остановить начисления по связи с ${referee}? Уже начисленные гены останутся.`
+      : `Вернуть начисления по связи с ${referee}?`;
+    if (!window.confirm(question)) return;
+    setRefBusy(referee);
+    try {
+      const res = await fetch("/api/admin/referrals", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ referee, blocked }),
+      });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        throw new Error(d.error ?? "Не удалось изменить связь");
+      }
+      loadReport();
+    } catch (e) {
+      window.alert(e instanceof Error ? e.message : "Не удалось изменить связь");
+    } finally {
+      setRefBusy(null);
+    }
+  };
   const downloadReceipts = async () => {
     setDownloading(true);
     try {
@@ -1833,13 +1873,18 @@ export default function AdminPage() {
                         <dd className="text-right font-medium">
                           {(refs.totals?.earned ?? 0).toLocaleString("ru-RU")} 🧬
                         </dd>
+                        <dt className="text-muted-foreground">Привязались кодом, не ссылкой</dt>
+                        <dd className="text-right font-medium">{refs.totals?.byCode ?? 0} чел.</dd>
                         {(refs.totals?.suspicious ?? 0) > 0 && (
                           <>
                             <dt className="text-amber-600 dark:text-amber-400">
-                              Подозрительных связей
+                              Помеченных связей
                             </dt>
                             <dd className="text-right font-medium text-amber-600 dark:text-amber-400">
                               {refs.totals?.suspicious}
+                              {(refs.totals?.blocked ?? 0) > 0
+                                ? `, из них остановлено ${refs.totals?.blocked}`
+                                : ""}
                             </dd>
                           </>
                         )}
@@ -1862,7 +1907,7 @@ export default function AdminPage() {
                                   {r.referrer}
                                   {r.suspicious > 0 && (
                                     <span className="ml-1.5 text-xs text-amber-600 dark:text-amber-400">
-                                      ({r.suspicious} подозр.)
+                                      ({r.suspicious} помеч.)
                                     </span>
                                   )}
                                 </td>
@@ -1877,14 +1922,67 @@ export default function AdminPage() {
                           </tbody>
                         </table>
                       </div>
+                      {(refs.flagged?.length ?? 0) > 0 && (
+                        <div className="overflow-x-auto">
+                          <p className="mb-1.5 text-xs font-medium text-amber-600 dark:text-amber-400">
+                            Помеченные связи
+                          </p>
+                          <table className="w-full text-sm">
+                            <thead>
+                              <tr className="border-b text-left text-xs text-muted-foreground">
+                                <th className="py-2 pr-4 font-medium">Приглашённый</th>
+                                <th className="py-2 pr-4 font-medium">Кто пригласил</th>
+                                <th className="py-2 pr-4 font-medium">Признак</th>
+                                <th className="py-2 pr-4 text-right font-medium">Пополнил</th>
+                                <th className="py-2 text-right font-medium">Начисления</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {refs.flagged?.map((f) => (
+                                <tr key={f.referee} className="border-b last:border-0">
+                                  <td className="py-2 pr-4">
+                                    {f.referee}
+                                    <span className="ml-1.5 text-xs text-muted-foreground">
+                                      {f.via === "code" ? "код" : "ссылка"}
+                                    </span>
+                                  </td>
+                                  <td className="py-2 pr-4">{f.referrer}</td>
+                                  <td className="py-2 pr-4 text-xs">
+                                    {f.reason
+                                      ? f.reason
+                                          .split(",")
+                                          .map((s) => SIGN_LABEL[s] ?? s)
+                                          .join(" + ")
+                                      : "остановлено вручную"}
+                                  </td>
+                                  <td className="py-2 pr-4 text-right tabular-nums">
+                                    {f.paidRub.toLocaleString("ru-RU")} ₽
+                                  </td>
+                                  <td className="py-2 text-right">
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      disabled={refBusy === f.referee}
+                                      onClick={() => setRefBlocked(f.referee, !f.blocked)}
+                                    >
+                                      {f.blocked ? "Вернуть" : "Остановить"}
+                                    </Button>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
                       <p className="text-[11px] leading-4 text-muted-foreground">
                         За регистрацию не платим никому. Пригласившему идёт процент с каждого
                         пополнения друга, приглашённому — процент к первому; база — рубли платежа,
-                        без бонусов пакета и промокодов. «Подозр.» — совпал IP регистрации с
-                        пригласившим или аккаунт уже удалялся: начислений по такой связи нет, при
-                        ложном срабатывании начислите гены вручную во вкладке «Пользователи». Если
-                        вернули деньги за пополнение, откатите начисления: POST /api/admin/referrals
-                        с телом {"{ paymentId }"}.
+                        без бонусов пакета и промокодов. Привязаться можно по ссылке или кодом на
+                        странице баланса. «Помеч.» — совпал сетевой адрес с пригласившим или аккаунт
+                        уже удалялся. Один признак начислений не останавливает (оферта п. 6.15), два
+                        сразу — останавливают до вашего решения; кнопка в таблице выше меняет его в
+                        любую сторону. Если вернули деньги за пополнение, оформите возврат на
+                        вкладке «Транзакции» — начисления откатятся вместе с ним.
                       </p>
                     </>
                   )}

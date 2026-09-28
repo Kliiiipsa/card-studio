@@ -19,6 +19,7 @@ import {
   CUSTOM_TOPUP,
   REFERRAL,
   customTopup,
+  referralGenes,
   gens,
   genWord,
   type TopupPackage,
@@ -80,6 +81,25 @@ export default function BillingPage() {
   const promoPercent = perks?.pendingBonusPercent ?? 0;
   const promoFor = (sparks: number) =>
     promoPercent ? Math.round((sparks * promoPercent) / 100) : 0;
+  // Приглашение друга: привязан ли аккаунт и можно ли ещё ввести код. Статус
+  // показываем всем привязанным, даже пока раздел закрыт — иначе человек ввёл
+  // код, а подтверждения, что бонус его ждёт, нигде нет.
+  const [invite, setInvite] = React.useState<{
+    linked: boolean;
+    pendingPercent: number | null;
+    canEnter: boolean;
+    deadline: string | null;
+  } | null>(null);
+  const invitePercent = invite?.pendingPercent ?? 0;
+  // считается от рублей платежа, как и на сервере (referralGenes)
+  const inviteFor = (priceRub: number) =>
+    invitePercent ? referralGenes(priceRub, invitePercent) : 0;
+  const extraFor = (p: { sparks: number; priceRub: number }) =>
+    promoFor(p.sparks) + inviteFor(p.priceRub);
+  const extraLabel = invitePercent ? "С вашими бонусами" : "С промокодом";
+  const inviteDeadline = invite?.deadline
+    ? new Date(invite.deadline).toLocaleDateString("ru-RU", { day: "numeric", month: "long" })
+    : null;
   const [history, setHistory] = React.useState<SparkTransaction[] | null>(null);
 
   const loadHistory = React.useCallback(() => {
@@ -92,7 +112,10 @@ export default function BillingPage() {
   const loadPerks = React.useCallback(() => {
     fetch("/api/billing/promo")
       .then((r) => r.json())
-      .then((d) => setPerks(d.perks ?? null))
+      .then((d) => {
+        setPerks(d.perks ?? null);
+        setInvite(d.invite ?? null);
+      })
       .catch(() => undefined);
   }, []);
 
@@ -107,15 +130,15 @@ export default function BillingPage() {
         body: JSON.stringify({ code }),
       });
       const data = (await res.json()) as { message?: string; balance?: number; error?: string };
-      if (!res.ok) throw new Error(data.error ?? "Не удалось применить промокод");
+      if (!res.ok) throw new Error(data.error ?? "Не удалось применить код");
       if (typeof data.balance === "number") useProfileStore.getState().setBalance(data.balance);
       reachGoal(GOALS.promo, { code });
-      toast.success(data.message ?? "Промокод применён");
+      toast.success(data.message ?? "Код применён");
       setPromo("");
       loadPerks();
       loadHistory();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Не удалось применить промокод");
+      toast.error(e instanceof Error ? e.message : "Не удалось применить код");
     } finally {
       setRedeeming(false);
     }
@@ -162,6 +185,8 @@ export default function BillingPage() {
           // заплатил и доволен. Врезка показывается один раз после оплаты.
           setJustPaid(true);
           loadHistory();
+          // бонус по приглашению и бонус промокода уже истрачены на этот платёж
+          loadPerks();
           return;
         }
         if (res.ok && data.status === "canceled") {
@@ -180,7 +205,7 @@ export default function BillingPage() {
     return () => {
       cancelled = true;
     };
-  }, [loadHistory]);
+  }, [loadHistory, loadPerks]);
 
   const pay = async () => {
     if (!buying) return;
@@ -286,9 +311,9 @@ export default function BillingPage() {
                   </p>
                   <div className="space-y-0.5">
                     <p className="text-sm text-muted-foreground">{p.priceRub} ₽</p>
-                    {promoFor(p.sparks) > 0 && (
+                    {extraFor(p) > 0 && (
                       <p className="text-xs font-medium text-emerald-600 dark:text-emerald-400">
-                        С промокодом: {p.sparks + p.bonus + promoFor(p.sparks)} генов
+                        {extraLabel}: {p.sparks + p.bonus + extraFor(p)} генов
                       </p>
                     )}
                   </div>
@@ -327,9 +352,9 @@ export default function BillingPage() {
                   />
                   <span className="text-sm text-muted-foreground">₽</span>
                 </div>
-                {customPack && promoFor(customPack.sparks) > 0 && (
+                {customPack && extraFor(customPack) > 0 && (
                   <p className="text-xs font-medium text-emerald-600 dark:text-emerald-400">
-                    С промокодом: {customPack.sparks + promoFor(customPack.sparks)} генов
+                    {extraLabel}: {customPack.sparks + extraFor(customPack)} генов
                   </p>
                 )}
                 <Button
@@ -353,7 +378,9 @@ export default function BillingPage() {
           <div className="mt-4 rounded-xl border bg-card p-4">
             <div className="flex flex-wrap items-center gap-2">
               <Ticket className="h-4 w-4 text-primary" />
-              <p className="text-sm font-medium">Промокод</p>
+              <p className="text-sm font-medium">
+                {referralsAllowed ? "Промокод или код приглашения" : "Промокод"}
+              </p>
             </div>
             <div className="mt-2.5 flex flex-wrap gap-2">
               <Input
@@ -363,7 +390,7 @@ export default function BillingPage() {
                 placeholder="Например, KARTOGEN10"
                 maxLength={40}
                 className="h-10 max-w-xs font-mono uppercase"
-                aria-label="Промокод"
+                aria-label={referralsAllowed ? "Промокод или код приглашения" : "Промокод"}
                 disabled={redeeming}
               />
               <Button variant="outline" onClick={redeemPromo} disabled={redeeming || !promo.trim()}>
@@ -386,12 +413,30 @@ export default function BillingPage() {
                 {perks.usesLeft !== null ? ` — осталось ${perks.usesLeft} генераций` : ""}.
               </p>
             ) : null}
+            {invitePercent ? (
+              <p className="mt-2.5 flex items-start gap-1.5 text-xs leading-5 text-emerald-600 dark:text-emerald-400">
+                <Gift className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                Вы пришли по приглашению друга: к первому пополнению добавим {invitePercent}% генов
+                от суммы оплаты.
+              </p>
+            ) : null}
             {/* про спец-цены клиенту не пишем: это индивидуальные условия
                 отдельных партнёров, а не публичная опция */}
             {!perks?.pendingBonusPercent && !perks?.priceListCode && (
               <p className="mt-2.5 text-xs text-muted-foreground">
                 Промокод даёт гены в подарок или бонус к пополнению. Один промокод применяется один
                 раз.
+              </p>
+            )}
+            {/* Подсказка про код друга — только когда раздел открыт человеку и
+                ввести код ещё можно. Срок пишем прямо: код после оплаты или через
+                две недели не сработает, и узнать об этом лучше заранее. */}
+            {referralsAllowed && invite?.canEnter && (
+              <p className="mt-1.5 text-xs leading-5 text-muted-foreground">
+                Код приглашения от друга вводится в это же поле. Он действует{" "}
+                {REFERRAL.codeWindowDays} дней после регистрации и только до первого пополнения
+                {inviteDeadline ? `, ввести можно до ${inviteDeadline}` : ""}. С ним к первому
+                пополнению добавится {REFERRAL.refereeFirstTopupPercent}% генов.
               </p>
             )}
           </div>
@@ -543,10 +588,16 @@ export default function BillingPage() {
                       <span className="font-medium">+{promoFor(buying.sparks)}</span>
                     </div>
                   )}
+                  {inviteFor(buying.priceRub) > 0 && (
+                    <div className="mt-1.5 flex justify-between text-emerald-600 dark:text-emerald-400">
+                      <span>Приглашение друга · {invitePercent}%</span>
+                      <span className="font-medium">+{inviteFor(buying.priceRub)}</span>
+                    </div>
+                  )}
                   <div className="mt-2 flex justify-between border-t pt-2">
                     <span className="text-muted-foreground">Зачислим</span>
                     <span className="font-semibold">
-                      {gens(buying.sparks + buying.bonus + promoFor(buying.sparks))}
+                      {gens(buying.sparks + buying.bonus + extraFor(buying))}
                     </span>
                   </div>
                   <div className="mt-1.5 flex justify-between">

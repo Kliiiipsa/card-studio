@@ -207,6 +207,18 @@ export async function createCode(args: {
 }): Promise<PromoCode> {
   await ensureSchema();
   const code = args.code.trim().toUpperCase();
+  // Промокод и код приглашения вводятся в одно поле, промокод главнее. Если
+  // назвать промокод так же, как чей-то код приглашения, тот перестанет
+  // работать, а его владелец — получать бонусы. Таблицы может ещё не быть.
+  const clash = await getPool()
+    .query("select 1 from referral_codes where code = $1 limit 1", [code])
+    .then((r) => Boolean(r.rows[0]))
+    .catch(() => false);
+  if (clash) {
+    throw new PromoError(
+      `Название ${code} совпадает с чьим-то кодом приглашения. Выберите другое.`,
+    );
+  }
   const { rows } = await getPool().query(
     `insert into promo_codes
        (code, type, group_name, sparks, bonus_percent, prices, max_redemptions,
@@ -323,6 +335,11 @@ export async function revokeRedemption(
 /* ------------------------------ клиент ------------------------------ */
 
 export class PromoError extends Error {}
+/**
+ * Такого промокода нет. Отдельный класс, потому что в то же поле вводят код
+ * приглашения: получив именно этот отказ, роут пробует строку как код друга.
+ */
+export class PromoNotFoundError extends PromoError {}
 
 /**
  * Применить код. Всё в одной транзакции с блокировкой строки кода, чтобы два
@@ -345,7 +362,7 @@ export async function redeemPromo(args: {
     const { rows } = await client.query(`select * from promo_codes where code = $1 for update`, [
       code,
     ]);
-    if (!rows[0]) throw new PromoError("Такого промокода нет. Проверьте написание.");
+    if (!rows[0]) throw new PromoNotFoundError("Такого промокода нет. Проверьте написание.");
     const c = toCode(rows[0]);
 
     if (!c.active) throw new PromoError("Этот промокод больше не действует.");

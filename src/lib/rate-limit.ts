@@ -42,6 +42,21 @@ export function rateLimit(
   return { ok: true, retryAfterSec: 0 };
 }
 
+/**
+ * Посмотреть, исчерпан ли лимит, НЕ учитывая запрос. Нужно там, где считаем
+ * только неудачи (неверный код): удачную попытку тратить лимит не должна, а
+ * исчерпанный лимит должен остановить следующую попытку до проверки кода.
+ */
+export function peekRateLimit(
+  key: string,
+  opts: { limit: number },
+): { ok: boolean; retryAfterSec: number } {
+  const now = Date.now();
+  const b = store.get(key);
+  if (!b || b.resetAt <= now || b.count < opts.limit) return { ok: true, retryAfterSec: 0 };
+  return { ok: false, retryAfterSec: Math.max(1, Math.ceil((b.resetAt - now) / 1000)) };
+}
+
 /** Как rateLimit, но при превышении сразу бросает 429 с понятным текстом. */
 export function enforceRateLimit(
   key: string,
