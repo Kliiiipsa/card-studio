@@ -480,6 +480,26 @@ export async function inviteStatus(email: string): Promise<InviteStatus> {
 }
 
 /**
+ * Снять привязку, по которой ещё не было ни одного начисления. Для поддержки:
+ * человек ошибся кодом и просит исправить. После первого пополнения снять
+ * нельзя — бонусы уже выданы обеим сторонам, и тут нужен откат по платежу.
+ * После снятия человек может ввести код заново, если его срок не вышел.
+ */
+export async function unlinkInvite(referee: string): Promise<"removed" | "paid" | "absent"> {
+  if (!referralsEnabled()) return "absent";
+  await ensureSchema();
+  const email = referee.trim().toLowerCase();
+  const { rowCount } = await getPool().query(
+    `delete from referral_signups
+      where referee_email = $1 and payments = 0 and earned_genes = 0
+        and first_topup_granted = false and payout_granted = false`,
+    [email],
+  );
+  if ((rowCount ?? 0) > 0) return "removed";
+  return (await referrerOf(email)) ? "paid" : "absent";
+}
+
+/**
  * Ручное решение владельца по связи (оферта п. 6.15): заблокировать начисления
  * или вернуть их. Уже начисленные гены не трогает — для этого есть откат по
  * платежу.

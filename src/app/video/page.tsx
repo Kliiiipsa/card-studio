@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "@/components/ui/toaster";
+import { nudgeAfterGeneration } from "@/components/layout/invite-nudge";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { useProfileStore } from "@/store/profile-store";
@@ -126,6 +127,7 @@ export default function VideoPage() {
           if (done.status === "completed" && done.resultUrl) {
             setVideoUrl(done.resultUrl);
             toast.success("Видео готово!");
+            nudgeAfterGeneration();
           } else if (done.status === "failed") {
             toast.error(done.error ?? "Видео не получилось. Гены не списаны.");
           }
@@ -189,6 +191,7 @@ export default function VideoPage() {
       setVideoUrl(videoUrl);
       reachGoal(GOALS.generation, { kind: "video" });
       toast.success("Видео готово! Оно также сохранено в «Мои карточки».");
+      nudgeAfterGeneration();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Не удалось сгенерировать видео.");
     } finally {
@@ -321,8 +324,8 @@ export default function VideoPage() {
                     aria-label="Свой сценарий ролика"
                   />
                   <p className="text-[11px] leading-4 text-muted-foreground">
-                    Пишите, что ДОЛЖНО происходить (движение камеры, товара, ткани, света).
-                    Товар и фон мы сохраняем как на фото автоматически.
+                    Пишите, что ДОЛЖНО происходить (движение камеры, товара, ткани, света). Товар и
+                    фон мы сохраняем как на фото автоматически.
                   </p>
                 </div>
               )}
@@ -360,16 +363,20 @@ export default function VideoPage() {
                       />
                     </div>
                     <p className="text-[11px] leading-4 text-muted-foreground">
-                      Незнакомая модель пойдёт по общей схеме входа (prompt + image_url + duration) —
-                      экзотические параметры могут не подойти, смотрите ошибку в журнале генераций.
-                      Промпт и модель сохраняются в админском журнале.
+                      Незнакомая модель пойдёт по общей схеме входа (prompt + image_url + duration)
+                      — экзотические параметры могут не подойти, смотрите ошибку в журнале
+                      генераций. Промпт и модель сохраняются в админском журнале.
                     </p>
                   </div>
                 </details>
               )}
 
               <Button variant="gradient" className="w-full" onClick={generate} disabled={busy}>
-                {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                {busy ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Sparkles className="h-4 w-4" />
+                )}
                 Сгенерировать видео
                 <span className="ml-1 inline-flex items-center gap-0.5 text-xs opacity-90">
                   · {PRICES.video} <Dna className="h-3 w-3" />
@@ -377,19 +384,21 @@ export default function VideoPage() {
               </Button>
               <p className="text-xs leading-5 text-muted-foreground">
                 Ролик {VIDEO_DURATION_SEC} секунд, 1080p; формат кадра повторяет формат вашего фото
-                (для карточки маркетплейса — 3:4). Генерация занимает 1–3 минуты. {SPARK} Гены списываются
-                только за готовое видео — за ошибки вы не платите.
+                (для карточки маркетплейса — 3:4). Генерация занимает 1–3 минуты. {SPARK} Гены
+                списываются только за готовое видео — за ошибки вы не платите.
               </p>
               <p className="text-xs leading-5 text-muted-foreground">
-                Сценарий задаёт стиль движения — это ориентир, а не точный кадр: движение,
-                свет и детали подбирает нейросеть, поэтому каждый ролик получается немного
-                разным и может отличаться от превью. Не подошёл результат — сгенерируйте
-                ещё раз, следующий вариант будет другим.
+                Сценарий задаёт стиль движения — это ориентир, а не точный кадр: движение, свет и
+                детали подбирает нейросеть, поэтому каждый ролик получается немного разным и может
+                отличаться от превью. Не подошёл результат — сгенерируйте ещё раз, следующий вариант
+                будет другим.
               </p>
               <div className="rounded-lg border bg-muted/40 px-3 py-2.5 text-xs leading-5 text-muted-foreground">
                 <p className="font-medium text-foreground">Как получить лучший результат</p>
                 <ul className="mt-1 list-disc space-y-0.5 pl-4">
-                  <li>Лучше всего работает чистое фото товара крупным планом (предметная съёмка).</li>
+                  <li>
+                    Лучше всего работает чистое фото товара крупным планом (предметная съёмка).
+                  </li>
                   <li>
                     На фото с моделью движение получается свободнее: человек может повернуться или
                     сменить позу.
@@ -422,7 +431,12 @@ export default function VideoPage() {
                   className="mx-auto max-h-[520px] w-auto max-w-full rounded-xl border bg-black"
                 />
                 <div className="flex gap-2">
-                  <Button variant="outline" className="flex-1" onClick={download} disabled={downloading}>
+                  <Button
+                    variant="outline"
+                    className="flex-1"
+                    onClick={download}
+                    disabled={downloading}
+                  >
                     {downloading ? (
                       <Loader2 className="h-4 w-4 animate-spin" />
                     ) : (

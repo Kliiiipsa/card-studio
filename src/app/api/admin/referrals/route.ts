@@ -7,6 +7,7 @@ import {
   referralsEnabled,
   reverseForPayment,
   setLinkBlocked,
+  unlinkInvite,
 } from "@/core/referrals/referrals";
 import { getUser } from "@/core/auth/store-pg";
 import { REFERRAL } from "@/core/billing/prices";
@@ -62,7 +63,20 @@ export async function POST(req: Request) {
       paymentId?: string;
       referee?: string;
       blocked?: boolean;
+      unlink?: boolean;
     };
+    // 3. Снять привязку, по которой ещё не было начислений (человек ошибся кодом).
+    if (body.referee && body.unlink === true) {
+      const res = await unlinkInvite(body.referee);
+      if (res === "absent") throw new AppError("Такой связи нет — проверьте почту.", 404);
+      if (res === "paid") {
+        throw new AppError(
+          "По этой связи уже были начисления — снять её нельзя. Остановите начисления или оформите возврат.",
+          409,
+        );
+      }
+      return ok({ referee: body.referee.trim().toLowerCase(), unlinked: true });
+    }
     if (body.referee && typeof body.blocked === "boolean") {
       const updated = await setLinkBlocked(body.referee, body.blocked);
       if (!updated) throw new AppError("Такой связи нет — проверьте почту приглашённого.", 404);

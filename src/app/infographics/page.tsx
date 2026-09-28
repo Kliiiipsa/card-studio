@@ -28,6 +28,7 @@ import { InfographicReferencePicker } from "@/components/infographics/infographi
 import { api } from "@/lib/client-api";
 import { reachGoal, GOALS } from "@/components/analytics/yandex-metrica";
 import { toast } from "@/components/ui/toaster";
+import { nudgeAfterGeneration } from "@/components/layout/invite-nudge";
 import { EMPTY_PRODUCT, type ProductInfo } from "@/core/domain/types";
 import {
   INFOGRAPHIC_TYPES,
@@ -182,6 +183,7 @@ export default function InfographicsPage() {
             setTextBaked(payload?.textBaked ?? true);
             setBaseImageUrl(done.resultUrl);
             toast.success("Изображение готово");
+            nudgeAfterGeneration();
           } else {
             toast.error("Прошлая генерация не удалась — попробуйте ещё раз");
           }
@@ -284,6 +286,7 @@ export default function InfographicsPage() {
       setBrief(r.brief);
       setTextBaked(r.textBaked);
       toast.success("Изображение готово");
+      nudgeAfterGeneration();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Ошибка генерации");
     } finally {

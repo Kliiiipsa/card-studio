@@ -3,6 +3,7 @@ import { useCallback } from "react";
 import { useGeneratorStore, type GeneratedVariant } from "@/store/generator-store";
 import { api } from "@/lib/client-api";
 import { toast } from "@/components/ui/toaster";
+import { nudgeAfterGeneration } from "@/components/layout/invite-nudge";
 import { uid } from "@/lib/utils";
 import { PHOTO_SCENARIO_MAP } from "@/core/domain/photo-scenarios";
 import { styleModeGuidance } from "@/core/prompting/prompt-intent";
@@ -226,6 +227,7 @@ export function useCardGeneration() {
 
         gen.setField("status", "done");
         toast.success("Фото готово");
+        nudgeAfterGeneration();
       } catch (e) {
         const msg = e instanceof Error ? e.message : "Ошибка генерации";
         gen.setField("error", msg);

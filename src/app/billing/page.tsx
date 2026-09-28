@@ -40,6 +40,9 @@ const PACK_BUTTON: Record<string, { variant: "outline" | "default"; className?: 
   },
 };
 
+/** меньше этого — на инфографику уже не хватает, показываем подсказку про приглашения */
+const LOW_BALANCE = PRICES.infographic;
+
 const TX_LABEL: Record<string, string> = {
   welcome: "Бонус за регистрацию",
   topup: "Пополнение",
@@ -440,6 +443,30 @@ export default function BillingPage() {
               </p>
             )}
           </div>
+          {/* Подсказка при нехватке генов (решение владельца 28.09.2026): человек
+              пришёл сюда, потому что генов не хватило, и ищет, где их взять.
+              Стоит НИЖЕ пакетов и промокода — это дополнение к пополнению, а не
+              замена ему. Админу показываем всегда, чтобы текст можно было
+              посмотреть: баланс у него бесконечный. */}
+          {referralsAllowed &&
+            !justPaid &&
+            (role === "admin" || (typeof balance === "number" && balance < LOW_BALANCE)) && (
+              <div className="mt-4 flex flex-wrap items-center gap-3 rounded-xl border border-dashed bg-card/60 p-4">
+                <Gift className="h-4 w-4 shrink-0 text-primary" />
+                <p className="min-w-0 flex-1 text-[13px] leading-5 text-muted-foreground">
+                  <span className="font-medium text-foreground">
+                    Ещё один способ получать гены.
+                  </span>{" "}
+                  Пригласите коллегу: с каждого его пополнения вам придёт {REFERRAL.referrerPercent}
+                  % генами.
+                </p>
+                <Link href="/invite" className="shrink-0">
+                  <Button variant="outline" size="sm">
+                    Взять ссылку
+                  </Button>
+                </Link>
+              </div>
+            )}
           {role === "admin" && (
             <p className="mt-2 text-xs text-muted-foreground">
               Администратор пользуется студией без списаний — пополнение не требуется.

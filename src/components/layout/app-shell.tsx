@@ -3,6 +3,7 @@ import { Sidebar } from "./sidebar";
 import { Topbar } from "./topbar";
 import { UpdateNotifier } from "./update-notifier";
 import { NoticeBanner } from "./notice-banner";
+import { InviteNudge } from "./invite-nudge";
 
 const LEGAL_LINKS = [
   { href: "/pricing", label: "Тарифы" },
@@ -20,6 +21,8 @@ export function AppShell({ title, children }: { title?: string; children: React.
         <NoticeBanner />
         <UpdateNotifier />
         <main className="flex-1 p-4 sm:p-6">{children}</main>
+        {/* «позовите коллегу» после удачной генерации, раз в неделю, под гейтом */}
+        <InviteNudge />
         {/* Legal links reachable from every studio page — not just the landing.
             Payment providers and users expect the offer one click away from checkout. */}
         <footer className="border-t px-4 py-3 text-xs text-muted-foreground sm:px-6">
