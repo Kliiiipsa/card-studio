@@ -101,7 +101,12 @@ export default function BillingPage() {
     promoFor(p.sparks) + inviteFor(p.priceRub);
   const extraLabel = invitePercent ? "С вашими бонусами" : "С промокодом";
   const inviteDeadline = invite?.deadline
-    ? new Date(invite.deadline).toLocaleDateString("ru-RU", { day: "numeric", month: "long" })
+    ? // по Москве, как и сам срок на сервере — иначе у зрителя восточнее дата уедет на день
+      new Date(invite.deadline).toLocaleDateString("ru-RU", {
+        day: "numeric",
+        month: "long",
+        timeZone: "Europe/Moscow",
+      })
     : null;
   const [history, setHistory] = React.useState<SparkTransaction[] | null>(null);
 

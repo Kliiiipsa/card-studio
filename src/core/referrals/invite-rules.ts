@@ -35,7 +35,21 @@ export function parseOpenedAt(raw: string | undefined | null): Date | null {
 export function inviteDeadline(registeredAt: Date, openedAt: Date | null): Date | null {
   if (!openedAt) return null;
   const start = registeredAt.getTime() < openedAt.getTime() ? openedAt : registeredAt;
-  return new Date(start.getTime() + INVITE_CODE_DAYS * DAY_MS);
+  return endOfMoscowDay(new Date(start.getTime() + INVITE_CODE_DAYS * DAY_MS));
+}
+
+const MSK_OFFSET_MS = 3 * 60 * 60 * 1000;
+
+/**
+ * Срок тянем до конца суток по Москве. На странице баланса человеку написано
+ * «ввести можно до 12 октября», и он читает это как «12-го ещё можно». Срок,
+ * истекающий 12-го в 14:37, потому что регистрация была в 14:37, выглядел бы
+ * как обман. Округление всегда в пользу человека.
+ */
+export function endOfMoscowDay(d: Date): Date {
+  const local = d.getTime() + MSK_OFFSET_MS;
+  const dayEnd = Math.floor(local / DAY_MS) * DAY_MS + DAY_MS - 1;
+  return new Date(dayEnd - MSK_OFFSET_MS);
 }
 
 export function inviteWindowOpen(
