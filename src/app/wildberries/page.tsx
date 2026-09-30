@@ -280,7 +280,6 @@ export default async function WildberriesLanding() {
           символов по живым подсказкам поиска WB и разбор карточки перед публикацией. Загрузите фото
           товара — остальное соберёт нейросеть.
         </p>
-        <SeoFacts text={WB_FACTS} className="mt-5 max-w-2xl text-left" />
         <div className="mt-8 flex flex-col gap-3 sm:flex-row">
           <Button asChild size="lg" variant="gradient">
             <Link href={authed ? "/dashboard" : "/register"}>
@@ -298,6 +297,9 @@ export default async function WildberriesLanding() {
             {WELCOME_SPARKS} генов в подарок при регистрации — это две обложки
           </p>
         )}
+        {/* Фактический абзац для нейропоиска — ПОСЛЕ кнопки: на телефоне он
+            выталкивал главную кнопку за первый экран (проверка 30.09.2026). */}
+        <SeoFacts text={WB_FACTS} className="mt-8 max-w-2xl text-left" />
 
         <div className="mt-16 grid w-full max-w-5xl grid-cols-2 gap-4 sm:grid-cols-4">
           {EXAMPLES.slice(0, 4).map((c, i) => (

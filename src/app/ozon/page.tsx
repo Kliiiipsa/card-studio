@@ -282,7 +282,6 @@ export default async function OzonLanding() {
           модерации, название и описание для поиска Ozon. Всё в вертикали 3:4 и без правок после
           отклонения.
         </p>
-        <SeoFacts text={OZON_FACTS} className="mt-5 max-w-2xl text-left" />
         <div className="mt-8 flex flex-col gap-3 sm:flex-row">
           <Button asChild size="lg" variant="gradient">
             <Link href={authed ? "/dashboard" : "/register"}>
@@ -300,6 +299,9 @@ export default async function OzonLanding() {
             {WELCOME_SPARKS} генов в подарок — чистая обложка и слайд с плашками
           </p>
         )}
+        {/* Фактический абзац для нейропоиска — ПОСЛЕ кнопки: на телефоне он
+            выталкивал главную кнопку за первый экран (проверка 30.09.2026). */}
+        <SeoFacts text={OZON_FACTS} className="mt-8 max-w-2xl text-left" />
 
         <div className="mt-16 grid w-full max-w-5xl grid-cols-2 gap-4 sm:grid-cols-4">
           {EXAMPLES.slice(0, 4).map((c, i) => (
@@ -330,7 +332,21 @@ export default async function OzonLanding() {
         <p className="mx-auto mt-2 max-w-2xl text-center text-muted-foreground">
           Зависит от категории. Ошибка здесь — самая частая причина отклонения на модерации.
         </p>
-        <div className="mx-auto mt-10 max-w-4xl overflow-x-auto">
+        {/* на телефоне таблица из трёх колонок сжимается в столбики по 2–3 слова —
+            там показываем карточки, таблица только от sm */}
+        <div className="mt-8 space-y-3 sm:hidden">
+          {COVER_RULES.map((r) => (
+            <div key={r.cat} className="rounded-2xl border bg-card p-4">
+              <p className="font-semibold">{r.cat}</p>
+              <p className="mt-1.5 text-sm text-muted-foreground">{r.rule}</p>
+              <p className="mt-2 text-sm">
+                <span className="text-muted-foreground">В Kartogen: </span>
+                {r.tool}
+              </p>
+            </div>
+          ))}
+        </div>
+        <div className="mx-auto mt-10 hidden max-w-4xl overflow-x-auto sm:block">
           <table className="w-full text-left text-sm">
             <thead>
               <tr className="border-b text-xs uppercase tracking-wide text-muted-foreground">
