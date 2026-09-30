@@ -75,6 +75,9 @@ export async function middleware(req: NextRequest) {
     // файлы подтверждения прав в поисковиках (Яндекс.Вебмастер, Search Console)
     /^\/yandex_[0-9a-f]+\.html$/.test(pathname) ||
     /^\/google[0-9a-f]+\.html$/.test(pathname) ||
+    // ключ IndexNow (Bing, Яндекс) и файл подтверждения Bing Webmaster
+    /^\/[0-9a-f]{32}\.txt$/.test(pathname) ||
+    pathname === "/BingSiteAuth.xml" ||
     pathname === "/og.jpg" ||
     pathname === "/icon.png" ||
     pathname === "/apple-icon.png"
