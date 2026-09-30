@@ -16,6 +16,8 @@ import {
   Gem,
   Dna,
   CheckCircle2,
+  PencilLine,
+  Layers,
   ShieldCheck,
   Crop,
   FileImage,
@@ -27,6 +29,7 @@ import { type ExampleCard } from "@/components/landing/examples-gallery";
 import { ExamplesMarquee } from "@/components/landing/examples-marquee";
 import { JsonLd } from "@/components/seo/json-ld";
 import { SeoFacts } from "@/components/seo/facts";
+import { exampleAlt } from "@/components/landing/example-texts";
 import { PRICES, WELCOME_SPARKS } from "@/core/billing/prices";
 
 /* ------------------------------------------------------------------ */
@@ -70,7 +73,7 @@ const OZON_FACTS =
   `фото допустима, если товар занимает не меньше двух третей кадра и текст без цен и обещаний. ` +
   `Kartogen делает чистое главное фото за ${PRICES.generate} ₽ и слайды с русским текстом за ` +
   `${PRICES.infographic} ₽ и 40–90 секунд, SEO-название с описанием за ${PRICES.seo} ₽. ` +
-  `${WELCOME_SPARKS} генов (1 ген = 1 ₽) в подарок при регистрации, без подписки.`;
+  `${WELCOME_SPARKS} генов (1 ген = 1 ₽) в подарок при регистрации, без подписки. Оплата картами российских банков и через СБП.`;
 
 const BLOCKS = [
   {
@@ -127,6 +130,25 @@ const REJECTS = [
   "Пёстрый или тёмный фон вместо светлого",
   "Чужие логотипы, водяные знаки, цена на изображении",
   "Фото не совпадает с названием и характеристиками",
+];
+
+/** ответ на «можно ли править текст», «есть ли серия слайдов» и главное опасение про модерацию */
+const EDIT_RULES = [
+  {
+    icon: PencilLine,
+    title: "Тексты из ваших данных",
+    text: "ИИ предлагает заголовок и преимущества по фото, вы подтверждаете или правите каждую плашку до генерации. Ничего не придумывается за вас и не публикуется без вашей проверки.",
+  },
+  {
+    icon: Layers,
+    title: "Каждый слайд отдельно",
+    text: "Чистая обложка и слайды с плашками собираются по одному. Любой можно пересобрать, остальные не трогаются. Новая композиция за 40–90 секунд.",
+  },
+  {
+    icon: CheckCircle2,
+    title: "Проверка перед загрузкой",
+    text: "Готовый слайд вы смотрите перед скачиванием: товар, цифры, надписи. Не подошло — пересборка. На Ozon попадает только то, что вы одобрили.",
+  },
 ];
 
 const STEPS = [
@@ -313,7 +335,7 @@ export default async function OzonLanding() {
             >
               <Image
                 src={c.src}
-                alt={`Карточка для Ozon: ${c.title} — ${c.style}`}
+                alt={exampleAlt(c, "Карточка для Ozon")}
                 fill
                 priority={i < 2}
                 sizes="(max-width: 640px) 50vw, 25vw"
@@ -444,6 +466,24 @@ export default async function OzonLanding() {
               <s.icon className="h-6 w-6 text-primary" />
               <h3 className="mt-3 font-semibold">{s.title}</h3>
               <p className="mt-1 text-sm text-muted-foreground">{s.text}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* Правки и слайды — прямой ответ на то, по чему ИИ-подборки сравнивают
+          сервисы (30.09.2026): «можно ли исправить надписи» и «есть ли серия
+          слайдов». Без обещания редактора после генерации — его нет. */}
+      <section className="container py-16">
+        <h2 className="text-center text-3xl font-bold tracking-tight">
+          Правки и слайды: как это устроено
+        </h2>
+        <div className="mt-10 grid gap-5 sm:grid-cols-3">
+          {EDIT_RULES.map((r) => (
+            <div key={r.title} className="rounded-2xl border bg-card p-6">
+              <r.icon className="h-6 w-6 text-primary" />
+              <h3 className="mt-3 font-semibold">{r.title}</h3>
+              <p className="mt-1 text-sm text-muted-foreground">{r.text}</p>
             </div>
           ))}
         </div>

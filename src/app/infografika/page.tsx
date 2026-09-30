@@ -3,6 +3,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { ArticlePage, H2, P, Table, Ul, Tip, SITE, type Faq } from "@/components/seo/article-page";
 import { PRICES, WELCOME_SPARKS } from "@/core/billing/prices";
+import { exampleAlt } from "@/components/landing/example-texts";
 
 /* ------------------------------------------------------------------ */
 /* Коммерческая SEO-страница под запрос «инфографика для карточки       */
@@ -121,7 +122,7 @@ export default function Page() {
             >
               <Image
                 src={c.src}
-                alt={`Инфографика для Wildberries: ${c.title} — стиль «${c.style}»`}
+                alt={exampleAlt(c, "Инфографика для Wildberries")}
                 fill
                 sizes="(max-width: 768px) 33vw, 240px"
                 className="object-cover"

@@ -4,6 +4,7 @@ import Image from "next/image";
 import * as Dialog from "@radix-ui/react-dialog";
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { EXAMPLE_TEXT, exampleAlt } from "./example-texts";
 import type { ExampleCard } from "./examples-gallery";
 
 /**
@@ -50,7 +51,7 @@ export function ExamplesMarquee({ items }: { items: ExampleCard[] }) {
                   <div className="relative aspect-[3/4]">
                     <Image
                       src={c.src}
-                      alt={`${c.title} — ${c.style}`}
+                      alt={exampleAlt(c)}
                       fill
                       sizes="192px"
                       className="object-cover"
@@ -87,7 +88,12 @@ export function ExamplesMarquee({ items }: { items: ExampleCard[] }) {
                   </Dialog.Close>
                 </div>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={open.src} alt={`${open.title} — ${open.style}`} className="w-full" />
+                <img src={open.src} alt={exampleAlt(open)} className="w-full" />
+                {EXAMPLE_TEXT[open.src] && (
+                  <p className="border-t px-4 py-2.5 text-xs leading-5 text-muted-foreground">
+                    На карточке {EXAMPLE_TEXT[open.src]}.
+                  </p>
+                )}
               </div>
             )}
           </Dialog.Content>

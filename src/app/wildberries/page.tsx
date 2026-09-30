@@ -16,6 +16,8 @@ import {
   Gem,
   Dna,
   CheckCircle2,
+  PencilLine,
+  Layers,
   MousePointerClick,
   Images,
   Type,
@@ -27,6 +29,7 @@ import { type ExampleCard } from "@/components/landing/examples-gallery";
 import { ExamplesMarquee } from "@/components/landing/examples-marquee";
 import { JsonLd } from "@/components/seo/json-ld";
 import { SeoFacts } from "@/components/seo/facts";
+import { exampleAlt } from "@/components/landing/example-texts";
 import { PRICES, WELCOME_SPARKS } from "@/core/billing/prices";
 
 /* ------------------------------------------------------------------ */
@@ -72,7 +75,7 @@ const WB_FACTS =
   `за ${PRICES.infographic} ₽ и 40–90 секунд, делает чистое фото товара за ${PRICES.generate} ₽ и ` +
   `пишет SEO-название до 60 символов и описание по живым подсказкам поиска WB за ${PRICES.seo} ₽. ` +
   `Файлы 3:4, 900×1200 и 1200×1600, JPG или PNG. ${WELCOME_SPARKS} генов (1 ген = 1 ₽) в подарок ` +
-  `при регистрации, без подписки и привязки карты.`;
+  `при регистрации, без подписки и привязки карты. Оплата картами российских банков и через СБП.`;
 
 const BLOCKS = [
   {
@@ -118,6 +121,25 @@ const WB_RULES = [
     icon: Ban,
     title: "Чего нельзя на обложке",
     text: "Цены, «скидка», «хит», «гарантия», контакты и чужие логотипы. Сама инфографика разрешена — ограничено содержание надписей, а не их наличие.",
+  },
+];
+
+/** ответ на «можно ли править текст» и «есть ли серия слайдов» — по чему ИИ сравнивает сервисы */
+const EDIT_RULES = [
+  {
+    icon: PencilLine,
+    title: "Текст правится до генерации",
+    text: "Заголовок и плашки вы видите в брифе и меняете руками: цифры, формулировки, порядок. Модель печатает ровно то, что вы подтвердили. Стиль переключается одной кнопкой.",
+  },
+  {
+    icon: Layers,
+    title: "Каждый слайд отдельно",
+    text: "Обложка и следующие слайды собираются по одному. Любой можно пересобрать, остальные не трогаются. Новая композиция за 40–90 секунд, всегда другая.",
+  },
+  {
+    icon: CheckCircle2,
+    title: "Ничего не уходит без проверки",
+    text: "Готовый слайд вы смотрите перед скачиванием: текст, цифры, сам товар. Не подошло — пересборка. В карточку на WB попадает только то, что вы одобрили.",
   },
 ];
 
@@ -311,7 +333,7 @@ export default async function WildberriesLanding() {
             >
               <Image
                 src={c.src}
-                alt={`Карточка для Wildberries: ${c.title} — ${c.style}`}
+                alt={exampleAlt(c, "Карточка для Wildberries")}
                 fill
                 priority={i < 2}
                 sizes="(max-width: 640px) 50vw, 25vw"
@@ -384,6 +406,24 @@ export default async function WildberriesLanding() {
               <s.icon className="h-6 w-6 text-primary" />
               <h3 className="mt-3 font-semibold">{s.title}</h3>
               <p className="mt-1 text-sm text-muted-foreground">{s.text}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* Правки и слайды — прямой ответ на то, по чему ИИ-подборки сравнивают
+          сервисы (30.09.2026): «можно ли исправить надписи» и «есть ли серия
+          слайдов». Без обещания редактора после генерации — его нет. */}
+      <section className="container py-16">
+        <h2 className="text-center text-3xl font-bold tracking-tight">
+          Правки и слайды: как это устроено
+        </h2>
+        <div className="mt-10 grid gap-5 sm:grid-cols-3">
+          {EDIT_RULES.map((r) => (
+            <div key={r.title} className="rounded-2xl border bg-card p-6">
+              <r.icon className="h-6 w-6 text-primary" />
+              <h3 className="mt-3 font-semibold">{r.title}</h3>
+              <p className="mt-1 text-sm text-muted-foreground">{r.text}</p>
             </div>
           ))}
         </div>

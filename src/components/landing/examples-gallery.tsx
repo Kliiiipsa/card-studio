@@ -4,6 +4,7 @@ import Image from "next/image";
 import * as Dialog from "@radix-ui/react-dialog";
 import { X, ZoomIn } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { EXAMPLE_TEXT, exampleAlt } from "./example-texts";
 
 export type ExampleCard = {
   src: string;
@@ -28,7 +29,7 @@ export function ExamplesGallery({ items }: { items: ExampleCard[] }) {
             <div className="relative aspect-[3/4] overflow-hidden">
               <Image
                 src={c.src}
-                alt={`${c.title} — ${c.style}`}
+                alt={exampleAlt(c)}
                 fill
                 sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 16vw"
                 className="object-cover transition-transform duration-300 group-hover:scale-[1.03]"
@@ -65,7 +66,12 @@ export function ExamplesGallery({ items }: { items: ExampleCard[] }) {
                   </Dialog.Close>
                 </div>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={open.src} alt={`${open.title} — ${open.style}`} className="w-full" />
+                <img src={open.src} alt={exampleAlt(open)} className="w-full" />
+                {EXAMPLE_TEXT[open.src] && (
+                  <p className="border-t px-4 py-2.5 text-xs leading-5 text-muted-foreground">
+                    На карточке {EXAMPLE_TEXT[open.src]}.
+                  </p>
+                )}
               </div>
             )}
           </Dialog.Content>

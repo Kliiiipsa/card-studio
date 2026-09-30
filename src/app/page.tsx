@@ -18,6 +18,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { type ExampleCard } from "@/components/landing/examples-gallery";
+import { exampleAlt } from "@/components/landing/example-texts";
 import { ExamplesMarquee } from "@/components/landing/examples-marquee";
 import { JsonLd } from "@/components/seo/json-ld";
 import { SiteLinks } from "@/components/seo/site-links";
@@ -251,7 +252,7 @@ export default async function LandingPage() {
             >
               <Image
                 src={c.src}
-                alt={`${c.title} — ${c.style}`}
+                alt={exampleAlt(c)}
                 fill
                 priority={i < 2}
                 sizes="(max-width: 640px) 50vw, 25vw"
