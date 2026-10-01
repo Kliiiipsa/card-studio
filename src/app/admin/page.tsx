@@ -1055,9 +1055,11 @@ export default function AdminPage() {
         </div>
 
         <Tabs defaultValue="health">
+          {/* Иконки только на широких экранах (2xl): на ноутбуке десять вкладок с
+              иконками не влезают в строку, и последняя висит одна на второй. */}
           <TabsList className="mb-4 h-auto flex-wrap justify-start gap-y-1">
             <TabsTrigger value="health" className="gap-1.5">
-              <Activity className="h-4 w-4" />
+              <Activity className="hidden h-4 w-4 2xl:block" />
               Состояние
               {health && health.overall !== "ok" && (
                 <span
@@ -1069,10 +1071,10 @@ export default function AdminPage() {
               )}
             </TabsTrigger>
             <TabsTrigger value="users" className="gap-1.5">
-              <Users className="h-4 w-4" /> Пользователи
+              <Users className="hidden h-4 w-4 2xl:block" /> Пользователи
             </TabsTrigger>
             <TabsTrigger value="transactions" className="gap-1.5">
-              <ListOrdered className="h-4 w-4" /> Транзакции
+              <ListOrdered className="hidden h-4 w-4 2xl:block" /> Транзакции
             </TabsTrigger>
             <TabsTrigger
               value="spend"
@@ -1081,25 +1083,25 @@ export default function AdminPage() {
                 if (!spend && !spendLoading) loadSpend(spendDays, spendAll);
               }}
             >
-              <Coins className="h-4 w-4" /> Расходы
+              <Coins className="hidden h-4 w-4 2xl:block" /> Расходы
             </TabsTrigger>
             <TabsTrigger value="generations" className="gap-1.5">
-              <Clapperboard className="h-4 w-4" /> Генерации
+              <Clapperboard className="hidden h-4 w-4 2xl:block" /> Генерации
             </TabsTrigger>
             <TabsTrigger value="promo" className="gap-1.5">
-              <Ticket className="h-4 w-4" /> Промокоды
+              <Ticket className="hidden h-4 w-4 2xl:block" /> Промокоды
             </TabsTrigger>
             <TabsTrigger value="notices" className="gap-1.5">
-              <Bell className="h-4 w-4" /> Уведомления
+              <Bell className="hidden h-4 w-4 2xl:block" /> Уведомления
             </TabsTrigger>
             <TabsTrigger value="reports" className="gap-1.5">
-              <FileSpreadsheet className="h-4 w-4" /> Отчёты
+              <FileSpreadsheet className="hidden h-4 w-4 2xl:block" /> Отчёты
             </TabsTrigger>
             <TabsTrigger value="ads" className="gap-1.5">
-              <Megaphone className="h-4 w-4" /> Реклама
+              <Megaphone className="hidden h-4 w-4 2xl:block" /> Реклама
             </TabsTrigger>
             <TabsTrigger value="mail" className="gap-1.5">
-              <Mail className="h-4 w-4" /> Рассылка
+              <Mail className="hidden h-4 w-4 2xl:block" /> Рассылка
             </TabsTrigger>
           </TabsList>
 
