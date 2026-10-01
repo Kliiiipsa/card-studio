@@ -1038,7 +1038,11 @@ export default function AdminPage() {
 
   return (
     <AppShell title="Админка">
-      <div className="mx-auto max-w-4xl">
+      {/* Ширина: раньше max-w-4xl (896 px) — на ноутбуке десять вкладок не
+          влезали в строку и уезжали за край, а таблицы обрезались при пустом
+          месте справа (владелец, 01.10.2026). Админка — рабочий стол с
+          таблицами, ей нужна вся ширина окна. */}
+      <div className="mx-auto w-full max-w-[1400px]">
         <div className="mb-4 flex flex-wrap items-center gap-2">
           <ShieldCheck className="h-5 w-5 text-primary" />
           <h2 className="text-sm font-semibold">Управление студией</h2>
@@ -1051,7 +1055,7 @@ export default function AdminPage() {
         </div>
 
         <Tabs defaultValue="health">
-          <TabsList className="mb-4">
+          <TabsList className="mb-4 h-auto flex-wrap justify-start gap-y-1">
             <TabsTrigger value="health" className="gap-1.5">
               <Activity className="h-4 w-4" />
               Состояние
