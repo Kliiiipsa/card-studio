@@ -106,7 +106,12 @@ async function checkTimeweb(): Promise<HealthCheck> {
       8000,
     );
     if (!res.ok) {
-      return { id: "timeweb", title: "Баланс Timeweb", status: "unknown", hint: `ответ ${res.status}` };
+      return {
+        id: "timeweb",
+        title: "Баланс Timeweb",
+        status: "unknown",
+        hint: `ответ ${res.status}`,
+      };
     }
     const data = (await res.json()) as {
       finances?: { balance?: number; hourly_cost?: number };
@@ -167,8 +172,7 @@ async function checkDatabase(): Promise<HealthCheck> {
 
 /** S3: занятое место и проверка записи (без записи результаты «живут» 1 час). */
 async function checkStorage(): Promise<HealthCheck> {
-  const configured =
-    process.env.S3_ENDPOINT && process.env.S3_BUCKET && process.env.S3_ACCESS_KEY;
+  const configured = process.env.S3_ENDPOINT && process.env.S3_BUCKET && process.env.S3_ACCESS_KEY;
   if (!configured) {
     return { id: "s3", title: "Хранилище S3", status: "off", hint: "не настроено" };
   }
@@ -201,7 +205,12 @@ async function checkStorage(): Promise<HealthCheck> {
 /** Qwen в Yandex Cloud: тексты, брифы, переводы, анализ. */
 async function checkLLM(): Promise<HealthCheck> {
   if (process.env.AI_LLM_PROVIDER === "mock" || !process.env.YANDEX_API_KEY) {
-    return { id: "llm", title: "Тексты (Qwen)", status: "off", hint: "демо-режим или ключ не задан" };
+    return {
+      id: "llm",
+      title: "Тексты (Qwen)",
+      status: "off",
+      hint: "демо-режим или ключ не задан",
+    };
   }
   try {
     const { getLLMProvider } = await import("@/core/ai/providers");
@@ -214,12 +223,16 @@ async function checkLLM(): Promise<HealthCheck> {
       }),
       12000,
     );
+    // какой ключ ответил: если резервный — основной упал, его надо проверить
+    const { yandexActiveKey } = await import("@/core/ai/providers/llm/yandex");
+    const active = yandexActiveKey();
+    const reserve = process.env.YANDEX_API_KEY_RESERVE ? "резерв есть" : "резерва нет";
     return {
       id: "llm",
       title: "Тексты (Qwen)",
-      status: "ok",
-      value: "отвечает",
-      hint: `проверка за ${Date.now() - started} мс`,
+      status: active === "резервный" ? "warn" : "ok",
+      value: active === "резервный" ? "отвечает с резервного ключа" : "отвечает",
+      hint: `проверка за ${Date.now() - started} мс · ${active} ключ · ${reserve}`,
     };
   } catch (e) {
     return {
@@ -243,7 +256,8 @@ async function checkGenerations(): Promise<HealthCheck> {
     const recent = jobs.filter((j) => new Date(j.createdAt).getTime() > dayAgo);
     const failed = recent.filter((j) => j.status === "failed").length;
     const stuck = recent.filter(
-      (j) => j.status === "processing" && Date.now() - new Date(j.createdAt).getTime() > 15 * 60_000,
+      (j) =>
+        j.status === "processing" && Date.now() - new Date(j.createdAt).getTime() > 15 * 60_000,
     ).length;
     const pct = recent.length ? (failed / recent.length) * 100 : 0;
     return {
