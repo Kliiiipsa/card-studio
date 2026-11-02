@@ -13,9 +13,9 @@ import { PRICES, WELCOME_SPARKS } from "@/core/billing/prices";
  * Сам инструмент — клиентский page.tsx, его не трогаем.
  */
 export const metadata: Metadata = {
-  title: "Бесплатный анализ карточки товара — Kartogen",
+  title: "Проверка и анализ карточки товара бесплатно — Kartogen",
   description:
-    "Загрузите фото карточки или товара — ИИ оценит её как покупатель на Wildberries и Ozon, поставит балл из 100 и подскажет, что мешает продажам. Бесплатно, без регистрации, за 20 секунд.",
+    "Загрузите карточку или фото товара: ИИ поставит балл из 100 и подскажет, что мешает продажам на Wildberries и Ozon. Бесплатно, без регистрации, за 20 секунд.",
   alternates: { canonical: "https://kartogen.ru/check" },
 };
 

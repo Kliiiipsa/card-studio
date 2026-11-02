@@ -45,8 +45,8 @@ import { PRICES, WELCOME_SPARKS } from "@/core/billing/prices";
 const SITE = "https://kartogen.ru";
 
 export const metadata: Metadata = {
-  title: "Генерация карточек для Ozon с ИИ — Kartogen",
-  description: `Создание карточек товара для Ozon нейросетью под модерацию площадки: чистое главное фото для одежды, обуви, Fresh и «Селекта», инфографика на слайды с товаром не меньше двух третей кадра, SEO-тексты. Вертикаль 3:4, JPEG или PNG. ${WELCOME_SPARKS} генов в подарок.`,
+  title: "Генерация карточек для Ozon (Озон) с ИИ — Kartogen",
+  description: `Генератор карточек для Озон: чистое главное фото под модерацию, инфографика на слайды и SEO-тексты. Вертикаль 3:4, JPEG или PNG. ${WELCOME_SPARKS} генов в подарок.`,
   keywords: [
     "генерация карточек Ozon",
     "карточки для Озон",
@@ -57,7 +57,7 @@ export const metadata: Metadata = {
   ],
   alternates: { canonical: `${SITE}/ozon` },
   openGraph: {
-    title: "Генерация карточек для Ozon с ИИ — Kartogen",
+    title: "Генерация карточек для Ozon (Озон) с ИИ — Kartogen",
     description:
       "Чистое главное фото для строгих категорий, инфографика на слайды под правила модерации, SEO-тексты и анализ карточки для Ozon — за минуты.",
     url: `${SITE}/ozon`,

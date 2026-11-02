@@ -48,8 +48,8 @@ import { PRICES, WELCOME_SPARKS } from "@/core/billing/prices";
 const SITE = "https://kartogen.ru";
 
 export const metadata: Metadata = {
-  title: "Генерация карточек для Wildberries с ИИ — Kartogen",
-  description: `Создание карточек товара для Wildberries нейросетью: обложка с плашками под выдачу WB, фото товара, SEO-название до 60 символов по живым подсказкам поиска, анализ карточки. Файлы 3:4, 900×1200 и 1200×1600. ${WELCOME_SPARKS} генов в подарок.`,
+  title: "Генерация карточек для WB (Wildberries) с ИИ — Kartogen",
+  description: `Генератор карточек WB нейросетью: обложка с плашками под выдачу, фото товара, SEO-название до 60 символов и анализ карточки. Файлы 3:4. ${WELCOME_SPARKS} генов в подарок.`,
   keywords: [
     "генерация карточек Wildberries",
     "карточки для WB",
@@ -60,7 +60,7 @@ export const metadata: Metadata = {
   ],
   alternates: { canonical: `${SITE}/wildberries` },
   openGraph: {
-    title: "Генерация карточек для Wildberries с ИИ — Kartogen",
+    title: "Генерация карточек для WB (Wildberries) с ИИ — Kartogen",
     description:
       "Обложка с плашками под выдачу WB, фото товара, SEO-название по живым подсказкам поиска и анализ карточки — за минуты.",
     url: `${SITE}/wildberries`,

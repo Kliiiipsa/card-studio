@@ -96,7 +96,9 @@ export default function QuickCheckPage() {
         </Button>
       </div>
 
-      <h1 className="text-2xl font-bold [text-wrap:balance]">Бесплатный анализ карточки товара</h1>
+      <h1 className="text-2xl font-bold [text-wrap:balance]">
+        Бесплатная проверка и анализ карточки товара
+      </h1>
       <p className="mt-2 text-sm text-muted-foreground">
         Загрузите фото карточки или товара — ИИ оценит её как покупатель на Wildberries и подскажет,
         что мешает продажам. Без регистрации.
