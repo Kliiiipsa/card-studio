@@ -24,7 +24,7 @@ export async function POST(req: Request) {
     }
 
     const { paymentId } = await parseBody(req, schema);
-    const { payment, sparksTotal } = await verifyAndCredit(paymentId);
+    const { payment, sparksTotal, stale } = await verifyAndCredit(paymentId);
 
     // Баланс отдаём для текущего пользователя (платёж мог быть оплачен
     // с другого аккаунта — гены в любом случае ушли на email из платежа).
@@ -34,6 +34,9 @@ export async function POST(req: Request) {
       paid: payment.paid,
       sparks: sparksTotal || undefined,
       balance,
+      // платёж зачислен давно, сейчас ничего не начислено: странице нельзя
+      // показывать «оплата прошла» и слать цель в Метрику (06.11.2026)
+      stale: stale || undefined,
     });
   } catch (err) {
     return fail(err);

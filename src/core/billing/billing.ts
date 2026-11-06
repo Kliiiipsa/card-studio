@@ -211,6 +211,23 @@ export async function applyTx(args: {
   }
 }
 
+/**
+ * Запись журнала по reference (он уникален). Нужна зачислению платежа, чтобы
+ * понять, КАК и КОГДА пополнение было записано раньше: по старой схеме (бонус
+ * внутри суммы) или по новой, свежее оно или давно закрытое.
+ */
+export async function getTxByReference(
+  reference: string,
+): Promise<{ amount: number; type: string; createdAt: Date } | null> {
+  await ensureSchema();
+  const { rows } = await getPool().query(
+    `select amount, type, created_at from billing_tx where reference = $1 limit 1`,
+    [reference],
+  );
+  const r = rows[0];
+  return r ? { amount: Number(r.amount), type: r.type, createdAt: new Date(r.created_at) } : null;
+}
+
 export async function listTransactions(opts: {
   email?: string;
   limit?: number;

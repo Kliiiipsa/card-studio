@@ -178,8 +178,17 @@ export default function BillingPage() {
           sparks?: number;
           balance?: number;
           error?: string;
+          stale?: boolean;
         };
         if (cancelled) return;
+        // Во вкладке остался номер давно зачисленного платежа (браузер
+        // восстановил сессию). Сейчас ничего не начислено — молча забываем
+        // номер: без «оплата прошла» и без цели в Метрике.
+        if (res.ok && data.stale) {
+          sessionStorage.removeItem("yk_payment");
+          if (typeof data.balance === "number") useProfileStore.getState().setBalance(data.balance);
+          return;
+        }
         if (res.ok && data.status === "succeeded") {
           sessionStorage.removeItem("yk_payment");
           if (typeof data.balance === "number") useProfileStore.getState().setBalance(data.balance);
@@ -206,7 +215,11 @@ export default function BillingPage() {
         if (attempts < 6) setTimeout(check, 2500);
         else sessionStorage.removeItem("yk_payment"); // зачислит вебхук, когда банк подтвердит
       } catch {
-        if (!cancelled && attempts < 6) setTimeout(check, 2500);
+        if (cancelled) return;
+        if (attempts < 6) setTimeout(check, 2500);
+        // после неудач номер не оставляем: иначе он переживёт недели во
+        // вкладке и перепроверится, когда человек придёт платить снова
+        else sessionStorage.removeItem("yk_payment");
       }
     };
     void check();
