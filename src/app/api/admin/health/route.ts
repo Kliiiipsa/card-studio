@@ -6,6 +6,7 @@ import { billingEnabled } from "@/core/billing/billing";
 import { yookassaConfigured } from "@/core/billing/yookassa";
 import { isSmtpConfigured } from "@/core/auth/mailer";
 import { getRuntimeMetrics } from "@/core/ops/runtime-metrics";
+import { runMoneyAudit, type MoneyAuditResult } from "@/core/billing/money-audit";
 import { Pool } from "pg";
 
 export const runtime = "nodejs";
@@ -376,18 +377,73 @@ function serverChecks(): HealthCheck[] {
   return [ram, cpu, lag, up];
 }
 
+/**
+ * Сверка денег: журнал генов, балансы и платежи ЮKassa за 7 дней (правила —
+ * core/billing/audit-rules.ts). Красная, пока есть расхождение, не снятое
+ * кнопкой «Принято». Тревогу владельцу шлёт не эта проверка, а ежечасный
+ * фоновый прогон — здесь только показ.
+ */
+async function checkMoneyAudit(): Promise<{
+  check: HealthCheck;
+  audit: MoneyAuditResult | null;
+}> {
+  const id = "money-audit";
+  const title = "Сверка денег";
+  if (!billingEnabled()) {
+    return { check: { id, title, status: "off", hint: "биллинг не настроен" }, audit: null };
+  }
+  try {
+    const audit = await withTimeout(runMoneyAudit(), 20000);
+    const open = audit.open;
+    const tail = audit.paymentsChecked ? "" : " ЮKassa не ответила — платежи не сверены.";
+    if (open.length === 0) {
+      return {
+        check: {
+          id,
+          title,
+          status: audit.paymentsChecked ? "ok" : "unknown",
+          value: "Расхождений нет",
+          hint: `Журнал, балансы и платежи за 7 дней сходятся.${tail}`,
+        },
+        audit,
+      };
+    }
+    return {
+      check: {
+        id,
+        title,
+        status: open.some((f) => f.severity === "crit") ? "crit" : "warn",
+        value: `Расхождений: ${open.length}`,
+        hint: `${open[0].title}. Список ниже.${tail}`,
+      },
+      audit,
+    };
+  } catch (e) {
+    return {
+      check: {
+        id,
+        title,
+        status: "unknown",
+        hint: `не удалось выполнить: ${e instanceof Error ? e.message : "ошибка"}`,
+      },
+      audit: null,
+    };
+  }
+}
+
 export async function GET(req: Request) {
   try {
     const session = await sessionFromRequest(req);
     if (session?.role !== "admin") throw new AppError("Только для администратора.", 403);
 
-    const [fal, timeweb, db, s3, llm, gen] = await Promise.all([
+    const [fal, timeweb, db, s3, llm, gen, money] = await Promise.all([
       checkFal(),
       checkTimeweb(),
       checkDatabase(),
       checkStorage(),
       checkLLM(),
       checkGenerations(),
+      checkMoneyAudit(),
     ]);
     const checks = [
       ...serverChecks(),
@@ -398,6 +454,7 @@ export async function GET(req: Request) {
       llm,
       gen,
       checkPayments(),
+      money.check,
       checkMail(),
     ];
     const worst: HealthStatus = checks.some((c) => c.status === "crit")
@@ -408,7 +465,13 @@ export async function GET(req: Request) {
           ? "unknown"
           : "ok";
 
-    return ok({ checks, overall: worst, checkedAt: new Date().toISOString() });
+    return ok({
+      checks,
+      overall: worst,
+      checkedAt: new Date().toISOString(),
+      // непринятые расхождения сверки денег — списком под карточками
+      moneyFindings: money.audit?.open ?? [],
+    });
   } catch (err) {
     return fail(err);
   }

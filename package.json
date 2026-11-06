@@ -4,7 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "node scripts/test-money.cjs && next build",
+    "test:money": "node scripts/test-money.cjs",
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",

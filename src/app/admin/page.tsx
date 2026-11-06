@@ -540,6 +540,15 @@ export default function AdminPage() {
     checks: HealthCheck[];
     overall: HealthStatus;
     checkedAt: string;
+    /** непринятые расхождения сверки денег (журнал, балансы, ЮKassa) */
+    moneyFindings?: {
+      key: string;
+      severity: string;
+      email: string | null;
+      title: string;
+      detail: string;
+      firstSeen: string;
+    }[];
   } | null>(null);
   const [healthLoading, setHealthLoading] = React.useState(false);
 
@@ -930,6 +939,21 @@ export default function AdminPage() {
       .finally(() => setHealthLoading(false));
   }, []);
 
+  // «Принято» по расхождению сверки денег: случай разобран, больше не показывать
+  const ackMoneyFinding = async (key: string) => {
+    try {
+      const res = await fetch("/api/admin/money-audit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ key }),
+      });
+      if (!res.ok) throw new Error("Не удалось отметить");
+      loadHealth();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Ошибка");
+    }
+  };
+
   const loadGens = React.useCallback(() => {
     setGens(null);
     const qs = new URLSearchParams();
@@ -1151,6 +1175,42 @@ export default function AdminPage() {
                     {health.checks.map((c) => (
                       <HealthCard key={c.id} check={c} />
                     ))}
+                  </div>
+                )}
+
+                {/* Сверка денег: что именно не сошлось. Каждое расхождение
+                    висит, пока владелец не разберёт его и не нажмёт «Принято». */}
+                {health?.moneyFindings && health.moneyFindings.length > 0 && (
+                  <div className="mt-4 rounded-lg border border-destructive/40 bg-destructive/5 p-3">
+                    <p className="text-sm font-medium">Сверка денег: что не сошлось</p>
+                    <p className="mt-0.5 text-xs text-muted-foreground">
+                      Журнал генов сверяется сам с собой и с платежами ЮKassa раз в час. О новом
+                      расхождении приходит письмо. Разобрались — нажмите «Принято».
+                    </p>
+                    <ul className="mt-2 space-y-2">
+                      {health.moneyFindings.map((f) => (
+                        <li
+                          key={f.key}
+                          className="flex flex-wrap items-start gap-3 rounded-md border bg-card p-3"
+                        >
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm font-medium">{f.title}</p>
+                            <p className="mt-0.5 text-xs text-muted-foreground">
+                              {f.email ?? "—"} · замечено{" "}
+                              {new Date(f.firstSeen).toLocaleString("ru-RU")}
+                            </p>
+                            <p className="mt-1 break-words text-xs leading-5">{f.detail}</p>
+                          </div>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => ackMoneyFinding(f.key)}
+                          >
+                            Принято
+                          </Button>
+                        </li>
+                      ))}
+                    </ul>
                   </div>
                 )}
 

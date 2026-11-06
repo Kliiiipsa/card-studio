@@ -106,6 +106,41 @@ function ensureSchema(): Promise<void> {
   return schemaReady;
 }
 
+let auditSchemaReady: Promise<void> | null = null;
+
+/**
+ * Таблица расхождений сверки денег (06.11.2026, core/billing/money-audit).
+ * Ключ стабилен для одного и того же расхождения: по нему тревога не шлётся
+ * повторно, а владелец снимает разобранный случай кнопкой «Принято».
+ *
+ * Создаётся ОТДЕЛЬНО от таблиц биллинга и только по требованию сверки: если
+ * с ней что-то пойдёт не так, зачисления и списания это не заденет.
+ */
+function ensureAuditSchema(): Promise<void> {
+  if (!auditSchemaReady) {
+    auditSchemaReady = (async () => {
+      await ensureSchema();
+      await getPool().query(`
+        create table if not exists billing_audit_findings (
+          key text primary key,
+          code text not null,
+          severity text not null,
+          email text,
+          title text not null,
+          detail text not null,
+          first_seen timestamptz not null default now(),
+          alerted_at timestamptz,
+          acked_at timestamptz
+        )
+      `);
+    })().catch((e) => {
+      auditSchemaReady = null;
+      throw e;
+    });
+  }
+  return auditSchemaReady;
+}
+
 /**
  * Гарантировать, что таблицы биллинга созданы. Нужно тем модулям, которые
  * читают billing_tx / billing_refunds своим пулом (отчёт по источникам): у них
@@ -450,4 +485,158 @@ export async function balancesFor(emails: string[]): Promise<Record<string, numb
     [emails],
   );
   return Object.fromEntries(rows.map((r) => [r.email, r.balance]));
+}
+
+/* ------------------------------ сверка денег ------------------------------ */
+
+type AuditRow = {
+  id: number;
+  email: string;
+  amount: number;
+  type: string;
+  reference: string | null;
+  createdAt: string;
+};
+
+const toAuditRow = (r: Record<string, unknown>): AuditRow => ({
+  id: Number(r.id),
+  email: String(r.email),
+  amount: Number(r.amount),
+  type: String(r.type),
+  reference: (r.reference as string | null) ?? null,
+  createdAt: new Date(r.created_at as string).toISOString(),
+});
+
+/**
+ * Снимок журнала для сверки денег (см. audit-rules.ts): начисления за окно,
+ * пополнения, на которые ссылаются бонусы и реферальные (ищутся по ВСЕМУ
+ * журналу), и аккаунты, где баланс не равен сумме журнала или ушёл в минус.
+ * Только чтение.
+ */
+export async function auditSnapshot(sinceIso: string): Promise<{
+  recent: AuditRow[];
+  topupsByRef: Record<string, AuditRow>;
+  balanceIssues: { email: string; balance: number; ledgerSum: number }[];
+}> {
+  await ensureSchema();
+  const pool = getPool();
+  const recentQ = await pool.query(
+    `select id, email, amount, type, reference, created_at from billing_tx
+      where created_at >= $1 and type in ('topup', 'bonus', 'welcome', 'refund', 'admin')
+      order by id asc limit 20000`,
+    [sinceIso],
+  );
+  const recent = recentQ.rows.map(toAuditRow);
+
+  // id платежей, к которым привязаны бонусы и реферальные из окна
+  const refs = new Set<string>();
+  for (const r of recent) {
+    const m =
+      /^yk-(.+):bonus$/.exec(r.reference ?? "") ??
+      /^ref-(?:pay|first):(.+)$/.exec(r.reference ?? "");
+    if (m) refs.add(`yk-${m[1]}`);
+  }
+  const topupsByRef: Record<string, AuditRow> = {};
+  if (refs.size > 0) {
+    const topQ = await pool.query(
+      `select id, email, amount, type, reference, created_at from billing_tx
+        where reference = any($1::text[])`,
+      [[...refs]],
+    );
+    for (const row of topQ.rows.map(toAuditRow)) {
+      if (row.reference) topupsByRef[row.reference] = row;
+    }
+  }
+
+  const balQ = await pool.query(
+    // Только аккаунты с живой строкой баланса: у удалённых аккаунтов баланс
+    // стёрт, а записи журнала обезличены под псевдоним (core/auth/deletion) —
+    // их ненулевая сумма расхождением не является.
+    `select b.email as email, b.balance as balance, coalesce(s.total, 0) as ledger_sum
+       from billing_balance b
+       left join (select email, sum(amount)::int as total from billing_tx group by email) s
+         on s.email = b.email
+      where b.balance <> coalesce(s.total, 0) or b.balance < 0
+      limit 100`,
+  );
+  const balanceIssues = balQ.rows.map((r) => ({
+    email: String(r.email),
+    balance: Number(r.balance),
+    ledgerSum: Number(r.ledger_sum),
+  }));
+  return { recent, topupsByRef, balanceIssues };
+}
+
+export type StoredAuditFinding = {
+  key: string;
+  code: string;
+  severity: string;
+  email: string | null;
+  title: string;
+  detail: string;
+  firstSeen: string;
+  alertedAt: string | null;
+  ackedAt: string | null;
+};
+
+/**
+ * Запомнить найденные расхождения (новые добавляются, известные не трогаются)
+ * и вернуть их сохранённое состояние: когда впервые замечено, слали ли тревогу,
+ * принято ли владельцем.
+ */
+export async function recordAuditFindings(
+  findings: {
+    key: string;
+    code: string;
+    severity: string;
+    email: string | null;
+    title: string;
+    detail: string;
+  }[],
+): Promise<StoredAuditFinding[]> {
+  await ensureAuditSchema();
+  if (findings.length === 0) return [];
+  const pool = getPool();
+  for (const f of findings) {
+    await pool.query(
+      `insert into billing_audit_findings (key, code, severity, email, title, detail)
+       values ($1, $2, $3, $4, $5, $6) on conflict (key) do nothing`,
+      [f.key, f.code, f.severity, f.email, f.title, f.detail],
+    );
+  }
+  const { rows } = await pool.query(
+    `select * from billing_audit_findings where key = any($1::text[]) order by first_seen desc`,
+    [findings.map((f) => f.key)],
+  );
+  return rows.map((r) => ({
+    key: r.key,
+    code: r.code,
+    severity: r.severity,
+    email: r.email,
+    title: r.title,
+    detail: r.detail,
+    firstSeen: new Date(r.first_seen).toISOString(),
+    alertedAt: r.alerted_at ? new Date(r.alerted_at).toISOString() : null,
+    ackedAt: r.acked_at ? new Date(r.acked_at).toISOString() : null,
+  }));
+}
+
+/** Отметить, что по этим расхождениям тревога владельцу уже ушла. */
+export async function markAuditAlerted(keys: string[]): Promise<void> {
+  if (keys.length === 0) return;
+  await ensureAuditSchema();
+  await getPool().query(
+    `update billing_audit_findings set alerted_at = now() where key = any($1::text[])`,
+    [keys],
+  );
+}
+
+/** «Принято»: владелец разобрал случай, больше не показывать и не напоминать. */
+export async function ackAuditFinding(key: string): Promise<boolean> {
+  await ensureAuditSchema();
+  const r = await getPool().query(
+    `update billing_audit_findings set acked_at = now() where key = $1 and acked_at is null`,
+    [key],
+  );
+  return (r.rowCount ?? 0) > 0;
 }

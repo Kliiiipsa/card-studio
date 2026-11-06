@@ -94,3 +94,53 @@ export async function createPayment(args: {
 export function getPayment(id: string): Promise<YooPayment> {
   return yooFetch(`/payments/${encodeURIComponent(id)}`);
 }
+
+/** Успешный платёж в виде, нужном сверке денег (core/billing/money-audit). */
+export type PaidPayment = {
+  id: string;
+  amountRub: number;
+  paidAt: string;
+  email: string | null;
+  sparks: number;
+  bonus: number;
+};
+
+/**
+ * Все успешные платежи магазина, созданные не раньше sinceIso. Только чтение,
+ * постранично (ЮKassa отдаёт до 100 за запрос и курсор на следующую страницу).
+ */
+export async function listSucceededPayments(sinceIso: string): Promise<PaidPayment[]> {
+  const out: PaidPayment[] = [];
+  let cursor = "";
+  for (let page = 0; page < 50; page++) {
+    const url =
+      `${API}/payments?limit=100&status=succeeded&created_at.gte=${encodeURIComponent(sinceIso)}` +
+      (cursor ? `&cursor=${encodeURIComponent(cursor)}` : "");
+    const res = await fetch(url, { headers: { Authorization: authHeader() }, cache: "no-store" });
+    const body = (await res.json().catch(() => ({}))) as {
+      items?: (YooPayment & { created_at?: string; captured_at?: string })[];
+      next_cursor?: string;
+      description?: string;
+      code?: string;
+    };
+    if (!res.ok) {
+      throw new Error(
+        `ЮKassa ${res.status}: ${body.description ?? body.code ?? "список платежей"}`,
+      );
+    }
+    for (const p of body.items ?? []) {
+      if (!p.paid) continue;
+      out.push({
+        id: p.id,
+        amountRub: Math.floor(Number(p.amount?.value) || 0),
+        paidAt: p.captured_at ?? p.created_at ?? new Date(0).toISOString(),
+        email: p.metadata?.email ?? null,
+        sparks: Number(p.metadata?.sparks ?? 0) || 0,
+        bonus: Number(p.metadata?.bonus ?? 0) || 0,
+      });
+    }
+    cursor = body.next_cursor ?? "";
+    if (!cursor) break;
+  }
+  return out;
+}
